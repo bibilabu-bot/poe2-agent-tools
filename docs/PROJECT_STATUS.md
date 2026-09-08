@@ -21,7 +21,8 @@ Build a maintainable PoE2 desktop build planner with reliable passive-tree alloc
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Not started | Compiler output is not consumed by Planner |
 | Automated tests | Baseline established | Node test harness covers extracted stat utilities; broader allocation coverage remains pending |
-| Packaging/release | Not started | No installer, CI or release workflow |
+| Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
+| Packaging/release | Not started | No installer or release workflow |
 | Licensing/attribution | Incomplete | Disclaimer exists; formal license and third-party inventory pending |
 
 ## Verified baseline
@@ -34,6 +35,7 @@ At migration time:
 - All committed JSON parsed successfully.
 - Web `index.html` embedded script matched the standalone `planner.js` snapshot.
 - P2AT-001 added four passing offline unit tests for extracted stat-display and template utilities.
+- P2AT-002 added a read-only GitHub Actions workflow and deterministic temporary-copy verification for jewel fixtures.
 
 Electron itself was not launched during migration because its binary download was interrupted by a network reset. This is an environment limitation, not proof of runtime correctness.
 

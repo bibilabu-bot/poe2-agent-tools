@@ -38,11 +38,12 @@ Non-goals:
 
 ### P2AT-002 — Add continuous integration
 
-- Status: `READY`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-001
 - Scope: `.github/workflows/`, desktop package scripts, jewel compiler checks, supporting documentation only
+- Delivery: `27a89b6`; accepted and merged by controller in `a93dcfc`
 
 Goal: run deterministic syntax, unit-test and fixture-compiler checks for pushes and pull requests.
 
@@ -69,8 +70,29 @@ Non-goals:
 - Priority: P1
 - Assignment target: `ChatGPT chat executor`
 - Depends on: none
+- Scope: research/design artifact for proposed `docs/BUILD_FORMAT.md`; read-only analysis of desktop planner and preload interfaces
 
 Goal: specify a versioned, forward-migratable persistence contract before connecting UI state.
+
+Acceptance criteria:
+
+1. Deliver a complete Markdown artifact suitable for `docs/BUILD_FORMAT.md`, not an outline.
+2. Define a top-level schema version, stable field names and representative JSON examples.
+3. Cover current normal, ascendancy, weapon-set, hidden/instill allocation, class selection, budgets and display-independent identifiers where supported by the existing code.
+4. Separate required persisted build state from optional UI/session state.
+5. Define validation behavior for malformed, unknown, duplicate and no-longer-existing node identifiers.
+6. Define forward/backward migration rules, unknown-field preservation policy and atomic save expectations.
+7. Map every proposed field to existing planner state or explicitly mark it as future work; do not invent unsupported runtime behavior silently.
+8. Identify security/privacy considerations for opening user-supplied JSON.
+9. List unresolved decisions that require controller approval before implementation.
+
+Non-goals:
+
+- editing repository files or committing a branch;
+- implementing save/open behavior;
+- refactoring planner state;
+- choosing a database;
+- designing cloud synchronization.
 
 ### P2AT-004 — Connect desktop Build save/open
 
