@@ -1,0 +1,15 @@
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# Electron local caches / downloaded third-party game assets
+apps/planner-desktop/data/cache/core/*
+!apps/planner-desktop/data/cache/core/.gitkeep
+
+# Jewel compiler downloaded upstream source snapshots
+tools/jewel-compiler/raw/
+
+# Local build artifacts
+*.exe
+*.zip
