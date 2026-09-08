@@ -136,11 +136,12 @@ Goal: connect planner state to the existing safe IPC save/open boundary.
 
 ### P2AT-004A — Implement the pure Build schema codec
 
-- Status: `READY`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-001, P2AT-003A
 - Scope: a new pure module under `apps/planner-desktop/renderer/`, its Node tests, and desktop test/check scripts or documentation as needed
+- Delivery: `3071bf6`; accepted and merged by controller in `ac3dfb0`
 
 Goal: implement deterministic schema-v1 document creation, structural validation, normalization, diagnostics and opaque preservation without DOM, Electron, filesystem or network dependencies.
 
@@ -165,12 +166,32 @@ Non-goals:
 
 ### P2AT-004B — Harden Build file IPC and atomic storage
 
-- Status: `BLOCKED`
+- Status: `READY`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-004A
+- Scope: `apps/planner-desktop/electron/`, focused Node tests, preload contract, package checks and supporting desktop documentation
 
 Goal: enforce bounded reads, structured errors and atomic writes behind the existing Build-specific preload/main-process boundary.
+
+Acceptance criteria:
+
+1. Opening rejects files larger than 5 MiB before returning content to the renderer and returns UTF-8 text for codec processing rather than applying state in the main process.
+2. Open/save results distinguish cancellation, read failure, size violation, malformed request and write failure with stable structured error codes; normal user-facing results do not expose stack traces.
+3. Saving accepts only a bounded serialized Build payload and writes readable UTF-8 content ending in a newline.
+4. Save uses a unique temporary sibling file, closes/syncs it as appropriate, and replaces the destination while preserving the invariant that a failed operation does not leave a partial destination file.
+5. Temporary/backup artifacts are cleaned up when practical; failure-path tests prove an existing destination remains valid.
+6. Filesystem capability remains limited to Build-specific dialogs and operations through preload; no generic path/read/write API is exposed.
+7. Testable file operations are extracted from Electron lifecycle/dialog code so success, oversize, malformed request and injected read/write/replace failures can be tested without launching Electron.
+8. `npm test`, `npm run check`, jewel fixture verification and CI remain green without an Electron binary or live network.
+
+Non-goals:
+
+- wiring Save/Open controls to live Planner state;
+- interpreting semantic Build fields in the main process;
+- changing schema v1;
+- implementing cloud sync, automatic backups or recent-file lists;
+- modifying the Web snapshot.
 
 ### P2AT-004C — Connect Build persistence to Planner state and UI
 
