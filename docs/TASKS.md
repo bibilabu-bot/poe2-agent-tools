@@ -98,11 +98,12 @@ Non-goals:
 
 ### P2AT-003A — Integrate the approved Build JSON contract
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-003 research delivery
 - Scope: `docs/BUILD_FORMAT.md`, `docs/DECISIONS.md`, `docs/TASKS.md`, `docs/PROJECT_STATUS.md`
+- Delivery: `100fd1a`; accepted and merged by controller in `727699b`
 
 Goal: integrate the accepted P2AT-003 artifact and controller decisions without redesigning or implementing persistence.
 
@@ -128,10 +129,57 @@ Acceptance criteria:
 - Status: `BLOCKED`
 - Priority: P1
 - Assignment target: `Codex local executor`
-- Depends on: P2AT-001, P2AT-003A
-- Blocked by: P2AT-003A controller acceptance
+- Depends on: P2AT-004A, P2AT-004B, P2AT-004C
+- Type: tracking task; implement through the bounded subtasks below
 
 Goal: connect planner state to the existing safe IPC save/open boundary.
+
+### P2AT-004A — Implement the pure Build schema codec
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-001, P2AT-003A
+- Scope: a new pure module under `apps/planner-desktop/renderer/`, its Node tests, and desktop test/check scripts or documentation as needed
+
+Goal: implement deterministic schema-v1 document creation, structural validation, normalization, diagnostics and opaque preservation without DOM, Electron, filesystem or network dependencies.
+
+Acceptance criteria:
+
+1. The codec is usable in both the isolated browser renderer and Node tests without enabling `nodeIntegration`.
+2. It enforces the accepted format discriminator, schema version, required fields and U3 limits from `docs/BUILD_FORMAT.md`.
+3. It canonicalizes known fields, string node identifiers and deterministic array ordering without mutating caller input.
+4. It reports fatal errors separately from bounded warnings/details.
+5. It handles duplicates, cross-category redundancy, malformed known values and unsupported newer schema versions according to the contract.
+6. It preserves unknown fields and unresolved identifiers in an inert sidecar/normalized representation suitable for later load/edit/save cycles.
+7. Tests cover valid round trips, all allocation categories, unknown-field preservation, unresolved-ID preservation, duplicate handling, invalid limits, malformed structure and future-version rejection.
+8. `npm test`, `npm run check` and CI remain green; no Electron binary or live network is required.
+
+Non-goals:
+
+- reading or writing files;
+- changing Electron IPC;
+- wiring buttons or mutating live planner state;
+- implementing schema versions beyond v1;
+- modifying the Web snapshot.
+
+### P2AT-004B — Harden Build file IPC and atomic storage
+
+- Status: `BLOCKED`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-004A
+
+Goal: enforce bounded reads, structured errors and atomic writes behind the existing Build-specific preload/main-process boundary.
+
+### P2AT-004C — Connect Build persistence to Planner state and UI
+
+- Status: `BLOCKED`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-004A, P2AT-004B
+
+Goal: connect schema-v1 persistence to live planner state transactionally, expose Save/Open controls and present bounded import diagnostics.
 
 ### P2AT-005 — Inventory and pin upstream data sources
 

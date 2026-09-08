@@ -18,7 +18,7 @@ Build a maintainable PoE2 desktop build planner with reliable passive-tree alloc
 | Chinese localization | Prototype | Runtime translation from community PoB2 data |
 | Local resource cache | Implemented, not fully exercised | Cache-first Electron protocol; first-run download still required |
 | Build save/open | Interface only | IPC API exists; planner state is not connected |
-| Build JSON contract | Accepted and integrated | Schema v1 defines durable state, migration, validation, preservation and atomic-save policy in `docs/BUILD_FORMAT.md` |
+| Build JSON contract | Accepted and integrated | Schema v1 defines durable state, migration, validation, preservation and atomic-save policy in `docs/BUILD_FORMAT.md`; implementation is split into P2AT-004A/B/C |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Not started | Compiler output is not consumed by Planner |
 | Automated tests | Baseline established | Node test harness covers extracted stat utilities; broader allocation coverage remains pending |
