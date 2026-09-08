@@ -6,6 +6,17 @@
 1. `node download_poe2_jewel_sources.mjs`
 2. `node build-jewel-db.mjs`
 
+## Fixture 验证
+
+```bash
+node --check download_poe2_jewel_sources.mjs
+node --check build-jewel-db.mjs
+node --check verify-fixture.mjs
+node verify-fixture.mjs
+```
+
+`verify-fixture.mjs` 会在系统临时目录中复制并运行编译器，然后将生成的 JSON 与 `dist/` 中已提交的 fixture 输出比对。比对仅忽略 `compile_report.json` 中每次运行都会变化的 `compiled_at` 时间戳，不会修改当前工作树。
+
 ## 输出
 - `dist/jewel_mods.json`
 - `dist/jewel_sockets.json`

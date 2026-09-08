@@ -33,12 +33,18 @@ npm start
 
 ```bash
 cd apps/planner-desktop
+npm ci --ignore-scripts
+npm test
 npm run check
 
 cd ../../tools/jewel-compiler
 node --check download_poe2_jewel_sources.mjs
 node --check build-jewel-db.mjs
+node --check verify-fixture.mjs
+node verify-fixture.mjs
 ```
+
+上述命令与 GitHub Actions 使用的离线检查一致。`npm ci --ignore-scripts` 会安装桌面版依赖，但不执行 Electron 的二进制下载脚本；测试和语法检查也不会启动 Electron。珠宝 fixture 验证会在系统临时目录中编译，并忽略报告中的动态编译时间后与已提交输出比对，不会改写工作树内的 `dist/compile_report.json`。
 
 ## 当前边界
 
