@@ -11,6 +11,12 @@ const plannerStatUtils = typeof module === "object" && module.exports
   ? require("./stat-utils.js")
   : window.plannerStatUtils;
 const { cleanStatDisplay, normalizeStatKey, compileStatTemplate } = plannerStatUtils;
+const buildCodec = typeof module === "object" && module.exports
+  ? require("./build-codec.js")
+  : window.plannerBuildCodec;
+const buildStateAdapter = typeof module === "object" && module.exports
+  ? require("./build-state-adapter.js")
+  : window.plannerBuildStateAdapter;
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#treeCanvas");
@@ -53,6 +59,8 @@ let weaponMode = "general";              // general | ws1 | ws2
 let maxWeaponPoints = 24;                // campaign default; adjustable for special cases
 let ascAllocated = new Set();           // current ascendancy nodes
 let ascStartId = null;
+let buildPreservation = null;
+let plannerDataReady = false;
 
 let previewPath = [];                    // ordinary hover path
 let previewIds = new Set();
@@ -2600,7 +2608,8 @@ function updatePlannerUI(message="") {
     ws1===0 &&
     ws2===0 &&
     ascUsed===0 &&
-    instillAllocated.size===0
+    instillAllocated.size===0 &&
+    !buildPreservation
   );
 
   renderInstillCatalog();
@@ -3209,6 +3218,7 @@ function resetBuild() {
   weaponSet2Allocated=new Set();
   resetAscAllocation();
   instillAllocated=new Set();
+  buildPreservation=null;
   clearPreviews();
   rebuildPathIndex();
   updatePlannerUI("已重置普通天赋与当前升华加点。");
@@ -3362,6 +3372,7 @@ function selectAscendancy(id, doFocus=true) {
 
 
 function selectClass(name) {
+  buildPreservation=null;
   baseClassName=name||null;
   // Invalidate the previous class portrait before any async load starts.
   if(classPortraitRenderedClass!==baseClassName) {
@@ -3620,7 +3631,283 @@ function loadImage(url) {
   });
 }
 
+function currentBuildRuntimeState() {
+  return {
+    baseClassName,
+    classStartId,
+    selectedAscendancyId,
+    ascStartId,
+    maxPoints,
+    maxWeaponPoints,
+    maxAscPoints,
+    allocated:new Set(allocated),
+    weaponSet1Allocated:new Set(weaponSet1Allocated),
+    weaponSet2Allocated:new Set(weaponSet2Allocated),
+    ascAllocated:new Set(ascAllocated),
+    instillAllocated:new Set(instillAllocated),
+    camera:{...camera},
+    weaponMode,
+    showAsc,
+    showLockedConditional,
+    showInstillOnGraph,
+    preservation:buildPreservation
+  };
+}
+
+function captureBuildTransactionState() {
+  return {
+    build:currentBuildRuntimeState(),
+    transient:{
+      selected,
+      hovered,
+      hoveredInstill,
+      previewPath:[...previewPath],
+      previewIds:new Set(previewIds),
+      previewEdgeKeys:new Set(previewEdgeKeys),
+      ascPreviewPath:[...ascPreviewPath],
+      ascPreviewIds:new Set(ascPreviewIds),
+      ascPreviewEdgeKeys:new Set(ascPreviewEdgeKeys),
+      undoStack:[...undoStack],
+      redoStack:[...redoStack]
+    }
+  };
+}
+
+function applyPlannerBuildState(next, clearTransient=true) {
+  baseClassName=next.baseClassName;
+  classStartId=next.classStartId;
+  selectedAscendancyId=next.selectedAscendancyId;
+  ascStartId=next.ascStartId;
+  maxPoints=next.maxPoints;
+  maxWeaponPoints=next.maxWeaponPoints;
+  maxAscPoints=next.maxAscPoints;
+  allocated=new Set(next.allocated);
+  weaponSet1Allocated=new Set(next.weaponSet1Allocated);
+  weaponSet2Allocated=new Set(next.weaponSet2Allocated);
+  ascAllocated=new Set(next.ascAllocated);
+  instillAllocated=new Set(next.instillAllocated);
+  buildPreservation=next.preservation;
+
+  if(Number.isFinite(next.camera.x)) camera.x=next.camera.x;
+  if(Number.isFinite(next.camera.y)) camera.y=next.camera.y;
+  if(Number.isFinite(next.camera.scale)) camera.scale=next.camera.scale;
+  if(["general","ws1","ws2"].includes(next.weaponMode)) weaponMode=next.weaponMode;
+  if(typeof next.showLockedConditional==="boolean") showLockedConditional=next.showLockedConditional;
+  if(typeof next.showInstillOnGraph==="boolean") showInstillOnGraph=next.showInstillOnGraph;
+  if(typeof next.showAsc==="boolean") showAsc=Boolean(selectedAscendancyId)&&next.showAsc;
+  else showAsc=Boolean(selectedAscendancyId)&&showAsc;
+
+  if(clearTransient) {
+    selected=null;
+    hovered=null;
+    hoveredInstill=null;
+    clearPreviews();
+    undoStack=[];
+    redoStack=[];
+  }
+}
+
+function refreshBuildDependentState(message="") {
+  populateClassSelect();
+  $("#classSelect").value=baseClassName||"";
+  populateAscendancySelect(baseClassName,selectedAscendancyId);
+  recomputeAscDisplayDelta();
+  rebuildAscPathIndex();
+  rebuildPathIndex();
+  $("#budget").value=String(maxPoints);
+  $("#weaponBudget").value=String(maxWeaponPoints);
+  $("#asc").checked=showAsc;
+  $("#asc").disabled=!selectedAscendancyId;
+  $("#showLockedConditional").checked=showLockedConditional;
+  $("#showInstillOnGraph").checked=showInstillOnGraph;
+  document.querySelectorAll("[data-weapon-mode]").forEach(btn=>{
+    btn.classList.toggle("active",btn.dataset.weaponMode===weaponMode);
+  });
+  $("#nodeInfo").textContent="点击节点后显示真实节点数据。";
+  ensureClassPortrait();
+  updatePlannerUI(message);
+}
+
+function restoreBuildTransactionState(previous) {
+  applyPlannerBuildState(previous.build,false);
+  const t=previous.transient;
+  selected=t.selected;
+  hovered=t.hovered;
+  hoveredInstill=t.hoveredInstill;
+  previewPath=t.previewPath;
+  previewIds=t.previewIds;
+  previewEdgeKeys=t.previewEdgeKeys;
+  ascPreviewPath=t.ascPreviewPath;
+  ascPreviewIds=t.ascPreviewIds;
+  ascPreviewEdgeKeys=t.ascPreviewEdgeKeys;
+  undoStack=t.undoStack;
+  redoStack=t.redoStack;
+  refreshBuildDependentState();
+}
+
+function ascendancyStartFor(ascendancyId) {
+  if(!ascendancyId) return null;
+  const list=nodes.filter(n=>n.asc===ascendancyId && Number.isFinite(n.x) && Number.isFinite(n.y));
+  let start=list.find(n=>kind(n)==="ascstart" || n.isAscendancyStart===true);
+  if(start) return idOf(start);
+  if(!list.length) return null;
+  const minX=Math.min(...list.map(n=>n.x));
+  const maxX=Math.max(...list.map(n=>n.x));
+  const minY=Math.min(...list.map(n=>n.y));
+  const maxY=Math.max(...list.map(n=>n.y));
+  const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+  start=list.slice().sort((a,b)=>Math.hypot(a.x-cx,a.y-cy)-Math.hypot(b.x-cx,b.y-cy))[0];
+  return start ? idOf(start) : null;
+}
+
+function buildCatalogs() {
+  const classStartIds=new Map(classOptions.map(option=>[option.name,String(option.id)]));
+  const ascendancyStartIds=new Map();
+  for(const n of nodes) {
+    if(!n.asc || ascendancyStartIds.has(n.asc)) continue;
+    const start=ascendancyStartFor(n.asc);
+    if(start) ascendancyStartIds.set(n.asc,start);
+  }
+  return {classStartIds,ascendancyStartIds};
+}
+
+function knownAscendancy(id,base) {
+  return ascendanciesForClassName(base).some(entry=>entry.id===id);
+}
+
+function nodeAllowedForBuild(id,category,selectedAscendancyIdForFile,classStartForFile,ascStartForFile) {
+  const node=byId.get(String(id));
+  if(!node) return false;
+  if(String(id)===classStartForFile || String(id)===ascStartForFile) return false;
+  if(category==="ascendancy") return Boolean(selectedAscendancyIdForFile && node.asc===selectedAscendancyIdForFile);
+  if(category==="weaponSet1" || category==="weaponSet2") return weaponSetEligible(node);
+  return !isAsc(node) && !isMasteryVisual(node) && !isInstillExclusiveNode(node)
+    && !isClassStart(node) && !isLegacyStartArtifact(node);
+}
+
+function decodeBuildForCurrentCatalogs(text) {
+  const first=buildCodec.decodeBuildDocument(text,{
+    knownBaseClasses:new Set(classOptions.map(option=>option.name)),
+    knownAscendancies:knownAscendancy,
+    knownInstilledPassives:INSTILL_EXCLUSIVE_NAME_SET
+  });
+  if(!first.ok) return first;
+  const catalogs=buildCatalogs();
+  const selectedAsc=first.value.build.class.ascendancyId;
+  const classStart=catalogs.classStartIds.get(first.value.build.class.base)||null;
+  const ascStart=catalogs.ascendancyStartIds.get(selectedAsc)||null;
+  return buildCodec.decodeBuildDocument(text,{
+    knownBaseClasses:new Set(classOptions.map(option=>option.name)),
+    knownAscendancies:knownAscendancy,
+    knownInstilledPassives:INSTILL_EXCLUSIVE_NAME_SET,
+    knownNodeIds:(id,category)=>nodeAllowedForBuild(id,category,selectedAsc,classStart,ascStart)
+  });
+}
+
+function showBuildFeedback(summary,diagnostics=null,isError=false) {
+  const box=$("#buildFeedback");
+  const list=$("#buildFeedbackDetails");
+  box.hidden=false;
+  box.open=Boolean(diagnostics && (diagnostics.fatalCount||diagnostics.warningCount));
+  box.classList.toggle("error-state",isError);
+  $("#buildFeedbackSummary").textContent=summary;
+  list.replaceChildren();
+  if(!diagnostics) return;
+  for(const detail of [...diagnostics.fatals,...diagnostics.warnings].slice(0,100)) {
+    const item=document.createElement("li");
+    item.textContent=`${detail.path}: ${detail.message}`;
+    list.append(item);
+  }
+}
+
+function ipcErrorMessage(result,fallback) {
+  return result?.error?.message || fallback;
+}
+
+async function saveCurrentBuild() {
+  if(!plannerDataReady || !window.desktopAPI?.saveBuildJson) return;
+  try {
+    const value=buildStateAdapter.extractBuildValue(currentBuildRuntimeState());
+    const text=buildCodec.serializeBuildDocument(value,buildPreservation);
+    const suggestedName=`${baseClassName||"PoE2"}-Build.json`;
+    const result=await window.desktopAPI.saveBuildJson({text,suggestedName});
+    if(result?.canceled) {
+      showBuildFeedback("已取消保存。",null,false);
+      return;
+    }
+    if(!result?.ok) {
+      showBuildFeedback(`保存失败：${ipcErrorMessage(result,"无法写入 Build 文件。")}`,null,true);
+      return;
+    }
+    showBuildFeedback(`Build 已保存：${result.filePath}`,null,false);
+  } catch(error) {
+    showBuildFeedback(`保存失败：${error?.message||"Build 序列化失败。"}`,null,true);
+  }
+}
+
+async function openBuild() {
+  if(!plannerDataReady || !window.desktopAPI?.openBuildJson) return;
+  let result;
+  try {
+    result=await window.desktopAPI.openBuildJson();
+  } catch(error) {
+    showBuildFeedback(`打开失败：${error?.message||"Build IPC 调用失败。"}`,null,true);
+    return;
+  }
+  if(result?.canceled) {
+    showBuildFeedback("已取消打开。",null,false);
+    return;
+  }
+  if(!result?.ok) {
+    showBuildFeedback(`打开失败：${ipcErrorMessage(result,"无法读取 Build 文件。")}`,null,true);
+    return;
+  }
+
+  const decoded=decodeBuildForCurrentCatalogs(result.text);
+  if(!decoded.ok) {
+    showBuildFeedback(`Build 未打开：发现 ${decoded.diagnostics.fatalCount} 个致命错误。`,decoded.diagnostics,true);
+    return;
+  }
+
+  let candidate;
+  try {
+    candidate=buildStateAdapter.createBuildCandidate(decoded.value,decoded.preservation,buildCatalogs());
+  } catch(error) {
+    showBuildFeedback(`Build 未打开：${error.message}`,null,true);
+    return;
+  }
+
+  const applied=buildStateAdapter.applyBuildCandidateTransaction(candidate,{
+    snapshot:captureBuildTransactionState,
+    commit:next=>applyPlannerBuildState(next,true),
+    finalize:()=>refreshBuildDependentState("Build 已打开，旧的撤销/重做历史已清空。"),
+    rollback:restoreBuildTransactionState
+  });
+  if(!applied.ok) {
+    showBuildFeedback(`Build 应用失败，当前 Build 已保持不变：${applied.error?.message||"未知错误"}`,null,true);
+    return;
+  }
+
+  const warningCount=decoded.diagnostics.warningCount;
+  showBuildFeedback(
+    warningCount
+      ? `Build 已打开，共 ${warningCount} 条兼容性警告（详情最多显示 100 条）。`
+      : "Build 已成功打开，没有兼容性警告。",
+    warningCount ? decoded.diagnostics : null,
+    false
+  );
+}
+
+function setBuildControlsReady(ready) {
+  plannerDataReady=ready;
+  const supported=Boolean(window.desktopAPI?.saveBuildJson && window.desktopAPI?.openBuildJson);
+  $("#saveBuild").disabled=!(ready&&supported);
+  $("#openBuild").disabled=!(ready&&supported);
+}
+
 function bindUI() {
+  $("#saveBuild").addEventListener("click",saveCurrentBuild);
+  $("#openBuild").addEventListener("click",openBuild);
   document.querySelectorAll("[data-style]").forEach(btn=>btn.addEventListener("click",()=>{
     styleMode=btn.dataset.style;
     document.querySelectorAll("[data-style]").forEach(b=>b.classList.toggle("active",b===btn));
@@ -3869,6 +4156,7 @@ async function load() {
     populateAscendancySelect(null,null);
 
     document.querySelectorAll("button,input,select").forEach(x=>x.disabled=false);
+    setBuildControlsReady(true);
     $("#undo").disabled=true; $("#redo").disabled=true; $("#resetBuild").disabled=true;
     $("#asc").disabled=true; $("#ascendancySelect").disabled=true; $("#focusAsc").disabled=true;
 
@@ -3918,6 +4206,7 @@ async function load() {
 
   } catch(err) {
     console.error(err);
+    setBuildControlsReady(false);
     $("#status").textContent="加载失败";
     const box=$("#error");
     box.style.display="block";

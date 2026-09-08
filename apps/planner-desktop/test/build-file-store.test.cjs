@@ -194,9 +194,13 @@ test("an injected replace failure preserves the existing destination and cleans 
 
 test("IPC handlers return text and stable cancellation or failure results without stacks", async () => {
   const content = buildText();
+  let savedRequest = null;
   const store = {
     readBuildText: async () => content,
-    writeBuildText: async () => ({ bytes: Buffer.byteLength(content) }),
+    writeBuildText: async (_filePath, request) => {
+      savedRequest = request;
+      return { bytes: Buffer.byteLength(content) };
+    },
   };
   const dialogs = {
     showOpenDialog: async () => ({ canceled: false, filePaths: ["selected.json"] }),
@@ -219,6 +223,7 @@ test("IPC handlers return text and stable cancellation or failure results withou
     canceled: false,
     filePath: "selected.json",
   });
+  assert.deepEqual(savedRequest, { text: content, suggestedName: undefined });
 
   dialogs.showOpenDialog = async () => ({ canceled: true, filePaths: [] });
   dialogs.showSaveDialog = async () => ({ canceled: true });

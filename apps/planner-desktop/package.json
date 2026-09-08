@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "check": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check electron/build-file-store.cjs && node --check renderer/stat-utils.js && node --check renderer/build-codec.js && node --check renderer/planner.js && node --check test/stat-utils.test.cjs && node --check test/build-codec.test.cjs && node --check test/build-file-store.test.cjs",
+    "check": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check electron/build-file-store.cjs && node --check renderer/stat-utils.js && node --check renderer/build-codec.js && node --check renderer/build-state-adapter.js && node --check renderer/planner.js && node --check test/stat-utils.test.cjs && node --check test/build-codec.test.cjs && node --check test/build-file-store.test.cjs && node --check test/build-state-adapter.test.cjs",
     "test": "node --test"
   },
   "devDependencies": {
