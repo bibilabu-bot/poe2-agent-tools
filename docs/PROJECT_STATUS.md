@@ -18,6 +18,7 @@ Build a maintainable PoE2 desktop build planner with reliable passive-tree alloc
 | Chinese localization | Prototype | Runtime translation from community PoB2 data |
 | Local resource cache | Implemented, not fully exercised | Cache-first Electron protocol; first-run download still required |
 | Build save/open | Interface only | IPC API exists; planner state is not connected |
+| Build JSON contract | Accepted and integrated | Schema v1 defines durable state, migration, validation, preservation and atomic-save policy in `docs/BUILD_FORMAT.md` |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Not started | Compiler output is not consumed by Planner |
 | Automated tests | Baseline established | Node test harness covers extracted stat utilities; broader allocation coverage remains pending |
@@ -36,6 +37,7 @@ At migration time:
 - Web `index.html` embedded script matched the standalone `planner.js` snapshot.
 - P2AT-001 added four passing offline unit tests for extracted stat-display and template utilities.
 - P2AT-002 added a read-only GitHub Actions workflow and deterministic temporary-copy verification for jewel fixtures.
+- P2AT-003/P2AT-003A approved and integrated the versioned schema-v1 Build JSON contract and ADR-006; persistence implementation remains pending.
 
 Electron itself was not launched during migration because its binary download was interrupted by a network reset. This is an environment limitation, not proof of runtime correctness.
 
