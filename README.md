@@ -48,3 +48,13 @@ node --check build-jewel-db.mjs
 - 游戏名称、图像和数据的权利归各自权利人所有；本仓库与 Grinding Gear Games 无隶属或背书关系。
 
 后续开发方向见 [docs/ROADMAP.md](docs/ROADMAP.md)，代码结构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+
+## 项目协作
+
+本项目采用“总控对话 + 独立执行对话”的工作方式。新会话开始前先阅读根目录的 `AGENTS.md`；当前事实、任务状态和架构决定分别记录在：
+
+- [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md)
+- [docs/TASKS.md](docs/TASKS.md)
+- [docs/DECISIONS.md](docs/DECISIONS.md)
+
+执行任务时可直接使用 [docs/EXECUTOR_PROMPT.md](docs/EXECUTOR_PROMPT.md) 中的提示词模板。
