@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "sockets": [
+    {
+      "node_id": "100",
+      "name": "Jewel Socket",
+      "x": 1000,
+      "y": 2000,
+      "group": 1,
+      "orbit": 2,
+      "orbit_index": 3,
+      "sinister": false,
+      "no_radius": false,
+      "blighted": false
+    },
+    {
+      "node_id": "101",
+      "name": "Sinister Jewel Socket",
+      "x": -300,
+      "y": 50,
+      "group": 2,
+      "orbit": 0,
+      "orbit_index": 0,
+      "sinister": true,
+      "no_radius": false,
+      "blighted": false
+    }
+  ]
+}

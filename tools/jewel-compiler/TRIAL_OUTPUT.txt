@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "compiled_at": "2026-09-07T14:54:58.359Z",
+  "counts": {
+    "jewel_mods": 3,
+    "jewel_sockets": 2,
+    "unique_jewels": 15,
+    "rule_families": 12
+  },
+  "constants": {
+    "PassiveTreeJewelDistanceMultiplier": 1.2
+  },
+  "warnings": [
+    "Unique jewels are seeded; parse live PoE2DB/PoB unique item data before production use."
+  ]
+}

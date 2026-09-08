@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "mods": [
+    {
+      "id": "JewelAccuracy",
+      "type": "Prefix",
+      "affix": "Accurate",
+      "group": "IncreasedAccuracyPercent",
+      "level": 1,
+      "stat": "(5-10)% increased Accuracy Rating",
+      "range": {
+        "min": 5,
+        "max": 10
+      },
+      "weights": {
+        "dexjewel": 1,
+        "jewel": 0
+      },
+      "tags": [
+        "attack"
+      ],
+      "stat_order": [
+        1332
+      ]
+    },
+    {
+      "id": "JewelAttackSpeed",
+      "type": "Suffix",
+      "affix": "of Alacrity",
+      "group": "IncreasedAttackSpeed",
+      "level": 1,
+      "stat": "(2-4)% increased Attack Speed",
+      "range": {
+        "min": 2,
+        "max": 4
+      },
+      "weights": {
+        "dexjewel": 1,
+        "jewel": 0
+      },
+      "tags": [
+        "attack",
+        "speed"
+      ],
+      "stat_order": [
+        985
+      ]
+    },
+    {
+      "id": "JewelChaosDamage",
+      "type": "Prefix",
+      "affix": "Chaotic",
+      "group": "IncreasedChaosDamage",
+      "level": 1,
+      "stat": "(7-13)% increased Chaos Damage",
+      "range": {
+        "min": 7,
+        "max": 13
+      },
+      "weights": {
+        "intjewel": 1,
+        "jewel": 0
+      },
+      "tags": [
+        "chaos_damage",
+        "damage",
+        "chaos"
+      ],
+      "stat_order": [
+        876
+      ]
+    }
+  ]
+}

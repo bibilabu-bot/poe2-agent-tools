@@ -1,0 +1,96 @@
+{
+  "schema_version": 2,
+  "radius": {
+    "distance_multiplier": 1.2,
+    "distance_formula": "sqrt((node.x-socket.x)^2+(node.y-socket.y)^2)",
+    "implementation": "precompute nodesInRadius per socket/radius"
+  },
+  "socket_types": {
+    "normal": {
+      "tree_connected": true,
+      "participates_in_radius": true,
+      "unique_allowed": true
+    },
+    "sinister": {
+      "tree_connected": false,
+      "participates_in_radius": false,
+      "unique_allowed": false,
+      "affected_by_jewel_socket_effect": false
+    }
+  },
+  "families": {
+    "disconnected_allocation": {
+      "planner_effect": "allow nodes in configured radius around a passive target to allocate without graph connectivity"
+    },
+    "ring_disconnected_allocation": {
+      "planner_effect": "same as disconnected_allocation but only nodes within inner..outer ring"
+    },
+    "grant_sinister_sockets": {
+      "planner_effect": "create N display-only sinister jewel sockets"
+    },
+    "grant_passives": {
+      "planner_effect": "grant named passive(s) without normal path cost"
+    },
+    "jewel_effect_multiplier": {
+      "planner_effect": "scale effects of qualifying jewels in normal jewel sockets"
+    },
+    "alternate_start": {
+      "planner_effect": "add an additional valid passive allocation root"
+    },
+    "time_lost_radius": {
+      "planner_effect": "apply radius jewel modifiers to eligible nodes in range"
+    },
+    "timeless_conqueror": {
+      "planner_effect": "replace/modify passives according to seed lookup tables"
+    },
+    "random_keystone": {
+      "planner_effect": "assign a keystone/effect selected by jewel roll"
+    }
+  },
+  "catalog_by_family": {
+    "grant_sinister_sockets": [
+      "Voices"
+    ],
+    "disconnected_allocation": [
+      "From Nothing"
+    ],
+    "ring_disconnected_allocation": [
+      "Controlled Metamorphosis"
+    ],
+    "jewel_effect_multiplier": [
+      "The Adorned"
+    ],
+    "random_keystone": [
+      "Flesh Crucible"
+    ],
+    "time_lost_radius": [
+      "Against the Darkness"
+    ]
+  },
+  "reference_evidence": [
+    {
+      "id": "radius_jewel_pipeline",
+      "present": true
+    },
+    {
+      "id": "sinister_exclusion",
+      "present": true
+    },
+    {
+      "id": "corrupted_jewel_effect",
+      "present": true
+    },
+    {
+      "id": "passive_skill_other_effect",
+      "present": true
+    },
+    {
+      "id": "time_lost_special_case",
+      "present": true
+    },
+    {
+      "id": "timeless_special_case",
+      "present": true
+    }
+  ]
+}

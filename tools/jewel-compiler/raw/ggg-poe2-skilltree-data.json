@@ -1,0 +1,28 @@
+{
+  "nodes": {
+    "100": {
+      "name": "Jewel Socket",
+      "isJewelSocket": true,
+      "x": 1000,
+      "y": 2000,
+      "group": 1,
+      "orbit": 2,
+      "orbitIndex": 3
+    },
+    "101": {
+      "name": "Sinister Jewel Socket",
+      "isJewelSocket": true,
+      "isSinisterJewelSocket": true,
+      "x": -300,
+      "y": 50,
+      "group": 2,
+      "orbit": 0,
+      "orbitIndex": 0
+    },
+    "200": {
+      "name": "Some Passive",
+      "x": 1200,
+      "y": 2100
+    }
+  }
+}

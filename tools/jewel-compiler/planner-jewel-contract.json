@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "planner_contract": {
+    "socket": {
+      "node_id": "string",
+      "type": "normal|sinister",
+      "x": "number",
+      "y": "number",
+      "jewel_id": "string|null"
+    },
+    "jewel": {
+      "id": "string",
+      "name": "string",
+      "base": "string",
+      "rarity": "normal|magic|rare|unique",
+      "mods": "array",
+      "rule_family": "string|null",
+      "radius": "number|null"
+    },
+    "runtime_rules": [
+      "normal_stats",
+      "radius_modify",
+      "disconnected_allocation",
+      "ring_disconnected_allocation",
+      "grant_sinister_sockets",
+      "grant_passives",
+      "jewel_effect_multiplier",
+      "alternate_start",
+      "timeless_replace"
+    ]
+  },
+  "evaluation_order": [
+    "socket validity",
+    "jewel uniqueness/limits",
+    "static jewel stats",
+    "radius membership",
+    "tree rule injection",
+    "node effect modification",
+    "attribute summary"
+  ]
+}

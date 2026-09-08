@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "compiled_at": "2026-09-07T14:58:15.271Z",
+  "counts": {
+    "jewel_mods": 3,
+    "jewel_sockets": 2,
+    "unique_jewels": 6,
+    "rule_families": 9
+  },
+  "constants": {
+    "PassiveTreeJewelDistanceMultiplier": 1.2
+  },
+  "source_status": {
+    "poe2db": true,
+    "mod_parser": true,
+    "calc_setup": true
+  },
+  "warnings": []
+}

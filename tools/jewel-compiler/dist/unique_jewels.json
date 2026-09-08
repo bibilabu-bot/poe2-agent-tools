@@ -1,0 +1,91 @@
+{
+  "schema_version": 2,
+  "jewels": [
+    {
+      "name": "Voices",
+      "base": "Sapphire",
+      "family": "grant_sinister_sockets",
+      "tokens": [
+        "Sinister Jewel sockets"
+      ],
+      "effects": [
+        "Voices Sapphire Requires Level 20 Allocates 2 Sinister Jewel sockets Corrupted From Nothing Diamond Requires Level 20 Passives in Radius of Passive Skill can be Allocated without being connected to your tree Corrupted Controlled Metamorphosis Diamo"
+      ],
+      "source": "poe2db_html",
+      "verified_tokens": 1
+    },
+    {
+      "name": "From Nothing",
+      "base": "Diamond",
+      "family": "disconnected_allocation",
+      "tokens": [
+        "can be Allocated",
+        "without being connected to your tree"
+      ],
+      "effects": [
+        "From Nothing Diamond Requires Level 20 Passives in Radius of Passive Skill can be Allocated without being connected to your tree Corrupted Controlled Metamorphosis Diamond Requires Level 20 Only affects Passives in Medium-Large Ring Passives in Radius can be Allocated wi",
+        "om Nothing Diamond Requires Level 20 Passives in Radius of Passive Skill can be Allocated without being connected to your tree Corrupted Controlled Metamorphosis Diamond Requires Level 20 Only affects Passives in Medium-Large Ring Passives in Radius can be Allocated without being connected to your tree (-"
+      ],
+      "source": "poe2db_html",
+      "verified_tokens": 2
+    },
+    {
+      "name": "Controlled Metamorphosis",
+      "base": "Diamond",
+      "family": "ring_disconnected_allocation",
+      "tokens": [
+        "Medium-Large Ring",
+        "without being connected to your tree"
+      ],
+      "effects": [
+        "Controlled Metamorphosis Diamond Requires Level 20 Only affects Passives in Medium-Large Ring Passives in Radius can be Allocated without being connected to your tree (-20—-5)% to all Elemental Resistances The Adorned Diamond Requires Level 20 (0—150)% increased Effect of",
+        "s Level 20 Only affects Passives in Medium-Large Ring Passives in Radius can be Allocated without being connected to your tree (-20—-5)% to all Elemental Resistances The Adorned Diamond Requires Level 20 (0—150)% increased Effect of Jewel Socket Passive Skills containing Corrupted Magic Jewels Against the"
+      ],
+      "source": "poe2db_html",
+      "verified_tokens": 2
+    },
+    {
+      "name": "The Adorned",
+      "base": "Diamond",
+      "family": "jewel_effect_multiplier",
+      "tokens": [
+        "Effect of Jewel Socket Passive Skills",
+        "Corrupted Magic Jewels"
+      ],
+      "effects": [
+        "The Adorned Diamond Requires Level 20 (0—150)% increased Effect of Jewel Socket Passive Skills containing Corrupted Magic Jewels Against the Darkness Time-Lost Diamond Requires Level 20 local jewel effect base radius [1000] [2 Random Jewel Modifiers] Flesh Crucible Diamond",
+        "ond Requires Level 20 (0—150)% increased Effect of Jewel Socket Passive Skills containing Corrupted Magic Jewels Against the Darkness Time-Lost Diamond Requires Level 20 local jewel effect base radius [1000] [2 Random Jewel Modifiers] Flesh Crucible Diamond Requires Level 20 Random 1 Keyston"
+      ],
+      "source": "poe2db_html",
+      "verified_tokens": 2
+    },
+    {
+      "name": "Flesh Crucible",
+      "base": "Diamond",
+      "family": "random_keystone",
+      "tokens": [
+        "Random 1 Keystone Passive Skill"
+      ],
+      "effects": [
+        "Flesh Crucible Diamond Requires Level 20 Random 1 Keystone Passive Skill [1,33] (20-10)% less [random stat]"
+      ],
+      "source": "poe2db_html",
+      "verified_tokens": 1
+    },
+    {
+      "name": "Against the Darkness",
+      "base": "Time-Lost Diamond",
+      "family": "time_lost_radius",
+      "tokens": [
+        "local jewel effect base radius",
+        "Random Jewel Modifiers"
+      ],
+      "effects": [
+        "Against the Darkness Time-Lost Diamond Requires Level 20 local jewel effect base radius [1000] [2 Random Jewel Modifiers] Flesh Crucible Diamond Requires Level 20 Random 1 Keystone Passive Skill [1,33] (20-10)% less [random stat]",
+        "the Darkness Time-Lost Diamond Requires Level 20 local jewel effect base radius [1000] [2 Random Jewel Modifiers] Flesh Crucible Diamond Requires Level 20 Random 1 Keystone Passive Skill [1,33] (20-10)% less [random stat]"
+      ],
+      "source": "poe2db_html",
+      "verified_tokens": 2
+    }
+  ]
+}

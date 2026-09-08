@@ -1,15 +1,22 @@
 node_modules/
+dist/
+!tools/jewel-compiler/dist/
+!tools/jewel-compiler/dist/**
+out/
+release/
+coverage/
 *.log
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
 
-# Electron local caches / downloaded third-party game assets
-apps/planner-desktop/data/cache/core/*
-!apps/planner-desktop/data/cache/core/.gitkeep
+# Electron cache and locally downloaded game data
+apps/planner-desktop/data/cache/core/
+apps/planner-desktop/data/cache/tmp/
 
-# Jewel compiler downloaded upstream source snapshots
-tools/jewel-compiler/raw/
-
-# Local build artifacts
-*.exe
-*.zip
+# Local build files
+*.poe2build.json
+.env
+.env.*
+!.env.example

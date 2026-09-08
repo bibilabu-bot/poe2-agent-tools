@@ -1,0 +1,15 @@
+{
+  "name": "poe2-planner-desktop",
+  "version": "0.2.0",
+  "private": true,
+  "description": "PoE2 passive tree desktop planner with persistent local game-data cache",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "check": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check renderer/planner.js"
+  },
+  "devDependencies": {
+    "electron": "^39.1.2"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "created_for": "PoE2 passive tree planner jewel system",
+  "source_priority": [
+    "GGG official data",
+    "PoB2 generated/reference implementation",
+    "PoE2DB current catalog cross-check"
+  ],
+  "sources": [
+    {
+      "id": "ggg_passive_tree",
+      "role": "official_tree_geometry_and_jewel_sockets",
+      "url": "https://raw.githubusercontent.com/grindinggear/poe2-skilltree-export/main/data.json",
+      "target": "raw/ggg-poe2-skilltree-data.json",
+      "authority": "GGG official"
+    },
+    {
+      "id": "pob_mod_jewel",
+      "role": "all_current_basic_jewel_affixes_and_ranges",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/dev/src/Data/ModJewel.lua",
+      "target": "raw/pob2-ModJewel.lua",
+      "authority": "PoB2 generated from GGG data"
+    },
+    {
+      "id": "pob_misc",
+      "role": "game_constants_including_PassiveTreeJewelDistanceMultiplier",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/dev/src/Data/Misc.lua",
+      "target": "raw/pob2-Misc.lua",
+      "authority": "PoB2 generated/constants"
+    },
+    {
+      "id": "pob_rares",
+      "role": "sample/basic/radius_jewel_base_construction",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/dev/src/Data/Rares.lua",
+      "target": "raw/pob2-Rares.lua",
+      "authority": "PoB2"
+    },
+    {
+      "id": "pob_calc_setup",
+      "role": "runtime_jewel_socket_and_radius_effect_application",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/dev/src/Modules/CalcSetup.lua",
+      "target": "raw/pob2-CalcSetup.lua",
+      "authority": "PoB2 reference implementation"
+    },
+    {
+      "id": "pob_mod_parser",
+      "role": "special_radius_jewel_rule_parser_and_jewelOtherFuncs",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/dev/src/Modules/ModParser.lua",
+      "target": "raw/pob2-ModParser.lua",
+      "authority": "PoB2 reference implementation"
+    },
+    {
+      "id": "pob_tree_export",
+      "role": "jewel_socket_art_and_passive_tree_export_semantics",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/dev/src/Export/Scripts/passivetree.lua",
+      "target": "raw/pob2-passivetree-export.lua",
+      "authority": "PoB2/GGG export bridge"
+    },
+    {
+      "id": "pob_timeless_node_index",
+      "role": "timeless_jewel_node_index_mapping",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/dev/src/Data/TimelessJewelData/NodeIndexMapping.lua",
+      "target": "raw/pob2-Timeless-NodeIndexMapping.lua",
+      "authority": "PoB2 timeless LUT support"
+    },
+    {
+      "id": "pob_timeless_trade_ids",
+      "role": "timeless_jewel_trade_and_conqueror_ids",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/dev/src/Data/TimelessJewelData/LegionTradeIds.lua",
+      "target": "raw/pob2-Timeless-LegionTradeIds.lua",
+      "authority": "PoB2 timeless LUT support"
+    },
+    {
+      "id": "pob_cluster_jewels",
+      "role": "cluster_jewel_schema_reference_if_future_PoE2_support_expands",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/dev/src/Data/ClusterJewels.lua",
+      "target": "raw/pob2-ClusterJewels.lua",
+      "authority": "PoB2 generated reference"
+    },
+    {
+      "id": "poe2db_jewels",
+      "role": "current_unique_base_desecrated_and_regular_jewel_catalog_crosscheck",
+      "url": "https://poe2db.tw/us/Jewels",
+      "target": "raw/poe2db-jewels.html",
+      "authority": "community data mirror/cross-check"
+    }
+  ]
+}

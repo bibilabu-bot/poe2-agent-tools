@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "radius": {
+    "distance_multiplier": 1.2,
+    "distance_formula": "sqrt((node.x-socket.x)^2 + (node.y-socket.y)^2)",
+    "note": "Compare against jewel radius after applying PassiveTreeJewelDistanceMultiplier according to reference implementation."
+  },
+  "socket_types": {
+    "normal": {
+      "tree_connected": true,
+      "participates_in_radius": true,
+      "unique_allowed": true
+    },
+    "sinister": {
+      "tree_connected": false,
+      "participates_in_radius": false,
+      "unique_allowed": false,
+      "affected_by_jewel_socket_effect": false
+    }
+  },
+  "special_rule_families": {
+    "timeless": [
+      "Heroic Tragedy",
+      "Undying Hate"
+    ],
+    "global_stack": [
+      "Grand Spectrum",
+      "Grand Spectrum",
+      "Grand Spectrum"
+    ],
+    "alternate_start": [
+      "Split Personality"
+    ],
+    "grant_sinister_sockets": [
+      "Voices"
+    ],
+    "grant_passives": [
+      "Megalomaniac"
+    ],
+    "disconnected_allocation": [
+      "From Nothing"
+    ],
+    "ring_disconnected_allocation": [
+      "Controlled Metamorphosis"
+    ],
+    "skill_level": [
+      "Prism of Belief"
+    ],
+    "jewel_effect_multiplier": [
+      "The Adorned"
+    ],
+    "custom_desecrated": [
+      "Heart of the Well"
+    ],
+    "random_keystone": [
+      "Flesh Crucible"
+    ],
+    "time_lost_radius": [
+      "Against the Darkness"
+    ]
+  }
+}

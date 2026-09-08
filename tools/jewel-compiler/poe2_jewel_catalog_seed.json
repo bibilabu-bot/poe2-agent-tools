@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "snapshot_note": "Current PoE2DB jewel page cross-check seed; downloader fetches full live page for exhaustive parsing.",
+  "base_jewels": [
+    {
+      "name": "Timeless Jewel",
+      "kind": "timeless"
+    },
+    {
+      "name": "Ruby",
+      "kind": "basic"
+    },
+    {
+      "name": "Emerald",
+      "kind": "basic"
+    },
+    {
+      "name": "Sapphire",
+      "kind": "basic"
+    },
+    {
+      "name": "Diamond",
+      "kind": "basic"
+    },
+    {
+      "name": "Time-Lost Ruby",
+      "kind": "radius",
+      "base_radius": 1000
+    },
+    {
+      "name": "Time-Lost Emerald",
+      "kind": "radius",
+      "base_radius": 1000
+    },
+    {
+      "name": "Time-Lost Sapphire",
+      "kind": "radius",
+      "base_radius": 1000
+    },
+    {
+      "name": "Time-Lost Diamond",
+      "kind": "radius",
+      "base_radius": 1000
+    }
+  ],
+  "known_unique_jewels": [
+    {
+      "name": "Heroic Tragedy",
+      "base": "Timeless Jewel",
+      "effect": [
+        "Passives in radius are Conquered by the Kalguur"
+      ],
+      "rule_family": "timeless"
+    },
+    {
+      "name": "Undying Hate",
+      "base": "Timeless Jewel",
+      "effect": [
+        "Passives in radius are Conquered by the Abyssals"
+      ],
+      "rule_family": "timeless"
+    },
+    {
+      "name": "Grand Spectrum",
+      "base": "Ruby",
+      "effect": [
+        "2% increased Maximum Life per socketed Grand Spectrum"
+      ],
+      "rule_family": "global_stack"
+    },
+    {
+      "name": "Split Personality",
+      "base": "Ruby",
+      "effect": [
+        "Can Allocate Passive Skills from the Sorceress's starting point"
+      ],
+      "rule_family": "alternate_start"
+    },
+    {
+      "name": "Grand Spectrum",
+      "base": "Emerald",
+      "effect": [
+        "2% increased Spirit per socketed Grand Spectrum"
+      ],
+      "rule_family": "global_stack"
+    },
+    {
+      "name": "Grand Spectrum",
+      "base": "Sapphire",
+      "effect": [
+        "+6% to all Elemental Resistances per socketed Grand Spectrum"
+      ],
+      "rule_family": "global_stack"
+    },
+    {
+      "name": "Voices",
+      "base": "Sapphire",
+      "effect": [
+        "Allocates 2-4 Sinister Jewel sockets"
+      ],
+      "rule_family": "grant_sinister_sockets"
+    },
+    {
+      "name": "Megalomaniac",
+      "base": "Diamond",
+      "effect": [
+        "Allocates Passive Skill(s)"
+      ],
+      "rule_family": "grant_passives"
+    },
+    {
+      "name": "From Nothing",
+      "base": "Diamond",
+      "effect": [
+        "Passives in Radius of Passive Skill can be Allocated without being connected to your tree"
+      ],
+      "rule_family": "disconnected_allocation"
+    },
+    {
+      "name": "Controlled Metamorphosis",
+      "base": "Diamond",
+      "effect": [
+        "Only affects Passives in Medium-Large Ring",
+        "Passives in Radius can be Allocated without being connected to your tree",
+        "(-20 to -5)% to all Elemental Resistances"
+      ],
+      "rule_family": "ring_disconnected_allocation"
+    },
+    {
+      "name": "Prism of Belief",
+      "base": "Diamond",
+      "effect": [
+        "+(1-3) to Level of all Specific Skill Skills"
+      ],
+      "rule_family": "skill_level"
+    },
+    {
+      "name": "The Adorned",
+      "base": "Diamond",
+      "effect": [
+        "(0-150)% increased Effect of Jewel Socket Passive Skills containing Corrupted Magic Jewels"
+      ],
+      "rule_family": "jewel_effect_multiplier"
+    },
+    {
+      "name": "Heart of the Well",
+      "base": "Diamond",
+      "effect": [
+        "Custom Desecrated prefixes/suffixes"
+      ],
+      "rule_family": "custom_desecrated"
+    },
+    {
+      "name": "Flesh Crucible",
+      "base": "Diamond",
+      "effect": [
+        "Random 1 Keystone Passive Skill",
+        "less random stat"
+      ],
+      "rule_family": "random_keystone"
+    },
+    {
+      "name": "Against the Darkness",
+      "base": "Time-Lost Diamond",
+      "effect": [
+        "base radius 1000",
+        "2 Random Jewel Modifiers"
+      ],
+      "rule_family": "time_lost_radius"
+    }
+  ],
+  "global_rules": {
+    "PassiveTreeJewelDistanceMultiplier": 1.2,
+    "sinister_socket": {
+      "unique_jewels_allowed": false,
+      "affected_by_jewel_socket_effect": false,
+      "participates_in_radius": false,
+      "tree_connected": false
+    }
+  }
+}

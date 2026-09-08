@@ -1,0 +1,3 @@
+electron/main.cjs: OK
+electron/preload.cjs: OK
+renderer/planner.js: OK
