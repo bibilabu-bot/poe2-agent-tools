@@ -8,12 +8,13 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-001 — Establish the automated test harness
 
-- Status: `READY`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
-- Owner: unassigned
+- Owner: completed by Codex executor
 - Depends on: none
 - Scope: `apps/planner-desktop`, repository CI/config documentation as required
+- Delivery: `25e5284`; accepted and merged by controller in `72cf0b3`
 
 Goal: create a small, repeatable test harness that can exercise pure planner behavior without launching Electron or depending on live network data.
 
@@ -37,12 +38,30 @@ Non-goals:
 
 ### P2AT-002 — Add continuous integration
 
-- Status: `BLOCKED`
+- Status: `READY`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-001
+- Scope: `.github/workflows/`, desktop package scripts, jewel compiler checks, supporting documentation only
 
 Goal: run deterministic syntax, unit-test and fixture-compiler checks for pushes and pull requests.
+
+Acceptance criteria:
+
+1. A GitHub Actions workflow runs for pull requests and pushes to `main`.
+2. CI uses Node.js 20 and installs desktop dependencies without requiring the Electron runtime binary to download or launch.
+3. CI runs `npm test` and `npm run check` in `apps/planner-desktop`.
+4. CI syntax-checks both jewel compiler scripts and runs the fixture compiler successfully.
+5. The workflow does not modify tracked fixture output or leave an unexplained dirty working tree.
+6. Commands used by CI are documented and can be reproduced locally.
+7. No deployment, release publishing, secrets or broad dependency upgrades are introduced.
+
+Non-goals:
+
+- application packaging;
+- UI/browser automation;
+- adding third-party CI services;
+- refactoring planner or compiler logic.
 
 ### P2AT-003 — Define Build JSON schema and migration policy
 

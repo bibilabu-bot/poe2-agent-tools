@@ -20,7 +20,7 @@ Build a maintainable PoE2 desktop build planner with reliable passive-tree alloc
 | Build save/open | Interface only | IPC API exists; planner state is not connected |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Not started | Compiler output is not consumed by Planner |
-| Automated tests | Missing | Only syntax checks currently exist |
+| Automated tests | Baseline established | Node test harness covers extracted stat utilities; broader allocation coverage remains pending |
 | Packaging/release | Not started | No installer, CI or release workflow |
 | Licensing/attribution | Incomplete | Disclaimer exists; formal license and third-party inventory pending |
 
@@ -33,12 +33,13 @@ At migration time:
 - Jewel compiler fixture completed with 3 mods, 2 sockets, 6 unique jewels and 9 rule families.
 - All committed JSON parsed successfully.
 - Web `index.html` embedded script matched the standalone `planner.js` snapshot.
+- P2AT-001 added four passing offline unit tests for extracted stat-display and template utilities.
 
 Electron itself was not launched during migration because its binary download was interrupted by a network reset. This is an environment limitation, not proof of runtime correctness.
 
 ## Immediate project risks
 
-1. Core allocation behavior has no regression tests.
+1. Core allocation behavior still has no regression tests beyond the initial stat-utility harness.
 2. The desktop renderer is approximately four thousand lines in one JavaScript file.
 3. External datasets track moving branches/URLs rather than pinned versions.
 4. Build persistence is not connected, so users can lose planner state.
