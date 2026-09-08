@@ -17,7 +17,7 @@ Build a maintainable PoE2 desktop build planner with reliable passive-tree alloc
 | Conditional/hidden nodes | Prototype | Conditional reveal and external hidden-node sidecar present |
 | Chinese localization | Prototype | Runtime translation from community PoB2 data |
 | Local resource cache | Implemented, not fully exercised | Cache-first Electron protocol; first-run download still required |
-| Build save/open | In progress | Pure schema-v1 codec accepted in P2AT-004A; hardened file IPC and Planner/UI integration remain |
+| Build save/open | In progress | Pure schema-v1 codec and hardened file IPC accepted; visible Planner/UI integration remains in P2AT-004C |
 | Build JSON contract | Accepted and integrated | Schema v1 defines durable state, migration, validation, preservation and atomic-save policy in `docs/BUILD_FORMAT.md`; implementation is split into P2AT-004A/B/C |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Not started | Compiler output is not consumed by Planner |
@@ -39,6 +39,7 @@ At migration time:
 - P2AT-002 added a read-only GitHub Actions workflow and deterministic temporary-copy verification for jewel fixtures.
 - P2AT-003/P2AT-003A approved and integrated the versioned schema-v1 Build JSON contract and ADR-006; persistence implementation remains pending.
 - P2AT-004A implemented and tested the pure schema-v1 codec, including deterministic serialization, validation, bounded diagnostics and opaque preservation.
+- P2AT-004B implemented bounded UTF-8 reads, structured Build-specific IPC and tested same-directory safe replacement with failure recovery on Windows.
 
 Electron itself was not launched during migration because its binary download was interrupted by a network reset. This is an environment limitation, not proof of runtime correctness.
 

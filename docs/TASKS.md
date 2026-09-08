@@ -166,11 +166,12 @@ Non-goals:
 
 ### P2AT-004B — Harden Build file IPC and atomic storage
 
-- Status: `READY`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-004A
 - Scope: `apps/planner-desktop/electron/`, focused Node tests, preload contract, package checks and supporting desktop documentation
+- Delivery: `f1b5cb8`; accepted and merged by controller in `69f6bbb`
 
 Goal: enforce bounded reads, structured errors and atomic writes behind the existing Build-specific preload/main-process boundary.
 
@@ -195,12 +196,34 @@ Non-goals:
 
 ### P2AT-004C — Connect Build persistence to Planner state and UI
 
-- Status: `BLOCKED`
+- Status: `READY`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-004A, P2AT-004B
+- Scope: desktop renderer UI/state integration, focused pure adapter tests, and desktop documentation; do not modify the Web prototype
 
 Goal: connect schema-v1 persistence to live planner state transactionally, expose Save/Open controls and present bounded import diagnostics.
+
+Acceptance criteria:
+
+1. Desktop UI exposes clear Save Build and Open Build controls that are disabled until the passive-tree data needed for semantic validation is ready.
+2. Save serializes the current canonical class/ascendancy, budgets, all five allocation categories and the approved default UI state through `build-codec.js`, then uses the Build-specific preload API.
+3. Open decodes with current node/class/ascendancy/instill catalogs, constructs a complete candidate state before mutation, and leaves the current Build unchanged on cancel, fatal diagnostics, IPC failure or application failure.
+4. Successful open reconstructs zero-cost class/ascendancy start nodes, applies state in dependency order, clears undo/redo and transient preview/selection state, rebuilds derived indexes, refreshes controls and redraws.
+5. Unknown fields and unresolved identifiers from an opened file remain associated with that document and survive a subsequent normal save; starting/resetting a new Build clears that preservation sidecar intentionally.
+6. Import presents one concise summary with aggregate warning counts and at most 100 expandable details; no per-node modal loop and no raw stack/internal-path disclosure.
+7. The desktop inline script and its standalone `renderer/planner.js` migration copy remain behaviorally synchronized, or the task replaces duplication with one clearly documented runtime source without broad refactoring.
+8. Pure state-adapter tests cover full round trip, all allocation categories, start-node reconstruction, failed transactional application, unresolved preservation and reset behavior.
+9. Existing 30 tests plus new tests and `npm run check` pass offline; CI remains green.
+10. Actual Electron desktop runtime is launched on Windows and a manual round trip is demonstrated: create a non-empty Build, save it, change/reset state, reopen it, and verify restoration.
+11. Handoff includes screenshots of the visible controls and restored Build plus the saved fixture JSON or an exact sanitized example used for runtime verification.
+
+Non-goals:
+
+- changing schema v1 or file IPC contracts without a reported blocker;
+- equipment, skills, jewel socket contents, cloud sync or recent-file lists;
+- broad Planner decomposition or visual redesign;
+- modifying `apps/planner-web`.
 
 ### P2AT-005 — Inventory and pin upstream data sources
 
