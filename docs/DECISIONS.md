@@ -37,3 +37,14 @@ Reason: this separates unreliable data acquisition from deterministic applicatio
 The controller conversation manages scope, priorities, decisions and acceptance only. Implementation occurs in newly opened executor conversations, one task at a time.
 
 Reason: keeping implementation detail out of the controller context provides a durable project-level view and cleaner handoffs across computers and sessions.
+
+## ADR-005 — Route tasks by execution environment
+
+- Date: 2026-09-08
+- Status: Accepted
+
+Every dispatched task names either a Codex local executor or a ChatGPT chat executor.
+
+Codex is used when work requires a checkout, code changes, local tools, tests or Git commits. ChatGPT chat mode is preferred for self-contained research, architecture proposals, reviews and document drafts that can be grounded through the repository URL, branch and directory references.
+
+Reason: this preserves local execution reliability while using faster or more capable chat-mode reasoning for tasks that do not benefit from local computer access.

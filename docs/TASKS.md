@@ -10,7 +10,8 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 - Status: `READY`
 - Priority: P0
-- Owner: unassigned executor conversation
+- Assignment target: `Codex local executor`
+- Owner: unassigned
 - Depends on: none
 - Scope: `apps/planner-desktop`, repository CI/config documentation as required
 
@@ -38,6 +39,7 @@ Non-goals:
 
 - Status: `BLOCKED`
 - Priority: P0
+- Assignment target: `Codex local executor`
 - Depends on: P2AT-001
 
 Goal: run deterministic syntax, unit-test and fixture-compiler checks for pushes and pull requests.
@@ -46,6 +48,7 @@ Goal: run deterministic syntax, unit-test and fixture-compiler checks for pushes
 
 - Status: `READY`
 - Priority: P1
+- Assignment target: `ChatGPT chat executor`
 - Depends on: none
 
 Goal: specify a versioned, forward-migratable persistence contract before connecting UI state.
@@ -54,6 +57,7 @@ Goal: specify a versioned, forward-migratable persistence contract before connec
 
 - Status: `BLOCKED`
 - Priority: P1
+- Assignment target: `Codex local executor`
 - Depends on: P2AT-001, P2AT-003
 
 Goal: connect planner state to the existing safe IPC save/open boundary.
@@ -62,6 +66,7 @@ Goal: connect planner state to the existing safe IPC save/open boundary.
 
 - Status: `READY`
 - Priority: P1
+- Assignment target: `ChatGPT chat executor`
 - Depends on: none
 
 Goal: document provenance, license/attribution needs, update cadence and a pinning strategy for each runtime/compiler source.
