@@ -29,6 +29,8 @@ Every task in `docs/TASKS.md` must name an assignment target:
 
 ChatGPT chat tasks receive repository context through the GitHub URL plus an explicit branch, directory and output contract. If a chat task produces only a report or proposal, it must return a complete artifact that a later Codex task can commit without reconstructing missing context.
 
+Local executor conversations must use an isolated Git worktree. They must not switch branches in the controller's checkout. Multiple Codex conversations can share filesystem state, so using one checkout for both controller metadata and implementation tasks can move `HEAD` underneath another conversation.
+
 ## Required executor handoff
 
 Every completed task must report:
@@ -45,6 +47,7 @@ Do not commit generated dependencies, local caches, credentials or unrelated cha
 
 ## Branch and commit convention
 
+- Worktree: a task-specific Codex worktree based on the latest `main`
 - Branch: `task/<task-id>-short-name`
 - Commit: `<type>(<scope>): <summary>`
 - One implementation task should remain independently reviewable and mergeable.
