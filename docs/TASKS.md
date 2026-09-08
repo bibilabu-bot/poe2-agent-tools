@@ -66,13 +66,13 @@ Non-goals:
 
 ### P2AT-003 — Define Build JSON schema and migration policy
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P1
 - Assignment target: `ChatGPT chat executor`
-- Owner: completed by ChatGPT chat executor; repository integration pending
+- Owner: completed by ChatGPT chat executor; approved by controller and integrated through P2AT-003A
 - Depends on: none
 - Scope: research/design artifact for proposed `docs/BUILD_FORMAT.md`; read-only analysis of desktop planner and preload interfaces
-- Delivery: complete proposed `docs/BUILD_FORMAT.md` received by controller on 2026-09-08
+- Delivery: complete `docs/BUILD_FORMAT.md` received by controller on 2026-09-08, accepted, and integrated through P2AT-003A
 
 Goal: specify a versioned, forward-migratable persistence contract before connecting UI state.
 
@@ -98,7 +98,7 @@ Non-goals:
 
 ### P2AT-003A — Integrate the approved Build JSON contract
 
-- Status: `READY`
+- Status: `REVIEW`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-003 research delivery
@@ -128,7 +128,8 @@ Acceptance criteria:
 - Status: `BLOCKED`
 - Priority: P1
 - Assignment target: `Codex local executor`
-- Depends on: P2AT-001, P2AT-003
+- Depends on: P2AT-001, P2AT-003A
+- Blocked by: P2AT-003A controller acceptance
 
 Goal: connect planner state to the existing safe IPC save/open boundary.
 
