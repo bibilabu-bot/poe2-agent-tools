@@ -15,6 +15,15 @@ npm test
 
 该命令使用 Node.js 内置测试运行器，只验证纯逻辑：不启动 Electron，也不访问网络。
 
+## Build 文件 IPC
+
+Preload 仅暴露两个 Build 专用操作：
+
+- `desktopAPI.saveBuildJson({ text, suggestedName? })`：接收最多 5 MiB 的序列化 Build UTF-8 文本，保存时确保末尾换行。
+- `desktopAPI.openBuildJson()`：返回最多 5 MiB 的 UTF-8 `text`，由 Renderer codec 负责语义验证。
+
+成功结果形如 `{ ok: true, canceled: false, filePath, text? }`。取消或失败结果形如 `{ ok: false, canceled, error: { code, message } }`，其中稳定错误码为 `CANCELED`、`INVALID_REQUEST`、`FILE_TOO_LARGE`、`READ_FAILED`、`WRITE_FAILED` 和 `REPLACE_FAILED`。文件路径始终由 Electron 系统对话框选择，Preload 不提供通用路径或文件读写能力。
+
 ## 本地化逻辑
 资源读取顺序：
 1. `data/cache/` 内置资源（未来打进发布包）

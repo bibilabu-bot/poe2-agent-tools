@@ -3,6 +3,7 @@ const path = require("node:path");
 const fs = require("node:fs/promises");
 const fssync = require("node:fs");
 const { pathToFileURL } = require("node:url");
+const { createBuildFileStore, createBuildIpcHandlers } = require("./build-file-store.cjs");
 
 protocol.registerSchemesAsPrivileged([{
   scheme: "poe2",
@@ -144,27 +145,19 @@ async function ensureBuildDir() {
   const dir=path.join(app.getPath("userData"),"builds"); await fs.mkdir(dir,{recursive:true}); return dir;
 }
 
+const buildIpcHandlers = createBuildIpcHandlers({
+  dialogs: dialog,
+  ensureBuildDir,
+  store: createBuildFileStore()
+});
+
 ipcMain.handle("app:get-info", async () => ({version:app.getVersion(),electron:process.versions.electron,chrome:process.versions.chrome,node:process.versions.node,platform:process.platform,userData:app.getPath("userData")}));
 ipcMain.handle("data:cache-status", coreCacheStatus);
 ipcMain.handle("data:sync-core", syncCoreData);
 ipcMain.handle("data:get-path", async () => ({bundledData:bundledRoot(),userData:userCacheRoot()}));
 
-ipcMain.handle("build:save-json", async (_event,payload) => {
-  const dir=await ensureBuildDir();
-  const defaultName=(payload?.name||"build").replace(/[^\w\u4e00-\u9fa5.-]+/g,"_")+".json";
-  const {canceled,filePath}=await dialog.showSaveDialog({title:"保存 PoE2 Build",defaultPath:path.join(dir,defaultName),filters:[{name:"PoE2 Build JSON",extensions:["json"]}]});
-  if(canceled||!filePath)return {canceled:true};
-  await fs.writeFile(filePath,JSON.stringify(payload?.data??payload??{},null,2),"utf8");
-  return {canceled:false,filePath};
-});
-
-ipcMain.handle("build:open-json", async () => {
-  const dir=await ensureBuildDir();
-  const {canceled,filePaths}=await dialog.showOpenDialog({title:"打开 PoE2 Build",defaultPath:dir,properties:["openFile"],filters:[{name:"PoE2 Build JSON",extensions:["json"]}]});
-  if(canceled||!filePaths?.[0])return {canceled:true};
-  const filePath=filePaths[0],text=await fs.readFile(filePath,"utf8");
-  return {canceled:false,filePath,data:JSON.parse(text)};
-});
+ipcMain.handle("build:save-json", buildIpcHandlers.save);
+ipcMain.handle("build:open-json", buildIpcHandlers.open);
 
 app.whenReady().then(async()=>{await registerLocalDataProtocol();createWindow();app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});});
 app.on("window-all-closed",()=>{if(process.platform!=="darwin")app.quit();});
