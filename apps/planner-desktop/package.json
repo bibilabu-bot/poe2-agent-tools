@@ -7,7 +7,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "check": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check renderer/planner.js"
+    "check": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check renderer/stat-utils.js && node --check renderer/planner.js && node --check test/stat-utils.test.cjs",
+    "test": "node --test"
   },
   "devDependencies": {
     "electron": "^39.1.2"

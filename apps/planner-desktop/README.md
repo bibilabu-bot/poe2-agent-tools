@@ -8,6 +8,13 @@ npm install
 npm start
 ```
 
+## 测试
+```bash
+npm test
+```
+
+该命令使用 Node.js 内置测试运行器，只验证纯逻辑：不启动 Electron，也不访问网络。
+
 ## 本地化逻辑
 资源读取顺序：
 1. `data/cache/` 内置资源（未来打进发布包）
