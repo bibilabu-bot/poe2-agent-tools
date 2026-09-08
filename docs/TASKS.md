@@ -119,7 +119,7 @@ Acceptance criteria:
 
 1. The complete approved artifact is committed as `docs/BUILD_FORMAT.md` with proposal language updated to accepted policy where necessary.
 2. ADR-006 is appended to `docs/DECISIONS.md` with status `Accepted` and the controller decisions above are traceable.
-3. P2AT-003 and P2AT-003A are marked `ACCEPTED`; P2AT-004 becomes `READY` only after the contract is present.
+3. P2AT-003 is marked `ACCEPTED`; P2AT-003A remains for controller acceptance and P2AT-004 stays `BLOCKED` until that acceptance.
 4. `docs/PROJECT_STATUS.md` records the accepted schema-v1 contract.
 5. No application code, schema implementation or unrelated documentation is changed.
 
