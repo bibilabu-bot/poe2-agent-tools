@@ -66,11 +66,13 @@ Non-goals:
 
 ### P2AT-003 — Define Build JSON schema and migration policy
 
-- Status: `READY`
+- Status: `REVIEW`
 - Priority: P1
 - Assignment target: `ChatGPT chat executor`
+- Owner: completed by ChatGPT chat executor; repository integration pending
 - Depends on: none
 - Scope: research/design artifact for proposed `docs/BUILD_FORMAT.md`; read-only analysis of desktop planner and preload interfaces
+- Delivery: complete proposed `docs/BUILD_FORMAT.md` received by controller on 2026-09-08
 
 Goal: specify a versioned, forward-migratable persistence contract before connecting UI state.
 
@@ -93,6 +95,33 @@ Non-goals:
 - refactoring planner state;
 - choosing a database;
 - designing cloud synchronization.
+
+### P2AT-003A — Integrate the approved Build JSON contract
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-003 research delivery
+- Scope: `docs/BUILD_FORMAT.md`, `docs/DECISIONS.md`, `docs/TASKS.md`, `docs/PROJECT_STATUS.md`
+
+Goal: integrate the accepted P2AT-003 artifact and controller decisions without redesigning or implementing persistence.
+
+Controller decisions to encode:
+
+1. U1 accepted: schema v1 uses canonical English names for `instilledPassives`; a durable-ID migration may follow later.
+2. U2 accepted: schema v1 does not require a data-revision fingerprint; P2AT-005 may add provenance later.
+3. U3 accepted limits: 5 MiB maximum file size; 20,000 entries per allocation array; 256 characters per known identifier/name; maximum validation traversal depth 64; retain/display at most 100 detailed diagnostics while preserving aggregate counts.
+4. U4 accepted: write the optional schema-v1 `ui` object by default, while keeping it non-semantic.
+5. U5 accepted: show one import summary with aggregate counts and at most 100 expandable details; never one modal per affected node.
+6. Accept proposed ADR-006: Build JSON is a versioned durable compatibility boundary.
+
+Acceptance criteria:
+
+1. The complete approved artifact is committed as `docs/BUILD_FORMAT.md` with proposal language updated to accepted policy where necessary.
+2. ADR-006 is appended to `docs/DECISIONS.md` with status `Accepted` and the controller decisions above are traceable.
+3. P2AT-003 and P2AT-003A are marked `ACCEPTED`; P2AT-004 becomes `READY` only after the contract is present.
+4. `docs/PROJECT_STATUS.md` records the accepted schema-v1 contract.
+5. No application code, schema implementation or unrelated documentation is changed.
 
 ### P2AT-004 — Connect desktop Build save/open
 
