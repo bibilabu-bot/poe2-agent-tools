@@ -7,6 +7,11 @@ const MASTERY_EFFECT_ATLAS_JSON_URL = "poe2://data/mastery-effect-active.json";
 const MASTERY_EFFECT_ATLAS_IMG_URL = "poe2://data/mastery-effect-active.webp";
 const OFFICIAL_TREE_URL = "poe2://data/official-data.json";
 
+const plannerStatUtils = typeof module === "object" && module.exports
+  ? require("./stat-utils.js")
+  : window.plannerStatUtils;
+const { cleanStatDisplay, normalizeStatKey, compileStatTemplate } = plannerStatUtils;
+
 const $ = (s) => document.querySelector(s);
 const canvas = $("#treeCanvas");
 const wrap = $("#stage");
@@ -1010,56 +1015,6 @@ function luaUnescape(s) {
     if (token === '"') return '"';
     return token;
   });
-}
-
-function escapeRegex(s) {
-  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function cleanStatDisplay(s) {
-  return String(s ?? "")
-    // GGG rich-text/stat-description links:
-    // [Shock] -> Shock
-    // [Flask|Flask] -> Flask
-    .replace(/\[([^\]|]+)\|([^\]]+)\]/g, "$2")
-    .replace(/\[([^\]]+)\]/g, "$1")
-    // StatDescription formatting token -> plain placeholder.
-    .replace(/\{(\d+):[^}]+\}/g, "{$1}")
-    .replace(/\r/g, "")
-    .replace(/[ \t]+/g, " ")
-    .trim();
-}
-
-function normalizeStatKey(s) {
-  return cleanStatDisplay(s)
-    .replace(/\{\d+\}/g, "#")
-    .replace(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g, "#")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function compileStatTemplate(en, zh) {
-  en = cleanStatDisplay(en);
-  zh = cleanStatDisplay(zh);
-  const tokenRe = /\{(\d+)\}/g;
-  let pattern = "^";
-  let last = 0;
-  const indices = [];
-  let m;
-
-  while ((m = tokenRe.exec(en))) {
-    pattern += escapeRegex(en.slice(last, m.index));
-    pattern += "([+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+))";
-    indices.push(Number(m[1]));
-    last = m.index + m[0].length;
-  }
-  pattern += escapeRegex(en.slice(last)) + "$";
-
-  try {
-    return { en, zh, regex: new RegExp(pattern), indices };
-  } catch {
-    return null;
-  }
 }
 
 function parseChineseTranslationLua(text) {
