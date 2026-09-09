@@ -4,7 +4,7 @@ Last updated: 2026-09-09
 
 ## Product objective
 
-Build a maintainable PoE2 desktop build planner with reliable passive-tree allocation, localized data, offline-capable resources and an extensible jewel/rule engine.
+Build a maintainable, free-to-use and publicly released PoE2 desktop build planner with reliable passive-tree allocation, localized data, offline-capable resources and an extensible jewel/rule engine. Voluntary donations or sponsorship may support the project without gating application features.
 
 ## Current baseline
 
@@ -26,6 +26,7 @@ Build a maintainable PoE2 desktop build planner with reliable passive-tree alloc
 | Packaging/release | Not started | No installer or release workflow |
 | Upstream data governance | Lock accepted | ADR-007 and the validated 26-file canonical source lock define immutable revisions, per-file integrity and manual promotion; consumers have not migrated yet |
 | Licensing/attribution | Incomplete | Point-in-time findings and no-bundle controls are recorded; formal license confirmation remains pending |
+| Distribution model | Decided | Free public release with optional voluntary sponsorship; third-party redistribution rights remain a release gate |
 
 ## Verified baseline
 

@@ -89,3 +89,14 @@ Sources are classified as `active`, `optional` or `future-reference`. Candidate 
 The near-term delivery model is first-time online initialization followed by verified offline cache use. Runtime and compiler migration to consume the lock is deferred to later implementation work.
 
 Reason: immutable, reviewable source identity prevents silent upstream drift while keeping data provenance, integrity, promotion and redistribution decisions explicit.
+
+## ADR-008 — Public releases are free and may accept voluntary sponsorship
+
+- Date: 2026-09-09
+- Status: Accepted
+
+`poe2-agent-tools` is intended for free public release. The project may accept voluntary donations or sponsorship, but access to the application, core features and governed game-data support must not depend on payment.
+
+Free distribution and voluntary sponsorship do not create or expand rights to third-party code, game data, translations or artwork. Before a formal public installer or offline data pack redistributes third-party content, every included source must have a documented redistribution basis and required attribution. Content whose rights remain unconfirmed stays download-only or is replaced with content the project is permitted to distribute.
+
+Reason: the product should remain freely accessible while allowing community support, without treating non-commercial intent as a substitute for copyright permission.

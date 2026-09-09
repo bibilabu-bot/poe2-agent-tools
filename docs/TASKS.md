@@ -298,3 +298,4 @@ Non-goals:
 - P2AT-008: integrate normalized jewel compiler output.
 - P2AT-009: add Windows packaging and release automation.
 - P2AT-010: establish performance fixtures and benchmarks.
+- P2AT-011: audit redistribution rights and attribution for a free public installer and optional offline data pack before release packaging.
