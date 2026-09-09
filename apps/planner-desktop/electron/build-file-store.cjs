@@ -250,7 +250,10 @@ function createBuildIpcHandlers({ dialogs, ensureBuildDir, store = createBuildFi
     if (selection.canceled || !selection.filePath) return cancellationResult();
 
     try {
-      await store.writeBuildText(selection.filePath, normalized);
+      await store.writeBuildText(selection.filePath, {
+        text: normalized.text,
+        suggestedName: normalized.suggestedName,
+      });
       return { ok: true, canceled: false, filePath: selection.filePath };
     } catch (error) {
       return failureResult(
