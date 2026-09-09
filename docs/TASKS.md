@@ -126,11 +126,12 @@ Acceptance criteria:
 
 ### P2AT-004 — Connect desktop Build save/open
 
-- Status: `BLOCKED`
+- Status: `ACCEPTED`
 - Priority: P1
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-004A, P2AT-004B, P2AT-004C
 - Type: tracking task; implement through the bounded subtasks below
+- Delivery: P2AT-004A/B/C accepted; completed by controller merge `c467d8e`
 
 Goal: connect planner state to the existing safe IPC save/open boundary.
 
@@ -196,11 +197,12 @@ Non-goals:
 
 ### P2AT-004C — Connect Build persistence to Planner state and UI
 
-- Status: `READY`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-004A, P2AT-004B
 - Scope: desktop renderer UI/state integration, focused pure adapter tests, and desktop documentation; do not modify the Web prototype
+- Delivery: `ab8fbcd`, safety follow-up `f81b51e`; accepted and merged by controller in `c467d8e`
 
 Goal: connect schema-v1 persistence to live planner state transactionally, expose Save/Open controls and present bounded import diagnostics.
 
