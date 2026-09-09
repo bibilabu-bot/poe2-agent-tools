@@ -265,7 +265,7 @@ Non-goals:
 
 ### P2AT-005B — Make Planner runtime consume the canonical source lock
 
-- Status: `READY`
+- Status: `REVIEW`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-005A
