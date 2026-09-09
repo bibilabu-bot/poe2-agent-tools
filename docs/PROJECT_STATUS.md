@@ -12,7 +12,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | --- | --- | --- |
 | Repository migration | Complete | ChatGPT export reorganized and committed to `main` |
 | Desktop shell | Prototype | Electron 0.2; isolated preload and local resource protocol |
-| Passive tree renderer | Graph core extracted | Canvas2D rendering remains in Planner; pure graph construction, queries and deterministic eligible paths are independently tested |
+| Passive tree renderer | Graph core accepted | Canvas2D rendering remains in Planner; pure graph construction, queries and deterministic eligible paths passed controller acceptance |
 | Allocation | Prototype | Normal, ascendancy and weapon-set allocation present |
 | Conditional/hidden nodes | Prototype | Conditional reveal and external hidden-node sidecar present |
 | Chinese localization | Prototype | Runtime translation from community PoB2 data |
@@ -21,7 +21,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | Build JSON contract | Accepted and integrated | Schema v1 defines durable state, migration, validation, preservation and atomic-save policy in `docs/BUILD_FORMAT.md`; implementation is split into P2AT-004A/B/C |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Not started | Compiler output is not consumed by Planner |
-| Automated tests | Baseline established | Node test harness covers extracted stat utilities; broader allocation coverage remains pending |
+| Automated tests | 64 desktop tests | Node test harness covers stat utilities, Build persistence, runtime resources and the accepted passive graph core; broader allocation-state coverage remains pending |
 | Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
 | Packaging/release | Not started | No installer or release workflow |
 | Upstream data governance | Runtime integrated | ADR-007 and the validated 26-file canonical source lock govern Planner runtime identity and integrity; jewel compiler migration remains pending |
@@ -45,7 +45,7 @@ At migration time:
 - P2AT-004C connected visible Save/Open controls to live Planner state, removed the duplicate embedded runtime, passed 38 offline tests, and demonstrated a non-empty Build save/reset/reopen round trip in Electron on Windows.
 - P2AT-005/P2AT-005A established ADR-007 and an accepted 26-file canonical source lock; 25 immutable GitHub entries were independently rehashed during controller acceptance, while the live PoE2DB page had already drifted and remains a manually reviewed auxiliary snapshot.
 - P2AT-005B migrated the Planner's eight core resources and eight class portraits to lock-derived immutable URLs with pre-use and pre-write integrity checks; compiler acquisition remains unchanged.
-- P2AT-006A characterized existing category-specific path behavior and moved graph construction, adjacency and deterministic shortest eligible paths into a browser/Node pure module for review.
+- P2AT-006A characterized existing category-specific path behavior and moved graph construction, adjacency and deterministic shortest eligible paths into an accepted browser/Node pure module; all 64 desktop tests and Windows Electron smoke checks passed.
 
 Electron was not launched during the initial migration because its binary download was interrupted by a network reset. P2AT-004C later completed a successful Windows Electron runtime acceptance for Build persistence.
 
@@ -65,3 +65,5 @@ Milestone M1 — Reliable engineering baseline:
 - introduce a repeatable CI check;
 - define and implement versioned Build JSON persistence;
 - document upstream data provenance and pinning policy.
+
+Milestone M2 begins with P2AT-008A: a visible jewel socket, equip/remove and radius workflow backed by the existing normalized fixture data. Complex jewel rule effects follow after this end-to-end slice is accepted.

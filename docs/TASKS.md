@@ -323,21 +323,23 @@ Non-goals:
 
 ### P2AT-006 — Extract and stabilize graph/pathfinding behavior
 
-- Status: `READY`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-001
 - Type: tracking task; begin with P2AT-006A
+- Delivery: completed by P2AT-006A; accepted and merged by controller in `60a84d9`
 
 Goal: move passive-tree topology and path decisions behind tested pure modules so allocation and jewel features can evolve without changing renderer behavior accidentally.
 
 ### P2AT-006A — Characterize and extract the pure passive graph core
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-001
 - Scope: graph construction/query and shortest eligible path behavior currently embedded in `apps/planner-desktop/renderer/planner.js`, focused pure tests, script loading and supporting architecture documentation
+- Delivery: `1f4c176`; accepted and merged by controller in `60a84d9`
 
 Goal: establish a browser-and-Node-compatible pure graph module that reproduces current adjacency and path-selection behavior without changing visible Planner behavior.
 
@@ -361,9 +363,42 @@ Non-goals:
 - changing node visuals, controls, Build schema or data sources;
 - broad renderer decomposition beyond graph/pathfinding.
 
+Acceptance note: adjacency entries intentionally retain duplicate and reversed input edges to preserve legacy graph-degree behavior. Traversal remains deterministic because starts and neighbors are sorted and BFS ignores already discovered nodes.
+
+### P2AT-008A — Add the first visible jewel socket workflow
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-006A
+- Scope: consume committed normalized jewel socket/catalog data, add socket selection and jewel equip/remove UI, render jewel radius feedback, focused pure modules/tests, Build persistence extension only if required by the approved schema-v1 extension rules, and supporting documentation
+
+Goal: deliver the first end-to-end, user-visible jewel interaction without prematurely implementing every jewel rule family.
+
+Acceptance criteria:
+
+1. Planner loads committed normalized socket and jewel catalog data through a documented, deterministic local path; startup does not require a new live network request.
+2. Clicking a recognized jewel socket exposes a clear jewel panel or picker with the selected socket identity and compatible available jewels.
+3. A user can equip, replace and remove a jewel, and the canvas visibly distinguishes empty, selected and occupied sockets.
+4. Jewels with a numeric radius display a clearly visible radius overlay centered on the socket; radius membership is computed in a pure, browser-and-Node-compatible module using graph coordinates and tested boundary rules.
+5. The UI shows a concise summary of the equipped jewel and nodes inside its radius. Unsupported rule effects are explicitly labeled as not yet applied; the Planner must not silently pretend they work.
+6. Equip/remove state survives Save Build and Open Build. Any schema-v1 representation must follow `docs/BUILD_FORMAT.md` preservation and compatibility rules and include round-trip tests.
+7. Invalid socket IDs, unknown jewel IDs, malformed catalog entries and missing optional radius values fail safely without corrupting live Planner state.
+8. Existing allocation, ascendancy, weapon-set, undo/redo and Build open/save behavior remain unchanged.
+9. Automated tests cover radius boundaries, deterministic membership, equip/replace/remove, persistence round-trip, unknown preserved IDs and failure rollback; the existing desktop, canonical-lock and jewel-fixture checks remain green.
+10. Windows Electron smoke testing demonstrates tree load, selecting a real socket, equipping a fixture jewel, seeing its radius, saving, resetting and reopening the Build.
+
+Non-goals:
+
+- implementing all nine jewel rule families;
+- changing passive allocation legality based on jewel effects;
+- downloading or recompiling upstream jewel sources at runtime;
+- redesigning the whole sidebar or renderer;
+- Windows packaging, mirrors or installer work.
+
 ## Backlog
 
 - P2AT-007: split allocation state and undo/redo from the renderer.
-- P2AT-008: integrate normalized jewel compiler output.
+- P2AT-008: continue normalized jewel integration and implement rule families after P2AT-008A.
 - P2AT-009: add Windows packaging and release automation.
 - P2AT-010: establish performance fixtures and benchmarks.
