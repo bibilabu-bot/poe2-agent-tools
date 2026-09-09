@@ -333,7 +333,7 @@ Goal: move passive-tree topology and path decisions behind tested pure modules s
 
 ### P2AT-006A — Characterize and extract the pure passive graph core
 
-- Status: `READY`
+- Status: `REVIEW`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-001

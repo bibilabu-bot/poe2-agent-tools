@@ -12,7 +12,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | --- | --- | --- |
 | Repository migration | Complete | ChatGPT export reorganized and committed to `main` |
 | Desktop shell | Prototype | Electron 0.2; isolated preload and local resource protocol |
-| Passive tree renderer | Prototype | Canvas2D, full graph, atlas sprites and camera controls |
+| Passive tree renderer | Graph core extracted | Canvas2D rendering remains in Planner; pure graph construction, queries and deterministic eligible paths are independently tested |
 | Allocation | Prototype | Normal, ascendancy and weapon-set allocation present |
 | Conditional/hidden nodes | Prototype | Conditional reveal and external hidden-node sidecar present |
 | Chinese localization | Prototype | Runtime translation from community PoB2 data |
@@ -45,12 +45,13 @@ At migration time:
 - P2AT-004C connected visible Save/Open controls to live Planner state, removed the duplicate embedded runtime, passed 38 offline tests, and demonstrated a non-empty Build save/reset/reopen round trip in Electron on Windows.
 - P2AT-005/P2AT-005A established ADR-007 and an accepted 26-file canonical source lock; 25 immutable GitHub entries were independently rehashed during controller acceptance, while the live PoE2DB page had already drifted and remains a manually reviewed auxiliary snapshot.
 - P2AT-005B migrated the Planner's eight core resources and eight class portraits to lock-derived immutable URLs with pre-use and pre-write integrity checks; compiler acquisition remains unchanged.
+- P2AT-006A characterized existing category-specific path behavior and moved graph construction, adjacency and deterministic shortest eligible paths into a browser/Node pure module for review.
 
 Electron was not launched during the initial migration because its binary download was interrupted by a network reset. P2AT-004C later completed a successful Windows Electron runtime acceptance for Build persistence.
 
 ## Immediate project risks
 
-1. Core allocation behavior still has no regression tests beyond the initial stat-utility harness.
+1. Core allocation mutations still need broader regression coverage beyond the extracted graph/path behavior.
 2. The desktop renderer is approximately four thousand lines in one JavaScript file.
 3. Planner runtime data now consumes the canonical lock, but the jewel compiler still fetches through its legacy moving URLs until a follow-up migration.
 4. First-run use still depends on a single overseas transport per resource; China-accessible mirrors, offline import and distributable bundled data remain unresolved.
