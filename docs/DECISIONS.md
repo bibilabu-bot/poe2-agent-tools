@@ -74,3 +74,18 @@ The accepted schema-v1 implementation policies are:
 - U5: imports show one summary with aggregate counts and at most 100 expandable details, never one modal per affected node.
 
 Reason: Build files are user-owned durable data and must survive planner refactors, localization changes, upstream passive-tree changes and future schema extensions without silent corruption or data loss. The complete normative contract is recorded in `docs/BUILD_FORMAT.md`.
+
+## ADR-007 — Upstream data uses an approved canonical source lock
+
+- Date: 2026-09-09
+- Status: Accepted
+
+Runtime and compiler data identity is recorded in `data/upstream-sources.lock.json` using three layers: a complete upstream commit when the source is Git-backed, a per-file SHA-256 and byte count, and a dataset-level `snapshotId`. Non-Git sources use a timestamped content snapshot and must not be assigned a fabricated revision.
+
+Sources are classified as `active`, `optional` or `future-reference`. Candidate revisions may be discovered and verified automatically, but promotion into the canonical lock requires human approval.
+
+`drydream/poe2drydream` remains pinned as a short-term runtime source while a replacement audit remains open. Sources whose redistribution rights are not confirmed must not be committed as large datasets or bundled in an installer. PoE2DB is a snapshot-backed, manually reviewed auxiliary source, and `ChineseTranslation.lua` remains a pinned download that is not distributed with the installer.
+
+The near-term delivery model is first-time online initialization followed by verified offline cache use. Runtime and compiler migration to consume the lock is deferred to later implementation work.
+
+Reason: immutable, reviewable source identity prevents silent upstream drift while keeping data provenance, integrity, promotion and redistribution decisions explicit.
