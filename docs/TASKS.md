@@ -321,9 +321,48 @@ Non-goals:
 - claiming implied approval from silence or precedent;
 - changing download, packaging or licensing code.
 
+### P2AT-006 — Extract and stabilize graph/pathfinding behavior
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-001
+- Type: tracking task; begin with P2AT-006A
+
+Goal: move passive-tree topology and path decisions behind tested pure modules so allocation and jewel features can evolve without changing renderer behavior accidentally.
+
+### P2AT-006A — Characterize and extract the pure passive graph core
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-001
+- Scope: graph construction/query and shortest eligible path behavior currently embedded in `apps/planner-desktop/renderer/planner.js`, focused pure tests, script loading and supporting architecture documentation
+
+Goal: establish a browser-and-Node-compatible pure graph module that reproduces current adjacency and path-selection behavior without changing visible Planner behavior.
+
+Acceptance criteria:
+
+1. Before extraction, focused characterization tests capture current graph construction and path decisions for normal, ascendancy, weapon-set, hidden/conditional and disconnected-node fixtures.
+2. A pure renderer module owns graph construction, neighbor queries and deterministic shortest eligible path selection without DOM, Canvas, Electron, filesystem or network dependencies.
+3. The module supports string node IDs and does not mutate caller-owned node/edge/catalog inputs.
+4. Traversal eligibility is supplied through explicit predicates/options; graph code does not read mutable Planner globals.
+5. Deterministic tie-breaking is documented and tested so equal-length paths do not change across runtimes or input ordering.
+6. `planner.js` consumes the extracted module as the single implementation path; the old duplicate graph/pathfinding implementation is removed rather than retained as fallback.
+7. Allocation state mutation, undo/redo, UI rendering and Build persistence remain behaviorally unchanged.
+8. Tests cover cycles, duplicate/reversed edges, self-edges, missing endpoints, multiple starts, unreachable targets and stable equal-length ties, plus current category-specific behavior.
+9. Existing 49 desktop tests, canonical-lock tests, jewel fixture verification and syntax checks remain green.
+10. Actual Electron desktop smoke testing confirms tree load, ordinary allocation/deallocation, weapon-set allocation and ascendancy selection still work.
+
+Non-goals:
+
+- redesigning allocation rules or undo/redo;
+- implementing jewel behavior;
+- changing node visuals, controls, Build schema or data sources;
+- broad renderer decomposition beyond graph/pathfinding.
+
 ## Backlog
 
-- P2AT-006: split graph and pathfinding from the renderer.
 - P2AT-007: split allocation state and undo/redo from the renderer.
 - P2AT-008: integrate normalized jewel compiler output.
 - P2AT-009: add Windows packaging and release automation.
