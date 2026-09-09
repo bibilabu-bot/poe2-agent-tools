@@ -400,13 +400,15 @@ Non-goals:
 
 ### P2AT-008B — Specify the jewel identity, radius, socket mapping and persistence contract
 
-- Status: `READY`
+- Status: `BLOCKED`
 - Priority: P0
 - Assignment target: `ChatGPT chat-mode research/design`
 - Depends on: P2AT-003A, P2AT-006A
 - Type: read-only research and design; deliver one complete Markdown proposal, do not modify the repository
 
 Goal: remove the contract ambiguity blocking P2AT-008A by defining an implementable, deterministic and forward-compatible jewel data and Build persistence contract grounded in the repository's real runtime tree and compiler outputs.
+
+Blocked after two research drafts: the artifact correctly identified the missing evidence but could not verify real runtime socket markers, Sinister/no-radius representation, radius units or multiplier application. Its schema and identity sections therefore remain proposals rather than an approvable normative contract. Resume after P2AT-008C supplies repository-grounded evidence.
 
 Acceptance criteria:
 
@@ -427,6 +429,36 @@ Non-goals:
 - fully specifying every jewel rule family's evaluation algorithm;
 - changing upstream acquisition, licensing, packaging or mirrors;
 - treating current fixture IDs `100` and `101` as real runtime mappings without evidence.
+
+### P2AT-008C — Extract real socket and jewel-radius evidence
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-006A
+- Type: local read-only investigation; no product implementation
+
+Goal: inspect the exact passive-tree bytes consumed by the Planner and the locked jewel compiler sources to establish verifiable socket recognition and radius semantics before finalizing P2AT-008B.
+
+Acceptance criteria:
+
+1. Identify every passive-tree input actually consumed by the current Planner, its canonical lock identity and the precise parser/normalization path into runtime nodes.
+2. Enumerate real jewel-socket candidates from verified current data and report node IDs, names, relevant raw fields, normalized fields and counts; fixture IDs `100`/`101` must be checked rather than assumed.
+3. Determine which evidence, if any, distinguishes normal, Sinister, no-radius and blighted sockets. Unsupported categories must be reported explicitly as absent or unproven.
+4. Trace `PassiveTreeJewelDistanceMultiplier` from source through compiler output and any upstream reference implementation. Report the exact formula, units, boundary comparison and named-radius mapping only where supported by code/data evidence.
+5. Compare socket coordinates across raw official data, `tree-pre.json`, compiler outputs and Planner world coordinates, documenting every transformation.
+6. Inspect all locked jewel inputs and relevant compiler parsing code for stable upstream jewel identifiers. Report available canonical keys and whether a durable definition ID can be derived without display-name identity.
+7. Provide reproducible read-only commands or a temporary diagnostic procedure, counts/hashes and compact evidence excerpts sufficient for independent controller verification.
+8. Classify every finding as `VERIFIED`, `INFERENCE` or `NO EVIDENCE`; do not turn candidates into normative rules.
+9. Conclude exactly which P2AT-008B sections can be finalized and which remain externally blocked.
+10. Do not alter application/compiler behavior, committed data, task status or `main`; deliver one Markdown report and keep any diagnostics outside tracked repository files.
+
+Non-goals:
+
+- designing schema v2 again;
+- implementing jewel UI, persistence, compiler corrections or rules;
+- downloading unpinned moving-branch content;
+- legal, packaging or mirror research.
 
 ## Backlog
 
