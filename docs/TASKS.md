@@ -291,6 +291,35 @@ Non-goals:
 - bundling license-unconfirmed resources;
 - redesigning the renderer, cache UI or Build schema.
 
+### P2AT-011 — Research PoE community-tool precedent and GGG policy
+
+- Status: `READY`
+- Priority: P0 research track
+- Assignment target: `ChatGPT chat executor`
+- Depends on: P2AT-005A, ADR-008
+- Scope: read-only external research covering GGG's published policies and representative established PoE/PoE2 community tools
+
+Goal: determine how established community tools obtain, cache, transform, attribute, fund and redistribute game data/assets, and distinguish documented GGG policy from community custom or unverified assumption.
+
+Acceptance criteria:
+
+1. Use primary sources for GGG policy: Developer Docs, Terms of Use, privacy/API policy, OAuth/API registration material, official forum or staff statements, and official GitHub repositories where relevant.
+2. Study representative tools including Path of Building Community/PoB2, FilterBlade/NeverSink, poe.ninja, Craft of Exile and at least three additional maintained tools with materially different delivery models.
+3. For every tool, record distribution model, data acquisition path, whether game data/assets are bundled or fetched, licensing/attribution, disclaimer, monetization/sponsorship and any documented GGG approval or enforcement history.
+4. Separate verified facts, reasonable inference and unknowns. Public availability, popularity or long operation must not be treated as legal permission.
+5. Identify practices that appear broadly tolerated, practices explicitly authorized, and practices prohibited or high-risk under published policy.
+6. Evaluate the project's intended model: free public release, voluntary sponsorship, China-focused availability, possible domestic mirror/offline pack and no paid feature gate.
+7. Produce a minimal-permission strategy, a conservative release path that does not wait for permission, and exact questions to send to GGG or upstream maintainers.
+8. Include dated direct links and short source excerpts within copyright limits; note inaccessible or contradictory evidence.
+9. Deliver a complete Chinese Markdown report suitable for later integration into `docs/`; do not modify the repository.
+
+Non-goals:
+
+- giving a definitive legal opinion;
+- contacting GGG or maintainers;
+- claiming implied approval from silence or precedent;
+- changing download, packaging or licensing code.
+
 ## Backlog
 
 - P2AT-006: split graph and pathfinding from the renderer.
@@ -298,4 +327,3 @@ Non-goals:
 - P2AT-008: integrate normalized jewel compiler output.
 - P2AT-009: add Windows packaging and release automation.
 - P2AT-010: establish performance fixtures and benchmarks.
-- P2AT-011: audit redistribution rights and attribution for a free public installer and optional offline data pack before release packaging.
