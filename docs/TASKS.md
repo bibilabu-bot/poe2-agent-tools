@@ -367,13 +367,15 @@ Acceptance note: adjacency entries intentionally retain duplicate and reversed i
 
 ### P2AT-008A — Add the first visible jewel socket workflow
 
-- Status: `READY`
+- Status: `BLOCKED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-006A
 - Scope: consume committed normalized jewel socket/catalog data, add socket selection and jewel equip/remove UI, render jewel radius feedback, focused pure modules/tests, Build persistence extension only if required by the approved schema-v1 extension rules, and supporting documentation
 
 Goal: deliver the first end-to-end, user-visible jewel interaction without prematurely implementing every jewel rule family.
+
+Blocked on 2026-09-09 before implementation: schema v1 explicitly excludes jewel socket contents, while the committed compiler fixture does not yet satisfy its advertised stable-ID/radius contract or map demonstrably to runtime tree sockets. Resume only after P2AT-008B is accepted and its approved contract/data corrections are integrated.
 
 Acceptance criteria:
 
@@ -395,6 +397,36 @@ Non-goals:
 - downloading or recompiling upstream jewel sources at runtime;
 - redesigning the whole sidebar or renderer;
 - Windows packaging, mirrors or installer work.
+
+### P2AT-008B — Specify the jewel identity, radius, socket mapping and persistence contract
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `ChatGPT chat-mode research/design`
+- Depends on: P2AT-003A, P2AT-006A
+- Type: read-only research and design; deliver one complete Markdown proposal, do not modify the repository
+
+Goal: remove the contract ambiguity blocking P2AT-008A by defining an implementable, deterministic and forward-compatible jewel data and Build persistence contract grounded in the repository's real runtime tree and compiler outputs.
+
+Acceptance criteria:
+
+1. Reconcile `planner-jewel-contract.json` with every committed `dist/*.json` shape and list each required compiler correction.
+2. Define stable jewel definition IDs, jewel instance IDs and socket node IDs, including normalization, collision handling and future upstream rename/removal behavior.
+3. Establish how runtime passive-tree nodes are recognized as normal or sinister jewel sockets and whether `jewel_sockets.json` is authoritative, derived, or validation-only.
+4. Define one coordinate space, distance formula, multiplier application, named/numeric radius representation and inclusive boundary rule, with worked examples.
+5. Propose the smallest Build persistence evolution that can save socket contents safely. It must specify schema versioning, v1-to-new-version migration, unknown jewel/socket preservation, deterministic ordering, limits, validation, warnings/fatal errors and downgrade behavior.
+6. State whether schema v2 is necessary. If it is, provide the exact normative JSON shape and migration rules rather than an outline.
+7. Separate jewel definitions from per-Build jewel instances, including rarity, explicit modifiers, corruption/quality or other instance fields that may arrive later without forcing another immediate redesign.
+8. Define safe behavior when catalog data is missing, stale or newer than the application and when a socket no longer exists in the current tree.
+9. Provide a staged implementation plan that unblocks a visible radius/equip MVP first and leaves complex rule families for later.
+10. Identify every actual product decision requiring controller or user approval; give a recommended default and concrete trade-off for each.
+
+Non-goals:
+
+- implementing code or editing repository files;
+- fully specifying every jewel rule family's evaluation algorithm;
+- changing upstream acquisition, licensing, packaging or mirrors;
+- treating current fixture IDs `100` and `101` as real runtime mappings without evidence.
 
 ## Backlog
 
