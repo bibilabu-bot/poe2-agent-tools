@@ -238,11 +238,12 @@ Goal: document provenance, license/attribution needs, update cadence and a pinni
 
 ### P2AT-005A — Integrate upstream policy and canonical source lock
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P1
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-005
 - Scope: `docs/UPSTREAM_DATA.md`, `docs/DECISIONS.md`, `docs/TASKS.md`, `docs/PROJECT_STATUS.md`, `data/upstream-sources.lock.json`, offline lock validation and CI wiring
+- Delivery: `a9e386c`; accepted and merged by controller in `afb3630`
 
 Goal: integrate the accepted P2AT-005 research and ADR-007, record immutable identities for all current runtime and compiler sources, and enforce the lock schema without changing any source consumer.
 
@@ -261,6 +262,34 @@ Non-goals:
 - automating promotion;
 - resolving license questions or approving redistribution;
 - packaging upstream data.
+
+### P2AT-005B — Make Planner runtime consume the canonical source lock
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-005A
+- Scope: desktop main-process resource resolution and cache integrity, focused offline tests, cache metadata/documentation and CI integration as needed
+
+Goal: replace the Planner runtime's moving branch URLs with immutable URLs and integrity metadata from the accepted canonical source lock.
+
+Acceptance criteria:
+
+1. Runtime core resources and class portraits resolve from `data/upstream-sources.lock.json`; production identity no longer comes from `main` or a named branch.
+2. Downloaded bytes are accepted into cache only after both byte-count and SHA-256 verification; a mismatch is rejected and cannot replace a previously valid cached file.
+3. Existing cached files are verified against the active lock before use. Invalid or stale cache entries are not parsed as approved data.
+4. Bundled resources remain preferred when present, but their integrity is checked against the same lock before they are treated as the active snapshot.
+5. Resource writes use safe temporary-file replacement and clean up failed candidates where practical.
+6. Errors distinguish unavailable network content from integrity failure without exposing internal paths or stack traces to the renderer.
+7. Tests cover immutable resolution, valid cache reuse, stale/corrupt cache rejection, size/hash mismatch, failed replacement and portrait resolution without live network or Electron launch.
+8. Desktop tests/checks, canonical-lock tests, jewel fixture verification and CI remain green.
+
+Non-goals:
+
+- changing the jewel compiler to consume the lock;
+- automatically promoting upstream revisions;
+- bundling license-unconfirmed resources;
+- redesigning the renderer, cache UI or Build schema.
 
 ## Backlog
 

@@ -24,7 +24,7 @@ Build a maintainable PoE2 desktop build planner with reliable passive-tree alloc
 | Automated tests | Baseline established | Node test harness covers extracted stat utilities; broader allocation coverage remains pending |
 | Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
 | Packaging/release | Not started | No installer or release workflow |
-| Upstream data governance | Policy accepted | ADR-007 and the canonical source lock define immutable revisions, per-file integrity and manual promotion; consumers have not migrated yet |
+| Upstream data governance | Lock accepted | ADR-007 and the validated 26-file canonical source lock define immutable revisions, per-file integrity and manual promotion; consumers have not migrated yet |
 | Licensing/attribution | Incomplete | Point-in-time findings and no-bundle controls are recorded; formal license confirmation remains pending |
 
 ## Verified baseline
@@ -42,7 +42,7 @@ At migration time:
 - P2AT-004A implemented and tested the pure schema-v1 codec, including deterministic serialization, validation, bounded diagnostics and opaque preservation.
 - P2AT-004B implemented bounded UTF-8 reads, structured Build-specific IPC and tested same-directory safe replacement with failure recovery on Windows.
 - P2AT-004C connected visible Save/Open controls to live Planner state, removed the duplicate embedded runtime, passed 38 offline tests, and demonstrated a non-empty Build save/reset/reopen round trip in Electron on Windows.
-- P2AT-005 research was accepted, and P2AT-005A integrated the resulting policy and a 26-file canonical source lock for review; runtime and compiler consumers still use their existing manifests.
+- P2AT-005/P2AT-005A established ADR-007 and an accepted 26-file canonical source lock; 25 immutable GitHub entries were independently rehashed during controller acceptance, while the live PoE2DB page had already drifted and remains a manually reviewed auxiliary snapshot.
 
 Electron was not launched during the initial migration because its binary download was interrupted by a network reset. P2AT-004C later completed a successful Windows Electron runtime acceptance for Build persistence.
 
