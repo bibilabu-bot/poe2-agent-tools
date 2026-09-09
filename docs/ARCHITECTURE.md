@@ -8,11 +8,14 @@
 - `electron/runtime-resource-store.cjs`：纯 Node 的 runtime lock 映射、SHA-256/大小验证、缓存选择和安全替换。
 - `electron/preload.cjs`：受控的 Renderer API 边界。
 - `renderer/index.html`：界面、样式与页面结构。
+- `renderer/passive-graph.js`：浏览器与 Node 共用的纯图构建、邻接查询、可达集合及确定性最短可用路径模块。
 - `renderer/planner.js`：天赋树数据加载、绘制、路径、分配、翻译与交互逻辑。
 - `data/cache/manifest.json`：需要缓存的核心远程资源清单。
 - `src/jewels/`、`src/rules/`：后续珠宝系统和规则引擎的模块边界。
 
 安全基线：`contextIsolation` 开启，`nodeIntegration` 关闭；文件系统能力只通过 preload 暴露的窄接口提供。
+
+天赋图模块只接受调用者提供的节点、边以及显式的边/节点资格 predicate，不读取 Planner 可变全局状态。邻接表、多个起点和相邻节点都按字符串 ID 的 Unicode code unit 顺序排序；无权 BFS 因而在等长路径中稳定选择排序最先的起点和逐层排序最先的邻居。路径以当前 Planner 使用的“目标到有效起点”顺序返回。
 
 ## 浏览器原型
 

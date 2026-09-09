@@ -17,6 +17,16 @@ const buildCodec = typeof module === "object" && module.exports
 const buildStateAdapter = typeof module === "object" && module.exports
   ? require("./build-state-adapter.js")
   : window.plannerBuildStateAdapter;
+const passiveGraphCore = typeof module === "object" && module.exports
+  ? require("./passive-graph.js")
+  : window.plannerPassiveGraph;
+const {
+  buildShortestPathIndex,
+  createPassiveGraph,
+  pathFromIndex,
+  reachableEligibleIds,
+  shortestEligiblePath,
+} = passiveGraphCore;
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#treeCanvas");
@@ -29,8 +39,8 @@ let nodes = [];
 let edges = [];
 let renderEdges = [];
 let byId = new Map();
-let adjacency = new Map();
-let rawAdjacency = new Map();
+let passiveGraph = null;
+let rawGraph = null;
 let spatial = new Map();
 
 let skillsImg = null;
@@ -373,8 +383,6 @@ async function loadOfficialHiddenSidecar() {
 
           nodes.push(node);
           byId.set(String(rawId),node);
-          adjacency.set(String(rawId),[]);
-          rawAdjacency.set(String(rawId),[]);
           addSpatial(node);
           injected++;
 
@@ -499,7 +507,7 @@ const CELL = 650;
 
 function idOf(n) { return String(n.skill ?? n._id); }
 function kind(n) { return n.kind || "small"; }
-function isAsc(n) { return Boolean(n.asc); }
+function isAsc(n) { return Boolean(n?.asc); }
 function edgeKey(a,b) { a=String(a); b=String(b); return a<b ? `${a}|${b}` : `${b}|${a}`; }
 const POE2_CLASS_INDICES = new Set([6,7,8,2,9,10,11]);
 
@@ -979,7 +987,7 @@ function masteryTriggerCandidates(mastery) {
 
   // Last fallback: raw adjacency is only used as a trigger hint, never as
   // an allocatable/pathing connection.
-  for(const nx of (rawAdjacency.get(idOf(mastery))||[])) {
+  for(const nx of rawGraph.neighbors(idOf(mastery))) {
     const n=byId.get(nx);
     if(n && !isMasteryVisual(n) && !isAsc(n)) out.push(n);
   }
@@ -2411,42 +2419,11 @@ function remainingWeaponCapacity(mode=weaponMode) {
 }
 
 function pathFromActiveSet(targetId, mode=weaponMode) {
-  const target=byId.get(String(targetId));
-  if(!target || !canTraverse(target)) return [];
-
-  const active=activeIdsForMode(mode);
-  if(active.has(String(targetId))) return [String(targetId)];
-
-  const q=[];
-  const par=new Map();
-  for(const id of active) {
-    const n=byId.get(String(id));
-    if(!n || !canTraverse(n)) continue;
-    par.set(String(id),null);
-    q.push(String(id));
-  }
-
-  let qi=0;
-  while(qi<q.length) {
-    const cur=q[qi++];
-    for(const nx of adjacency.get(cur)||[]) {
-      if(par.has(nx)) continue;
-      const nn=byId.get(nx);
-      if(!canTraverse(nn)) continue;
-      par.set(nx,cur);
-      if(nx===String(targetId)) {
-        const path=[];
-        let z=nx;
-        while(z!=null) {
-          path.push(z);
-          z=par.get(z);
-        }
-        return path;
-      }
-      q.push(nx);
-    }
-  }
-  return [];
+  return shortestEligiblePath(passiveGraph, {
+    starts: activeIdsForMode(mode),
+    targetId,
+    isEligible: canTraverse,
+  });
 }
 
 function weaponPathCost(path,mode=weaponMode) {
@@ -2461,21 +2438,10 @@ function pruneWeaponSet(mode) {
   const active=new Set(allocated);
   for(const id of set) active.add(id);
 
-  const reachable=new Set();
-  const q=[classStartId];
-  reachable.add(classStartId);
-  let qi=0;
-
-  while(qi<q.length) {
-    const cur=q[qi++];
-    for(const nx of adjacency.get(cur)||[]) {
-      if(reachable.has(nx) || !active.has(nx)) continue;
-      const nn=byId.get(nx);
-      if(!nn || !canTraverse(nn)) continue;
-      reachable.add(nx);
-      q.push(nx);
-    }
-  }
+  const reachable=reachableEligibleIds(passiveGraph, {
+    starts:[classStartId],
+    isEligible:(n,id)=>active.has(id)&&canTraverse(n),
+  });
 
   let removed=0;
   for(const id of [...set]) {
@@ -2628,44 +2594,14 @@ function updatePlannerUI(message="") {
 }
 
 function rebuildPathIndex() {
-  pathParent=new Map();
-  if(!classStartId || !allocated.size) return;
-
-  const q=[];
-  for(const id of allocated) {
-    const n=byId.get(id);
-    if(!n || !canTraverse(n)) continue;
-    pathParent.set(id,null);
-    q.push(id);
-  }
-
-  let qi=0;
-  while(qi<q.length) {
-    const cur=q[qi++];
-    for(const nx of adjacency.get(cur)||[]) {
-      if(pathParent.has(nx)) continue;
-      const nn=byId.get(nx);
-      if(!canTraverse(nn)) continue;
-      pathParent.set(nx,cur);
-      q.push(nx);
-    }
-  }
+  pathParent=(!classStartId||!allocated.size)
+    ? new Map()
+    : buildShortestPathIndex(passiveGraph,{starts:allocated,isEligible:canTraverse});
 }
 
 function pathToAllocated(targetId) {
-  if(!classStartId || !pathParent.has(targetId)) return [];
-  if(allocated.has(targetId)) return [targetId];
-
-  const path=[targetId];
-  let cur=targetId;
-  const guard=nodes.length+5;
-  for(let i=0;i<guard;i++) {
-    cur=pathParent.get(cur);
-    if(cur==null) return [];
-    path.push(cur);
-    if(allocated.has(cur)) return path;
-  }
-  return [];
+  if(!classStartId) return [];
+  return pathFromIndex(pathParent,targetId,nodes.length+1);
 }
 
 function findAscStartNode() {
@@ -2700,44 +2636,14 @@ function resetAscAllocation() {
 }
 
 function rebuildAscPathIndex() {
-  ascPathParent=new Map();
-  if(!selectedAscendancyId || !ascAllocated.size) return;
-
-  const q=[];
-  for(const id of ascAllocated) {
-    const n=byId.get(id);
-    if(!canTraverseAsc(n)) continue;
-    ascPathParent.set(id,null);
-    q.push(id);
-  }
-
-  let qi=0;
-  while(qi<q.length) {
-    const cur=q[qi++];
-    for(const nx of adjacency.get(cur)||[]) {
-      if(ascPathParent.has(nx)) continue;
-      const nn=byId.get(nx);
-      if(!canTraverseAsc(nn)) continue;
-      ascPathParent.set(nx,cur);
-      q.push(nx);
-    }
-  }
+  ascPathParent=(!selectedAscendancyId||!ascAllocated.size)
+    ? new Map()
+    : buildShortestPathIndex(passiveGraph,{starts:ascAllocated,isEligible:canTraverseAsc});
 }
 
 function ascPathToAllocated(targetId) {
-  if(!selectedAscendancyId || !ascPathParent.has(targetId)) return [];
-  if(ascAllocated.has(targetId)) return [targetId];
-
-  const path=[targetId];
-  let cur=targetId;
-  const guard=nodes.length+5;
-  for(let i=0;i<guard;i++) {
-    cur=ascPathParent.get(cur);
-    if(cur==null) return [];
-    path.push(cur);
-    if(ascAllocated.has(cur)) return path;
-  }
-  return [];
+  if(!selectedAscendancyId) return [];
+  return pathFromIndex(ascPathParent,targetId,nodes.length+1);
 }
 
 function clearPreviews() {
@@ -2956,19 +2862,10 @@ function revalidateOrdinaryAllocated() {
   }
 
   // Keep only the allocated component connected to class start.
-  const reachable=new Set([classStartId]);
-  const q=[classStartId];
-  let qi=0;
-  while(qi<q.length) {
-    const cur=q[qi++];
-    for(const nx of adjacency.get(cur)||[]) {
-      if(!allocated.has(nx) || reachable.has(nx)) continue;
-      const nn=byId.get(nx);
-      if(!nn || isAsc(nn)) continue;
-      reachable.add(nx);
-      q.push(nx);
-    }
-  }
+  const reachable=reachableEligibleIds(passiveGraph,{
+    starts:[classStartId],
+    isEligible:(n,id)=>allocated.has(id)&&!isAsc(n),
+  });
   allocated=reachable;
 }
 
@@ -3091,19 +2988,9 @@ function refundNormalTarget(n) {
   const candidate=new Set(allocated);
   candidate.delete(id);
 
-  const reachable=new Set();
-  if(candidate.has(classStartId)) {
-    const q=[classStartId];
-    reachable.add(classStartId);
-    let qi=0;
-    while(qi<q.length) {
-      const cur=q[qi++];
-      for(const nx of adjacency.get(cur)||[]) {
-        if(!candidate.has(nx)||reachable.has(nx)) continue;
-        reachable.add(nx); q.push(nx);
-      }
-    }
-  }
+  const reachable=candidate.has(classStartId)
+    ? reachableEligibleIds(passiveGraph,{starts:[classStartId],isEligible:(_n,x)=>candidate.has(x)})
+    : new Set();
 
   const removedIds=new Set([...allocated].filter(x=>!reachable.has(x)));
   const blocked=hiddenDependentsOf(removedIds);
@@ -3164,21 +3051,9 @@ function refundAscTarget(n) {
   const candidate=new Set(ascAllocated);
   candidate.delete(id);
 
-  const reachable=new Set();
-  if(ascStartId && candidate.has(ascStartId)) {
-    const q=[ascStartId];
-    reachable.add(ascStartId);
-    let qi=0;
-    while(qi<q.length) {
-      const cur=q[qi++];
-      for(const nx of adjacency.get(cur)||[]) {
-        if(!candidate.has(nx)||reachable.has(nx)) continue;
-        const nn=byId.get(nx);
-        if(!canTraverseAsc(nn)) continue;
-        reachable.add(nx); q.push(nx);
-      }
-    }
-  }
+  const reachable=ascStartId&&candidate.has(ascStartId)
+    ? reachableEligibleIds(passiveGraph,{starts:[ascStartId],isEligible:(n,x)=>candidate.has(x)&&canTraverseAsc(n)})
+    : new Set();
 
   const removedIds=new Set([...ascAllocated].filter(x=>!reachable.has(x)));
   const blocked=hiddenDependentsOf(removedIds);
@@ -3531,7 +3406,7 @@ function showNodeInfo(n) {
     `kind: ${kind(n)}`,
     `group: ${n.group??"—"}`,
     `orbit: ${n.orbit??"—"}`,
-    `degree: ${(adjacency.get(id)||[]).length}`,
+    `degree: ${passiveGraph.neighbors(id).length}`,
     `x/y: ${Number.isFinite(n.x)?Math.round(n.x):"—"}, ${Number.isFinite(n.y)?Math.round(n.y):"—"}`,
     `weapon eligible: ${weaponSetEligible(n)?"yes":"no"}`
   ];
@@ -4144,30 +4019,17 @@ async function load() {
     edges=tree.edges||[];
 
     byId=new Map(nodes.map(n=>[idOf(n),n]));
-    adjacency=new Map(nodes.map(n=>[idOf(n),[]]));
-    rawAdjacency=new Map(nodes.map(n=>[idOf(n),[]]));
     spatial=new Map();
 
     for(const n of nodes) if(Number.isFinite(n.x)&&Number.isFinite(n.y)) addSpatial(n);
 
-    for(const e of edges) {
-      if(e.f==="root")continue;
-      const a=String(e.f),b=String(e.t);
-      if(!byId.has(a)||!byId.has(b)) continue;
-
-      rawAdjacency.get(a).push(b);
-      rawAdjacency.get(b).push(a);
-
-      const na=byId.get(a), nb=byId.get(b);
-
-      // Raw adjacency is preserved separately above. Planner/path adjacency
-      // excludes visual-only mastery, canonical display-only hidden nodes,
-      // and special non-visible conditional dependency edges.
-      if(!allocatableEdgeAllowedNodes(na,nb)) continue;
-
-      adjacency.get(a).push(b);
-      adjacency.get(b).push(a);
-    }
+    rawGraph=createPassiveGraph(nodes,edges,{getNodeId:idOf});
+    // Planner/path adjacency excludes visual-only mastery, canonical
+    // display-only hidden nodes, and non-visible conditional dependency edges.
+    passiveGraph=createPassiveGraph(nodes,edges,{
+      getNodeId:idOf,
+      allowEdge:allocatableEdgeAllowedNodes,
+    });
 
     prepareEdges();
     buildInstillNativeNodeMap();
