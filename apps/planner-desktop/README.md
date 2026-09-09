@@ -30,6 +30,8 @@ Preload 仅暴露两个 Build 专用操作：
 
 兼容性警告会在 BUILD PLANNER 区域集中显示一次，总数不受详情上限影响，展开内容最多 100 条。已打开文件的未知字段和未解析 ID 保存在当前文档 sidecar 中，正常编辑后再次保存仍会保留；选择新职业或点击“重置 Build”会明确丢弃该 sidecar。
 
+如果应用候选状态后连回滚也失败，界面会明确提示当前状态可能不一致并禁用保存；成功重新打开 Build 或重启应用后才能继续保存。
+
 桌面页面只加载 `renderer/planner.js` 作为 Planner 运行入口。`renderer/index.html` 不再维护第二份内嵌 Planner 脚本。
 
 本地复现检查：

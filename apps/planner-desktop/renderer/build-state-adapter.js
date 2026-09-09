@@ -125,6 +125,22 @@
     }
   }
 
+  function attemptBuildDecode(decode, text) {
+    try {
+      return { ok: true, decoded: decode(text), error: null };
+    } catch (error) {
+      return { ok: false, decoded: null, error };
+    }
+  }
+
+  function classifyBuildApplyResult(result) {
+    const rollbackFailed = Boolean(!result.ok && result.rollbackError);
+    return {
+      rollbackFailed,
+      safeToSave: !rollbackFailed,
+    };
+  }
+
   function clearBuildPreservation(state) {
     state.preservation = null;
   }
@@ -133,6 +149,8 @@
     extractBuildValue,
     createBuildCandidate,
     applyBuildCandidateTransaction,
+    attemptBuildDecode,
+    classifyBuildApplyResult,
     clearBuildPreservation,
   };
 });

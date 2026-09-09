@@ -61,6 +61,7 @@ let ascAllocated = new Set();           // current ascendancy nodes
 let ascStartId = null;
 let buildPreservation = null;
 let plannerDataReady = false;
+let buildStateUnsafe = false;
 
 let previewPath = [];                    // ordinary hover path
 let previewIds = new Set();
@@ -3826,6 +3827,11 @@ function ipcErrorMessage(result,fallback) {
 
 async function saveCurrentBuild() {
   if(!plannerDataReady || !window.desktopAPI?.saveBuildJson) return;
+  if(buildStateUnsafe) {
+    showBuildFeedback("当前 Build 状态可能不一致，保存已禁用。请重启应用或重新打开 Build。",null,true);
+    setBuildControlsReady(plannerDataReady);
+    return;
+  }
   try {
     const value=buildStateAdapter.extractBuildValue(currentBuildRuntimeState());
     const text=buildCodec.serializeBuildDocument(value,buildPreservation);
@@ -3863,7 +3869,13 @@ async function openBuild() {
     return;
   }
 
-  const decoded=decodeBuildForCurrentCatalogs(result.text);
+  const decodeAttempt=buildStateAdapter.attemptBuildDecode(decodeBuildForCurrentCatalogs,result.text);
+  if(!decodeAttempt.ok) {
+    console.error("[build-open-decode]",decodeAttempt.error);
+    showBuildFeedback("Build 未打开：目录验证发生意外错误，当前 Build 未改变。",null,true);
+    return;
+  }
+  const decoded=decodeAttempt.decoded;
   if(!decoded.ok) {
     showBuildFeedback(`Build 未打开：发现 ${decoded.diagnostics.fatalCount} 个致命错误。`,decoded.diagnostics,true);
     return;
@@ -3884,9 +3896,23 @@ async function openBuild() {
     rollback:restoreBuildTransactionState
   });
   if(!applied.ok) {
-    showBuildFeedback(`Build 应用失败，当前 Build 已保持不变：${applied.error?.message||"未知错误"}`,null,true);
+    const failure=buildStateAdapter.classifyBuildApplyResult(applied);
+    if(failure.rollbackFailed) {
+      buildStateUnsafe=true;
+      setBuildControlsReady(plannerDataReady);
+      showBuildFeedback(
+        `Build 应用及回滚均失败，当前状态可能不一致，保存已禁用。请重启应用或重新打开 Build：${applied.rollbackError?.message||"未知回滚错误"}`,
+        null,
+        true
+      );
+      return;
+    }
+    showBuildFeedback(`Build 应用失败，已回滚到打开前状态：${applied.error?.message||"未知错误"}`,null,true);
     return;
   }
+
+  buildStateUnsafe=false;
+  setBuildControlsReady(plannerDataReady);
 
   const warningCount=decoded.diagnostics.warningCount;
   showBuildFeedback(
@@ -3901,7 +3927,7 @@ async function openBuild() {
 function setBuildControlsReady(ready) {
   plannerDataReady=ready;
   const supported=Boolean(window.desktopAPI?.saveBuildJson && window.desktopAPI?.openBuildJson);
-  $("#saveBuild").disabled=!(ready&&supported);
+  $("#saveBuild").disabled=!(ready&&supported)||buildStateUnsafe;
   $("#openBuild").disabled=!(ready&&supported);
 }
 

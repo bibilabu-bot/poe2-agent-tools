@@ -4,6 +4,8 @@ const {
   extractBuildValue,
   createBuildCandidate,
   applyBuildCandidateTransaction,
+  attemptBuildDecode,
+  classifyBuildApplyResult,
   clearBuildPreservation,
 } = require("../renderer/build-state-adapter.js");
 const {
@@ -91,6 +93,39 @@ test("an application failure rolls back the old state", () => {
 
   assert.equal(result.ok, false);
   assert.equal(holder.current, oldState);
+  assert.equal(result.rollbackError, undefined);
+  assert.deepEqual(classifyBuildApplyResult(result), {
+    rollbackFailed: false,
+    safeToSave: true,
+  });
+});
+
+test("a rollback failure is reported separately from the application failure", () => {
+  const applyError = new Error("derived index failed");
+  const rollbackError = new Error("rollback refresh failed");
+
+  const result = applyBuildCandidateTransaction(runtimeState(), {
+    snapshot: () => runtimeState(),
+    commit: () => {},
+    finalize: () => { throw applyError; },
+    rollback: () => { throw rollbackError; },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error, applyError);
+  assert.equal(result.rollbackError, rollbackError);
+  assert.deepEqual(classifyBuildApplyResult(result), {
+    rollbackFailed: true,
+    safeToSave: false,
+  });
+});
+
+test("unexpected catalog decode exceptions become controlled results", () => {
+  const failure = new Error("catalog lookup failed");
+  const result = attemptBuildDecode(() => { throw failure; }, "{}");
+
+  assert.deepEqual(result, { ok: false, decoded: null, error: failure });
+  assert.doesNotThrow(() => attemptBuildDecode(() => { throw failure; }, "{}"));
 });
 
 test("unresolved data and unknown fields remain in the preservation sidecar", () => {
