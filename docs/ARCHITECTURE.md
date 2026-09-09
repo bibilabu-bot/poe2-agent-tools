@@ -4,7 +4,8 @@
 
 `apps/planner-desktop` 是当前主应用。
 
-- `electron/main.cjs`：Electron 主进程、本地资源协议、缓存下载和窗口生命周期。
+- `electron/main.cjs`：Electron 主进程、本地资源协议和窗口生命周期；运行时来源由 canonical lock 解析。
+- `electron/runtime-resource-store.cjs`：纯 Node 的 runtime lock 映射、SHA-256/大小验证、缓存选择和安全替换。
 - `electron/preload.cjs`：受控的 Renderer API 边界。
 - `renderer/index.html`：界面、样式与页面结构。
 - `renderer/planner.js`：天赋树数据加载、绘制、路径、分配、翻译与交互逻辑。
@@ -29,4 +30,4 @@
 
 ## 外部依赖
 
-项目运行时依赖 GGG 数据导出、社区天赋树资源和 PoB2 中文翻译。上游内容可能变化，涉及 URL 或解析规则的修改应同时更新缓存 manifest、编译器来源清单和相关文档。
+项目运行时依赖 GGG 数据导出、社区天赋树资源和 PoB2 中文翻译。Planner 运行时从仓库级 `data/upstream-sources.lock.json` 取得不可变 URL 和完整性信息；`data/cache/manifest.json` 只把本地核心文件名映射到 lock ID。上游更新必须先通过人工批准的 lock promotion，不能直接跟随移动分支。珠宝编译器迁移到该 lock 属于后续任务。

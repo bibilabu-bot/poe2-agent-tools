@@ -1,38 +1,46 @@
 {
-  "version": 1,
-  "mode": "bundled-first, user-cache-second, network-on-cache-miss",
+  "version": 2,
+  "mode": "lock-verified bundled-first, lock-verified user-cache-second, immutable network-on-cache-miss",
   "core": [
     {
       "name": "tree-pre.json",
-      "source": "drydream/poe2drydream"
+      "source": "drydream/poe2drydream",
+      "lockId": "runtime.drydream.tree-pre"
     },
     {
       "name": "atlas-skills.webp",
-      "source": "drydream/poe2drydream"
+      "source": "drydream/poe2drydream",
+      "lockId": "runtime.drydream.atlas-skills"
     },
     {
       "name": "atlas-frame.webp",
-      "source": "drydream/poe2drydream"
+      "source": "drydream/poe2drydream",
+      "lockId": "runtime.drydream.atlas-frame"
     },
     {
       "name": "tree-jump.json",
-      "source": "drydream/poe2drydream"
+      "source": "drydream/poe2drydream",
+      "lockId": "runtime.drydream.tree-jump"
     },
     {
       "name": "ChineseTranslation.lua",
-      "source": "addohm/PathOfBuilding-PoE2"
+      "source": "addohm/PathOfBuilding-PoE2",
+      "lockId": "runtime.translation.zh-cn"
     },
     {
       "name": "mastery-effect-active.json",
-      "source": "grindinggear/poe2-skilltree-export"
+      "source": "grindinggear/poe2-skilltree-export",
+      "lockId": "runtime.ggg.mastery-effect-metadata"
     },
     {
       "name": "mastery-effect-active.webp",
-      "source": "grindinggear/poe2-skilltree-export"
+      "source": "grindinggear/poe2-skilltree-export",
+      "lockId": "runtime.ggg.mastery-effect-atlas"
     },
     {
       "name": "official-data.json",
-      "source": "grindinggear/poe2-skilltree-export"
+      "source": "grindinggear/poe2-skilltree-export",
+      "lockId": "shared.ggg.passive-tree"
     }
   ]
 }

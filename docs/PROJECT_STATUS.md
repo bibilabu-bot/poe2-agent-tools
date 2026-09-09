@@ -16,7 +16,7 @@ Build a maintainable PoE2 desktop build planner with reliable passive-tree alloc
 | Allocation | Prototype | Normal, ascendancy and weapon-set allocation present |
 | Conditional/hidden nodes | Prototype | Conditional reveal and external hidden-node sidecar present |
 | Chinese localization | Prototype | Runtime translation from community PoB2 data |
-| Local resource cache | Implemented, not fully exercised | Cache-first Electron protocol; first-run download still required |
+| Local resource cache | Lock-integrated | Bundled and user-cache bytes are verified against ADR-007 before use; cache misses download immutable locked URLs |
 | Build save/open | Implemented | Desktop Save/Open controls, schema-v1 codec, safe file IPC and transactional state restoration accepted; Windows runtime round trip verified |
 | Build JSON contract | Accepted and integrated | Schema v1 defines durable state, migration, validation, preservation and atomic-save policy in `docs/BUILD_FORMAT.md`; implementation is split into P2AT-004A/B/C |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
@@ -43,6 +43,7 @@ At migration time:
 - P2AT-004B implemented bounded UTF-8 reads, structured Build-specific IPC and tested same-directory safe replacement with failure recovery on Windows.
 - P2AT-004C connected visible Save/Open controls to live Planner state, removed the duplicate embedded runtime, passed 38 offline tests, and demonstrated a non-empty Build save/reset/reopen round trip in Electron on Windows.
 - P2AT-005/P2AT-005A established ADR-007 and an accepted 26-file canonical source lock; 25 immutable GitHub entries were independently rehashed during controller acceptance, while the live PoE2DB page had already drifted and remains a manually reviewed auxiliary snapshot.
+- P2AT-005B migrated the Planner's eight core resources and eight class portraits to lock-derived immutable URLs with pre-use and pre-write integrity checks; compiler acquisition remains unchanged.
 
 Electron was not launched during the initial migration because its binary download was interrupted by a network reset. P2AT-004C later completed a successful Windows Electron runtime acceptance for Build persistence.
 
@@ -50,7 +51,7 @@ Electron was not launched during the initial migration because its binary downlo
 
 1. Core allocation behavior still has no regression tests beyond the initial stat-utility harness.
 2. The desktop renderer is approximately four thousand lines in one JavaScript file.
-3. External datasets are canonically pinned in metadata, but runtime and compiler code still fetch through moving branch URLs until a follow-up migration.
+3. Planner runtime data now consumes the canonical lock, but the jewel compiler still fetches through its legacy moving URLs until a follow-up migration.
 4. First-run offline use still depends on a previously populated data/resource cache.
 5. Packaging and release automation have not been established.
 
