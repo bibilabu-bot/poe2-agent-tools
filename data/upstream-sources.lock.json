@@ -1,0 +1,771 @@
+{
+  "schemaVersion": 1,
+  "snapshotId": "upstream-lock-2026-09-09-001",
+  "approvedPolicy": "ADR-007",
+  "generatedAt": "2026-09-09T02:09:52.176Z",
+  "promotion": {
+    "mode": "manual",
+    "candidateAutomationAllowed": true,
+    "approvalRequired": true
+  },
+  "sources": [
+    {
+      "id": "runtime.drydream.tree-pre",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/tree-pre.json"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/tree-pre.json"
+      },
+      "purpose": "Passive tree topology and node metadata",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "bbb3b537669ad3ceadda62bcae5f824d3b6f4f23c8a917e0ab5ef858c4192796",
+        "bytes": 1580743
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.atlas-skills",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/atlas-skills.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/atlas-skills.webp"
+      },
+      "purpose": "Passive tree skill sprite atlas",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "097a5a91c6907844217b7bb530b911a956852ed5c19336222df5153f35a30a24",
+        "bytes": 436456
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.atlas-frame",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/atlas-frame.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/atlas-frame.webp"
+      },
+      "purpose": "Passive tree frame sprite atlas",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "a87c8460ec7b5ef46f2741c3314fdd5bb6183ca03d9b9eec6ef545bd1b177b60",
+        "bytes": 87612
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.tree-jump",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/tree-jump.json"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/tree-jump.json"
+      },
+      "purpose": "Passive tree jump-node metadata",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "a92bb6793cfdf567c8cf2516a2e039e4f5eb5be51eb0ddb0500bed1bfeeea54c",
+        "bytes": 2055
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.portrait-warrior",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/assets/background-warrior.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/assets/background-warrior.webp"
+      },
+      "purpose": "warrior class portrait background",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "6022abc8613650de6b576fec5e1315fbf2b1c1e587f561076bdfc5ad5663cce5",
+        "bytes": 324394
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.portrait-ranger",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/assets/background-ranger.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/assets/background-ranger.webp"
+      },
+      "purpose": "ranger class portrait background",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "53978d611dd6b2b312e78460c13f04b2e89d7e2a93959595d5626495a24eb53b",
+        "bytes": 397150
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.portrait-witch",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/assets/background-witch.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/assets/background-witch.webp"
+      },
+      "purpose": "witch class portrait background",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "ae118ca9cb63bcb70e873f3cd3edaa44b399efd7650f3414601e5e228e548dfc",
+        "bytes": 416404
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.portrait-sorceress",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/assets/background-sorceress.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/assets/background-sorceress.webp"
+      },
+      "purpose": "sorceress class portrait background",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "fe1e80be86fcea8d44ec3e9b84901cd8ae8731c1abe0d40286499ecf9e2e37d4",
+        "bytes": 466184
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.portrait-monk",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/assets/background-monk.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/assets/background-monk.webp"
+      },
+      "purpose": "monk class portrait background",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "634d7d3b07ab3067c9b8096336f23ac88c9c4dc05e566515706583c41b88c48c",
+        "bytes": 447658
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.portrait-mercenary",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/assets/background-mercenary.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/assets/background-mercenary.webp"
+      },
+      "purpose": "mercenary class portrait background",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "b7bf229ba6a2c30cb522c2967799f48ed6bc6d834fca26b3acfcf8c893dce113",
+        "bytes": 361630
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.portrait-huntress",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/assets/background-huntress.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/assets/background-huntress.webp"
+      },
+      "purpose": "huntress class portrait background",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "411b230bf639b4f3d4639a81b89f1f8ca79571508ccc8a7e57f6820639649314",
+        "bytes": 564864
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.drydream.portrait-druid",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "drydream/poe2drydream",
+        "revision": "073838ccf0585131788e714721d6d2d95aa44b77",
+        "path": "public/assets/background-druid.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/assets/background-druid.webp"
+      },
+      "purpose": "druid class portrait background",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "c5ca72d61154b1502bf09ccdd09fac3098f876098ed5b3a59a2f783c3f803557",
+        "bytes": 567414
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No repository license was found as of 2026-09-09; this is a point-in-time investigation result."
+      }
+    },
+    {
+      "id": "runtime.translation.zh-cn",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "addohm/PathOfBuilding-PoE2",
+        "revision": "134157435172f41df00c8a5f1365a5c11bc923fc",
+        "path": "src/Data/ChineseTranslation.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/addohm/PathOfBuilding-PoE2/134157435172f41df00c8a5f1365a5c11bc923fc/src/Data/ChineseTranslation.lua"
+      },
+      "purpose": "Simplified Chinese passive-tree translations",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "8621d04e96f66c32e304d5ae16978d7c651214b9221e2c01ea263b749d9f98a0",
+        "bytes": 3408471
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "download-only",
+        "notes": "Fork code license does not establish redistribution rights for extracted Chinese game strings; do not bundle."
+      }
+    },
+    {
+      "id": "runtime.ggg.mastery-effect-metadata",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "grindinggear/poe2-skilltree-export",
+        "revision": "bd87e6512c92b868542eddfb1ba4ea8b6dc2da36",
+        "path": "assets/mastery-effect-active.json"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/grindinggear/poe2-skilltree-export/bd87e6512c92b868542eddfb1ba4ea8b6dc2da36/assets/mastery-effect-active.json"
+      },
+      "purpose": "Official mastery effect metadata",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "23161c540e12a180e356d12555258a26ef47825fecd9ed09789d7e97b934fa5e",
+        "bytes": 15684
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No explicit repository data license was found as of 2026-09-09; GGG ownership notices still apply."
+      }
+    },
+    {
+      "id": "runtime.ggg.mastery-effect-atlas",
+      "status": "active",
+      "consumers": [
+        "planner-runtime"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "grindinggear/poe2-skilltree-export",
+        "revision": "bd87e6512c92b868542eddfb1ba4ea8b6dc2da36",
+        "path": "assets/mastery-effect-active.webp"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/grindinggear/poe2-skilltree-export/bd87e6512c92b868542eddfb1ba4ea8b6dc2da36/assets/mastery-effect-active.webp"
+      },
+      "purpose": "Official mastery effect sprite atlas",
+      "acquisitionPhase": "runtime-cache",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "6f008ef9bd7cd100dd89a4edbecc37e3c04ca9dac5dc672bf56c3e8899f2064e",
+        "bytes": 643792
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No explicit repository data license was found as of 2026-09-09; GGG ownership notices still apply."
+      }
+    },
+    {
+      "id": "shared.ggg.passive-tree",
+      "status": "active",
+      "consumers": [
+        "planner-runtime",
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "grindinggear/poe2-skilltree-export",
+        "revision": "bd87e6512c92b868542eddfb1ba4ea8b6dc2da36",
+        "path": "data.json"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/grindinggear/poe2-skilltree-export/bd87e6512c92b868542eddfb1ba4ea8b6dc2da36/data.json"
+      },
+      "purpose": "Official tree geometry, nodes and jewel sockets",
+      "acquisitionPhase": "runtime-and-compiler",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "b52be9c4f17e4114064255ef1b8c58292e9db0e395d95af235a8d3fef0d44642",
+        "bytes": 5140821
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No explicit repository data license was found as of 2026-09-09; GGG ownership notices still apply."
+      }
+    },
+    {
+      "id": "compiler.pob.mod-jewel",
+      "status": "active",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+        "revision": "fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15",
+        "path": "src/Data/ModJewel.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15/src/Data/ModJewel.lua"
+      },
+      "purpose": "Current basic jewel affixes and ranges",
+      "acquisitionPhase": "compiler-fetch",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "090c3dbdefc0d7716456b8641d6bf222fe2e261159f9c5b3a59448b3872910c2",
+        "bytes": 150371
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "review-required",
+        "notes": "Repository code is MIT; generated game-data files retain GGG copyright notices and need separate review."
+      }
+    },
+    {
+      "id": "compiler.pob.misc",
+      "status": "active",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+        "revision": "fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15",
+        "path": "src/Data/Misc.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15/src/Data/Misc.lua"
+      },
+      "purpose": "Jewel-distance constants",
+      "acquisitionPhase": "compiler-fetch",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "21addc73f772e558143a89c3e45d62e838524f1a968aabe03521254d4ce133c9",
+        "bytes": 24010
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "review-required",
+        "notes": "Repository code is MIT; generated game-data files retain GGG copyright notices and need separate review."
+      }
+    },
+    {
+      "id": "compiler.pob.rares",
+      "status": "future-reference",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+        "revision": "fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15",
+        "path": "src/Data/Rares.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15/src/Data/Rares.lua"
+      },
+      "purpose": "Rare and radius jewel construction reference",
+      "acquisitionPhase": "compiler-reference",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "f58e0032acadc05a40ed5bdc8339a46031a6e03c0c79390688df9480f1eef927",
+        "bytes": 25196
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "review-required",
+        "notes": "Repository code is MIT; generated game-data files retain GGG copyright notices and need separate review."
+      }
+    },
+    {
+      "id": "compiler.pob.calc-setup",
+      "status": "optional",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+        "revision": "fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15",
+        "path": "src/Modules/CalcSetup.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15/src/Modules/CalcSetup.lua"
+      },
+      "purpose": "Runtime jewel socket and radius behavior reference",
+      "acquisitionPhase": "compiler-reference",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "5c51f3a8dd93ab99ce67763a015ad4644b4a99b1a74c31359b831e3965404312",
+        "bytes": 100609
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "review-required",
+        "notes": "Repository code is MIT; generated game-data files retain GGG copyright notices and need separate review."
+      }
+    },
+    {
+      "id": "compiler.pob.mod-parser",
+      "status": "optional",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+        "revision": "fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15",
+        "path": "src/Modules/ModParser.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15/src/Modules/ModParser.lua"
+      },
+      "purpose": "Special radius jewel parsing behavior reference",
+      "acquisitionPhase": "compiler-reference",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "6973c25f296c813187a85024e69737f0e69db43fc3fc8f281e1ac32e4409df95",
+        "bytes": 677245
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "review-required",
+        "notes": "Repository code is MIT; generated game-data files retain GGG copyright notices and need separate review."
+      }
+    },
+    {
+      "id": "compiler.pob.tree-export",
+      "status": "future-reference",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+        "revision": "fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15",
+        "path": "src/Export/Scripts/passivetree.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15/src/Export/Scripts/passivetree.lua"
+      },
+      "purpose": "Jewel socket art and export semantics reference",
+      "acquisitionPhase": "compiler-reference",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "436a90bb2ad5c5262bb6cb4da9247479a092c72fb9c5a453616666a1e8b12597",
+        "bytes": 45099
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "review-required",
+        "notes": "Repository code is MIT; generated game-data files retain GGG copyright notices and need separate review."
+      }
+    },
+    {
+      "id": "compiler.pob.timeless-node-index",
+      "status": "future-reference",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+        "revision": "fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15",
+        "path": "src/Data/TimelessJewelData/NodeIndexMapping.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15/src/Data/TimelessJewelData/NodeIndexMapping.lua"
+      },
+      "purpose": "Future timeless jewel node-index mapping",
+      "acquisitionPhase": "compiler-reference",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "a387ed0de2d42b04533cdbf73f96c5f7a8526aad5d4d673b0553c9aa6b3633d0",
+        "bytes": 96211
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "review-required",
+        "notes": "Repository code is MIT; generated game-data files retain GGG copyright notices and need separate review."
+      }
+    },
+    {
+      "id": "compiler.pob.timeless-trade-ids",
+      "status": "future-reference",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+        "revision": "fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15",
+        "path": "src/Data/TimelessJewelData/LegionTradeIds.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15/src/Data/TimelessJewelData/LegionTradeIds.lua"
+      },
+      "purpose": "Future timeless jewel trade identifiers",
+      "acquisitionPhase": "compiler-reference",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "c7258e06b67cadf95f505490a3c6eb2f6acaf9cd729a71c7d89dd4bbf961f52d",
+        "bytes": 1688
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "review-required",
+        "notes": "Repository code is MIT; generated game-data files retain GGG copyright notices and need separate review."
+      }
+    },
+    {
+      "id": "compiler.pob.cluster-jewels",
+      "status": "future-reference",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "github",
+        "repository": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+        "revision": "fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15",
+        "path": "src/Data/ClusterJewels.lua"
+      },
+      "transport": {
+        "type": "raw-github",
+        "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/fd4c1acb7f9f5ffd13372f5387ae16f8e6278c15/src/Data/ClusterJewels.lua"
+      },
+      "purpose": "Future cluster jewel schema reference",
+      "acquisitionPhase": "compiler-reference",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "2f9ffd2aaf71817badf1c636006bd0939783ff8a961911795752a96025bfd610",
+        "bytes": 35489
+      },
+      "license": {
+        "status": "mixed",
+        "redistribution": "review-required",
+        "notes": "Repository code is MIT; generated game-data files retain GGG copyright notices and need separate review."
+      }
+    },
+    {
+      "id": "compiler.poe2db.jewels",
+      "status": "active",
+      "consumers": [
+        "jewel-compiler"
+      ],
+      "origin": {
+        "type": "https",
+        "url": "https://poe2db.tw/us/Jewels"
+      },
+      "transport": {
+        "type": "https",
+        "url": "https://poe2db.tw/us/Jewels"
+      },
+      "purpose": "Snapshot-backed, manually reviewed jewel catalog cross-check",
+      "acquisitionPhase": "compiler-fetch",
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "fa6a61f7213b411ddfbcbdf078507bacca359153b499ea1f159b6d09eab4cbda",
+        "bytes": 266744
+      },
+      "snapshot": {
+        "snapshotId": "poe2db-jewels-2026-09-09t02-09-52z",
+        "accessedAt": "2026-09-09T02:09:52.176Z",
+        "reviewStatus": "manual-review-required"
+      },
+      "license": {
+        "status": "unconfirmed",
+        "redistribution": "prohibited-until-confirmed",
+        "notes": "No clear dataset redistribution license was confirmed as of 2026-09-09; retain only reviewed derived facts when permitted."
+      }
+    }
+  ]
+}

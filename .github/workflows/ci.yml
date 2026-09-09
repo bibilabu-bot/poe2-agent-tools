@@ -45,6 +45,12 @@ jobs:
           node --check build-jewel-db.mjs
           node --check verify-fixture.mjs
 
+      - name: Validate canonical upstream source lock
+        run: |
+          node --check tools/validate-upstream-lock.mjs
+          node --test tools/validate-upstream-lock.test.mjs
+          node tools/validate-upstream-lock.mjs
+
       - name: Verify jewel compiler fixture
         working-directory: tools/jewel-compiler
         run: node verify-fixture.mjs

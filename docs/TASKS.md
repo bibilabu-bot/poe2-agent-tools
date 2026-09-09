@@ -229,12 +229,38 @@ Non-goals:
 
 ### P2AT-005 — Inventory and pin upstream data sources
 
-- Status: `READY`
+- Status: `ACCEPTED`
 - Priority: P1
 - Assignment target: `ChatGPT chat executor`
 - Depends on: none
 
 Goal: document provenance, license/attribution needs, update cadence and a pinning strategy for each runtime/compiler source.
+
+### P2AT-005A — Integrate upstream policy and canonical source lock
+
+- Status: `REVIEW`
+- Priority: P1
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-005
+- Scope: `docs/UPSTREAM_DATA.md`, `docs/DECISIONS.md`, `docs/TASKS.md`, `docs/PROJECT_STATUS.md`, `data/upstream-sources.lock.json`, offline lock validation and CI wiring
+
+Goal: integrate the accepted P2AT-005 research and ADR-007, record immutable identities for all current runtime and compiler sources, and enforce the lock schema without changing any source consumer.
+
+Acceptance criteria:
+
+1. The canonical lock covers every current fixed runtime resource, all eight current portrait files and every jewel compiler manifest source.
+2. GitHub sources use full commit SHAs and per-file SHA-256/byte counts; PoE2DB uses a timestamped content snapshot without a fabricated Git revision.
+3. Source status distinguishes `active`, `optional` and `future-reference`; candidate promotion remains human-approved.
+4. Pure offline tests validate schema, unique IDs, revisions, hashes, enums and required fields.
+5. Existing desktop tests/checks and jewel fixture verification remain green.
+6. No runtime/compiler consumer behavior, large upstream dataset or installer content is changed.
+
+Non-goals:
+
+- migrating the Planner runtime or jewel compiler to consume the lock;
+- automating promotion;
+- resolving license questions or approving redistribution;
+- packaging upstream data.
 
 ## Backlog
 
