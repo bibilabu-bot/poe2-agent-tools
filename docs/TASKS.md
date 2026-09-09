@@ -265,11 +265,12 @@ Non-goals:
 
 ### P2AT-005B — Make Planner runtime consume the canonical source lock
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-005A
 - Scope: desktop main-process resource resolution and cache integrity, focused offline tests, cache metadata/documentation and CI integration as needed
+- Delivery: `9b1e541`; accepted and merged by controller in `772c8f3`
 
 Goal: replace the Planner runtime's moving branch URLs with immutable URLs and integrity metadata from the accepted canonical source lock.
 

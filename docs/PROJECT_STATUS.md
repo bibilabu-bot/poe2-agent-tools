@@ -24,7 +24,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | Automated tests | Baseline established | Node test harness covers extracted stat utilities; broader allocation coverage remains pending |
 | Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
 | Packaging/release | Not started | No installer or release workflow |
-| Upstream data governance | Lock accepted | ADR-007 and the validated 26-file canonical source lock define immutable revisions, per-file integrity and manual promotion; consumers have not migrated yet |
+| Upstream data governance | Runtime integrated | ADR-007 and the validated 26-file canonical source lock govern Planner runtime identity and integrity; jewel compiler migration remains pending |
 | Licensing/attribution | Incomplete | Point-in-time findings and no-bundle controls are recorded; formal license confirmation remains pending |
 | Distribution model | Decided | Free public release with optional voluntary sponsorship; third-party redistribution rights remain a release gate |
 
@@ -53,7 +53,7 @@ Electron was not launched during the initial migration because its binary downlo
 1. Core allocation behavior still has no regression tests beyond the initial stat-utility harness.
 2. The desktop renderer is approximately four thousand lines in one JavaScript file.
 3. Planner runtime data now consumes the canonical lock, but the jewel compiler still fetches through its legacy moving URLs until a follow-up migration.
-4. First-run offline use still depends on a previously populated data/resource cache.
+4. First-run use still depends on a single overseas transport per resource; China-accessible mirrors, offline import and distributable bundled data remain unresolved.
 5. Packaging and release automation have not been established.
 
 ## Next milestone
