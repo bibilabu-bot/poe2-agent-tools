@@ -20,6 +20,17 @@ For assigned work, follow the task ID and acceptance criteria in `docs/TASKS.md`
 - Executor conversations implement exactly one assigned task.
 - Executors must not mark their own task accepted. They report evidence; the controller performs acceptance.
 
+## Controller dispatch communication
+
+Every task dispatch from the project controller must include a separate plain-language briefing for the project owner before the copyable executor prompt. The briefing must state:
+
+- what the task is trying to accomplish in non-technical language;
+- what user-visible or project-level outcome to expect when it is complete;
+- whether the project owner needs to make a decision now;
+- when a decision is required, the concrete choices and the controller's recommendation.
+
+Do not make the owner infer the purpose of a task from implementation details. If no decision is needed, say so explicitly.
+
 ## Executor environments
 
 Every task in `docs/TASKS.md` must name an assignment target:
