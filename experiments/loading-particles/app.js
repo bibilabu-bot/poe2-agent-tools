@@ -54,7 +54,7 @@
     { at: 66, label: "Parsing passive tree" },
     { at: 88, label: "Preparing renderer" }
   ];
-  const palette = ["#dce8f4", "#a9c7e7", "#8e86bd", "#e7d6b0", "#b58a4a"];
+  const palette = ["#f7fbff", "#cfe6f7", "#b9b2e2", "#f1dfb8", "#c89a50"];
 
   function randomBetween(rng, min, max) { return min + rng() * (max - min); }
 
@@ -259,13 +259,30 @@
           completionBoost = Math.max(0, 1 - Math.abs(particle.targetX - sweepX) / 130);
         }
       }
-      context.globalAlpha = Math.min(1, particle.alpha * twinkle * ignitionPresence * revealFactor * (1 + completionBoost));
+      const titleLift = particle.role === "title" ? .22 * roleReveal : .1 * roleReveal;
+      const coreAlpha = Math.min(1, particle.alpha * twinkle * ignitionPresence * (revealFactor + titleLift) * (1 + completionBoost));
+      context.globalAlpha = coreAlpha;
       context.fillStyle = particle.color;
-      const size = particle.size * (.76 + roleReveal * .24 + completionBoost * .35);
+      const size = particle.size * (.76 + roleReveal * .42 + completionBoost * .35);
+      const streamStrength = Math.sin(convergence * Math.PI) * birth;
+      if (particle.type === "stardust" && streamStrength > .08 && i % 3 === 0) {
+        context.globalAlpha = coreAlpha * streamStrength * .28;
+        context.fillRect(particle.x - particle.velocityX * 4.5 + parallaxX, particle.y - particle.velocityY * 4.5 + parallaxY, size * .58, size * .58);
+        if (i % 9 === 0) {
+          context.globalAlpha *= .55;
+          context.fillRect(particle.x - particle.velocityX * 9 + parallaxX, particle.y - particle.velocityY * 9 + parallaxY, size * .42, size * .42);
+        }
+        context.globalAlpha = coreAlpha;
+      }
       if ((particle.type === "ember" || particle.type === "guide") && convergence < .92) {
         context.globalAlpha *= .25;
         context.fillRect(particle.x - particle.velocityX * 2.4 + parallaxX, particle.y - particle.velocityY * 2.4 + parallaxY, size * .7, size * .7);
         context.globalAlpha *= 4;
+      }
+      if (roleReveal > .72 && i % 2 === 0) {
+        context.globalAlpha = coreAlpha * .14;
+        context.fillRect(particle.x - .7 + parallaxX, particle.y - .7 + parallaxY, size + 1.4, size + 1.4);
+        context.globalAlpha = coreAlpha;
       }
       context.fillRect(particle.x + parallaxX, particle.y + parallaxY, size, size);
     }

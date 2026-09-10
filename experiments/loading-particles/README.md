@@ -12,6 +12,7 @@ The NovaCode login page was used only as high-level visual inspiration for parti
 - `app.js` — Canvas renderer, mock-loading adapter, controls and cleanup.
 - `test/logic.test.cjs` — network-free Node tests.
 - `capture-evidence.mjs` — records a real-time 12-second browser screencast through the local Edge debugging protocol and encodes it locally with FFmpeg.
+- `measure-performance.mjs` — repeats the 1920×1080 Balanced and Cinematic browser timing sample.
 - `screenshots/` — 1920×1080 review captures for all display modes.
 - `PERFORMANCE.md` — measured local performance and method.
 
@@ -40,6 +41,8 @@ Run the focused suite with:
 ```powershell
 node --test experiments/loading-particles/test/*.test.cjs
 ```
+
+With the same local server running, reproduce the performance sample from the experiment directory with `node measure-performance.mjs`.
 
 ## State machine and integration seam
 

@@ -9,10 +9,10 @@ Measured 2026-09-10 in Microsoft Edge (Chromium headless/in-app browser), at an 
 
 | Mode | Title particles | Wave particles | Total | Average frame interval | P95 frame interval | First target generation | Full layout / resize |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Balanced | 3,200 | 685 | 3,885 | 8.33 ms | 8.50 ms | 13.40 ms | 17.50 ms |
-| Cinematic | 6,200 | 1,129 | 7,329 | 9.91 ms | 16.70 ms | 13.10 ms | 18.50 ms |
+| Balanced | 3,200 | 685 | 3,885 | 8.33 ms | 8.60 ms | 10.20 ms | 13.00 ms |
+| Cinematic | 6,200 | 1,129 | 7,329 | 9.35 ms | 16.70 ms | 20.80 ms | 29.40 ms |
 
-The host browser was presenting at roughly 120 Hz, so Balanced's observed 8.3 ms interval is the refresh cadence and should not be converted into a claim about unconstrained maximum FPS. Cinematic remained below one 60 Hz frame at P95 and did not trigger its sustained-low-frame-rate downgrade.
+The host browser was presenting at roughly 120 Hz, so Balanced's observed 8.3 ms interval is the refresh cadence and should not be converted into a claim about unconstrained maximum FPS. Cinematic's P95 was approximately one 60 Hz frame and did not trigger its sustained-low-frame-rate downgrade. These values were regenerated after the denser star-stream trails and brighter revelation halo were added.
 
 The earlier 60-second stability run established fixed-array behavior with no growth. The revised density presets use the same allocation model: the observed peak equals the initialized count (3,885 Balanced, 7,329 Cinematic), and terminal states do not allocate new particles. Automated lifecycle tests assert terminal stability directly.
 
