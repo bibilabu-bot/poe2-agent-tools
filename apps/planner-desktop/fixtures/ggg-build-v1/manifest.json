@@ -202,5 +202,18 @@
       "websiteUploadTest": "not tested",
       "unverified": []
     }
-  ]
+  ],
+  "hashing": "sha256 UTF-8 with CRLF normalized to LF",
+  "titanExample": {
+    "sourceUrl": "https://www.pathofexile.com/developer/docs/game#buildplanner",
+    "accessedAt": "2026-09-10",
+    "content": "not copied",
+    "relatedFixtures": [
+      "minimal",
+      "passive-string",
+      "passive-object",
+      "skill-support",
+      "inventory-slot"
+    ]
+  }
 }
