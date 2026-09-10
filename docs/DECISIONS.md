@@ -123,3 +123,24 @@ When immutable evidence establishes radius membership semantics or stable upstre
 reviewed catalog/contract extension may add them without changing existing IDs or v2's
 meaning. It must preserve unresolved v2 data and explicitly version any incompatible
 semantic change.
+
+## ADR-010 — Native and official exports use distinct `.build` profiles
+
+- Date: 2026-09-10
+- Status: Accepted
+
+All newly saved user Build files use the `.build` extension. The editable native profile
+remains the lossless `poe2-agent-tools-build` schema, while a separate explicit export
+produces the strict GGG Build Planner v1 Experimental profile. File content, not the
+extension, determines the profile.
+
+The native format retains numeric graph identity and schema-v2 jewel state. Official
+export translates IDs at the boundary through a pinned mapping and writes only documented
+GGG fields. It reports every omission or ambiguity and never mutates the native source.
+Private fields are excluded from game-bound files until game and website compatibility
+are empirically verified. See `docs/OFFICIAL_BUILD_INTEROP.md`.
+
+Foreign official import will not be exposed as a production editing workflow until its
+fields can round-trip without silent loss. If explicit preservation semantics are needed,
+they belong in a reviewed future schema revision rather than executable schema-v2 unknown
+fields or an implicit sidecar.

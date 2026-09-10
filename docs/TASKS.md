@@ -531,11 +531,12 @@ Non-goals:
 
 ### P2AT-012 — Research official PoE2 `.build` compatibility and migration
 
-- Status: `READY`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `ChatGPT deep research/chat-mode research`
 - Depends on: P2AT-003A, P2AT-008D
 - Type: read-only external and repository research; may run in parallel with P2AT-008E
+- Delivery: research artifact accepted on 2026-09-10; controller decisions recorded in ADR-010 and `docs/OFFICIAL_BUILD_INTEROP.md`
 
 Goal: determine how the official experimental PoE2 Build Planner `.build` JSON format can become the product's user-facing file format without silently losing the Planner's richer state or producing files the game rejects.
 
@@ -558,3 +559,33 @@ Non-goals:
 - overriding the in-progress P2AT-008E contract implementation;
 - assuming official `.build` can encode jewels or private fields without evidence;
 - legal/licensing research beyond attribution of technical sources.
+
+### P2AT-013 — Establish official `.build` fixtures and passive-ID mapping oracle
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-012
+- Type: pure interoperability foundation; may run in parallel with P2AT-008E
+
+Goal: create pinned, reproducible fixtures and a pure numeric-skill-ID/official-raw-ID mapping layer without yet changing Save/Open dialogs or claiming game acceptance.
+
+Acceptance criteria:
+
+1. Record a machine-readable local copy of the documented GGG Build v1 field/type contract and derived test fixtures, with source URL/access date and no undocumented restrictions presented as official.
+2. Include fixtures for minimal/documented shapes, scalar/array level intervals, weapon sets, skills/supports, inventory hints, unknown fields, missing/invalid known fields and encoding probes.
+3. Build a pure browser/Node mapping oracle from verified official tree node data: numeric skill ID to `PassiveSkills.Id` and reverse lookup, with explicit missing/duplicate/ambiguous results.
+4. Report exact coverage for current normal, weapon-set, ascendancy, instilled/hidden and accepted ordinary jewel-socket categories using locked current data.
+5. Preserve native numeric identity; the mapper is boundary-only and must never mutate Build state or guess a mapping.
+6. Pin every community implementation relied upon or exclude it from normative behavior; official GGG documentation remains authoritative.
+7. Tests cover known mappings including `2491 ↔ jewel_slot1974`, missing IDs, duplicate raw IDs, malformed nodes, deterministic output and caller-input immutability.
+8. Unknown-field and encoding fixtures remain labelled unverified until P2AT-018 runs actual game/site tests.
+9. No file dialog, native codec, GGG codec, UI, game-directory write or network-at-runtime behavior is added.
+10. Existing desktop, lock, syntax and jewel-fixture checks remain green; task stays `REVIEW`.
+
+Non-goals:
+
+- implementing official `.build` import/export;
+- changing native schema v2 or P2AT-008E;
+- claiming game or website compatibility from structural validation alone;
+- adding private fields to game-bound fixtures.

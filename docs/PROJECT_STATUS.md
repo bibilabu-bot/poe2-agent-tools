@@ -19,7 +19,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | Local resource cache | Lock-integrated | Bundled and user-cache bytes are verified against ADR-007 before use; cache misses download immutable locked URLs |
 | Build save/open | Implemented | Desktop Save/Open controls, schema-v1 codec, safe file IPC and transactional state restoration accepted; Windows runtime round trip verified |
 | Build JSON contract | Schema v2 specified | Schema v1 remains implemented; P2AT-008D adds the accepted v2 jewel-instance/placement contract, migration and preservation policy for later codec/UI work |
-| Official `.build` interoperability | Research queued | Product direction is to use `.build` for user-facing Build files; P2AT-012 will determine strict game compatibility versus lossless native storage and migration |
+| Official `.build` interoperability | Architecture accepted | ADR-010 selects a lossless native `.build` plus separate strict GGG export; fixture and ID-mapping work begins in P2AT-013 |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Contract ready | Only twelve verified ordinary sockets are eligible for the first slice; implementation, special sockets and radius effects remain deferred |
 | Automated tests | 64 desktop tests | Node test harness covers stat utilities, Build persistence, runtime resources and the accepted passive graph core; broader allocation-state coverage remains pending |
