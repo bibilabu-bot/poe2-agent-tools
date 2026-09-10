@@ -463,7 +463,7 @@ Non-goals:
 
 ### P2AT-008D — Integrate the minimal jewel and Build-v2 contract
 
-- Status: `READY`
+- Status: `REVIEW`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-003A, P2AT-008C
