@@ -44,6 +44,7 @@
           ascendancy: withoutStart(state.ascAllocated, state.ascStartId),
           instilledPassives: sorted(state.instillAllocated, undefined),
         },
+        jewels: state.jewelState ? JSON.parse(JSON.stringify(state.jewelState)) : { instances: [], placements: [] },
       },
       ui: {
         camera: {
@@ -78,6 +79,11 @@
     );
     const ui = value.ui || {};
     const camera = ui.camera || {};
+    if (typeof catalogs?.normalizeJewelState !== "function") {
+      throw new Error("Cannot validate jewel state without the local jewel catalog.");
+    }
+    const normalizedJewels = catalogs.normalizeJewelState(build.jewels || { instances: [], placements: [] });
+    if (!normalizedJewels.ok) throw new Error("Cannot validate jewel state against the local catalog.");
 
     return {
       baseClassName: build.class.base,
@@ -96,6 +102,7 @@
         ? build.allocations.ascendancy
         : [ascStartId, ...build.allocations.ascendancy]),
       instillAllocated: new Set(build.allocations.instilledPassives),
+      jewelState: JSON.parse(JSON.stringify(normalizedJewels.state)),
       camera: {
         x: Object.hasOwn(camera, "x") ? camera.x : undefined,
         y: Object.hasOwn(camera, "y") ? camera.y : undefined,
@@ -145,6 +152,14 @@
     state.preservation = null;
   }
 
+  function extractJewelState(state) {
+    return JSON.parse(JSON.stringify(state.jewelState || { instances: [], placements: [] }));
+  }
+
+  function applyJewelState(state, jewelState) {
+    state.jewelState = JSON.parse(JSON.stringify(jewelState));
+  }
+
   return {
     extractBuildValue,
     createBuildCandidate,
@@ -152,5 +167,7 @@
     attemptBuildDecode,
     classifyBuildApplyResult,
     clearBuildPreservation,
+    extractJewelState,
+    applyJewelState,
   };
 });

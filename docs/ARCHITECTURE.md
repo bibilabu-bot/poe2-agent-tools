@@ -9,6 +9,8 @@
 - `electron/preload.cjs`：受控的 Renderer API 边界。
 - `renderer/index.html`：界面、样式与页面结构。
 - `renderer/passive-graph.js`：浏览器与 Node 共用的纯图构建、邻接查询、可达集合及确定性最短可用路径模块。
+- `renderer/jewel-state.js`：浏览器与 Node 共用的珠宝实例/placement 验证、规范化和纯编辑 API；不计算半径或规则效果。
+- `src/jewels/catalog.js`：随应用提交的本地治理目录，包含审核过的六个 definition 和十二个普通 socket（numeric node ID 与 official raw ID）。
 - `renderer/planner.js`：天赋树数据加载、绘制、路径、分配、翻译与交互逻辑。
 - `data/cache/manifest.json`：需要缓存的核心远程资源清单。
 - `src/jewels/`、`src/rules/`：后续珠宝系统和规则引擎的模块边界。
@@ -30,6 +32,8 @@
 3. `planner-jewel-contract.json` 描述 Planner 集成所需的数据契约，包括项目拥有的 definition、Build instance/placement 和带 official raw ID 的 socket descriptor。
 
 当前 `raw/` 是小型可运行 fixture，`dist/` 是对应的示例结果。fixture socket `100`/`101` 不得作为生产映射；生产普通插槽和 Build schema-v2 jewel 持久化边界由 `docs/JEWEL_EVIDENCE.md` 与 `docs/BUILD_FORMAT.md` 约束。半径状态只能为 `unsupported`/`unverified`，不执行半径计算。
+
+Build codec 接受 v1 和 v2；v1 只在内存中迁移为空珠宝 v2，用户下一次显式保存才写出规范化 v2。未知 definition、socket、属性及 placement 保存为惰性数据，不进入运行时装备状态。
 
 ## 外部依赖
 

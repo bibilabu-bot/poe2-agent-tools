@@ -6,13 +6,15 @@
   "use strict";
 
   const BUILD_FORMAT = "poe2-agent-tools-build";
-  const BUILD_SCHEMA_VERSION = 1;
+  const BUILD_SCHEMA_VERSION = 2;
   const BUILD_LIMITS = Object.freeze({
     maxFileBytes: 5 * 1024 * 1024,
     maxAllocationEntries: 20_000,
     maxKnownStringLength: 256,
     maxTraversalDepth: 64,
     maxDiagnosticDetails: 100,
+    maxJewelInstances: 20_000,
+    maxJewelPlacements: 20_000,
   });
   const ALLOCATION_KEYS = Object.freeze([
     "normal",
@@ -29,6 +31,9 @@
     "showInstilledOnGraph",
   ]);
   const CAMERA_KEYS = Object.freeze(["x", "y", "scale"]);
+  const INSTANCE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+  const DEFINITION_ID = /^[a-z][a-z0-9.-]*:[a-z0-9][a-z0-9._-]*$/;
+  const SOCKET_ID = /^(0|[1-9][0-9]{0,255})$/;
 
   function hasOwn(value, key) {
     return Object.prototype.hasOwnProperty.call(value, key);
@@ -375,6 +380,74 @@
     return ui;
   }
 
+  function comparePlacements(left, right) {
+    const a = BigInt(left.socketNodeId); const b = BigInt(right.socketNodeId);
+    if (a !== b) return a < b ? -1 : 1;
+    return left.socketNodeId < right.socketNodeId ? -1 : left.socketNodeId > right.socketNodeId ? 1
+      : left.instanceId < right.instanceId ? -1 : left.instanceId > right.instanceId ? 1 : 0;
+  }
+
+  function readJewels(build, sourceVersion, reporter, optionsForJewels = null) {
+    if (sourceVersion === 1) return { instances: [], placements: [] };
+    const jewels = requireRecord(build, "jewels", "build.jewels", reporter);
+    if (!jewels) return { instances: [], placements: [] };
+    const readArray = (key, maximum) => {
+      const path = `build.jewels.${key}`;
+      if (!hasOwn(jewels, key)) { reporter.fatal("missing_required_field", path, `${path} is required.`); return []; }
+      if (!Array.isArray(jewels[key])) { reporter.fatal("invalid_type", path, `${path} must be an array.`); return []; }
+      if (jewels[key].length > maximum) reporter.fatal("jewel_limit_exceeded", path, `${path} exceeds ${maximum} entries.`);
+      return jewels[key];
+    };
+    function validProperties(value, path, depth = 0) {
+      if (depth > BUILD_LIMITS.maxTraversalDepth) { reporter.fatal("traversal_depth_exceeded", path, "Jewel properties exceed traversal depth."); return false; }
+      if (value === null || ["string", "boolean", "number"].includes(typeof value)) return true;
+      if (Array.isArray(value)) return value.every((entry, index) => validProperties(entry, `${path}[${index}]`, depth + 1));
+      if (!isRecord(value)) return false;
+      return Object.keys(value).every((key) => {
+        if (key.length > BUILD_LIMITS.maxKnownStringLength) { reporter.fatal("string_too_long", `${path}.${key}`, "Jewel property key exceeds 256 characters."); return false; }
+        return validProperties(value[key], `${path}.${key}`, depth + 1);
+      });
+    }
+    const sourceInstances = readArray("instances", BUILD_LIMITS.maxJewelInstances);
+    const sourcePlacements = readArray("placements", BUILD_LIMITS.maxJewelPlacements);
+    const ids = new Set(); const instances = [];
+    sourceInstances.forEach((item, index) => {
+      const path = `build.jewels.instances[${index}]`;
+      if (!isRecord(item)) { reporter.fatal("invalid_type", path, "Instance must be an object."); return; }
+      if (typeof item.id !== "string" || !INSTANCE_ID.test(item.id)) reporter.fatal("invalid_value", `${path}.id`, "Invalid jewel instance ID.");
+      if (typeof item.definitionId !== "string" || item.definitionId.length > BUILD_LIMITS.maxKnownStringLength || !DEFINITION_ID.test(item.definitionId)) reporter.fatal("invalid_value", `${path}.definitionId`, "Invalid jewel definition ID.");
+      if (!isRecord(item.properties) || !validProperties(item.properties, `${path}.properties`)) reporter.fatal("invalid_type", `${path}.properties`, "properties must be a bounded JSON object.");
+      if (ids.has(item.id)) reporter.fatal("duplicate_instance_id", `${path}.id`, `Duplicate jewel instance ID: ${item.id}`); else ids.add(item.id);
+      if (typeof item.id === "string" && INSTANCE_ID.test(item.id) && typeof item.definitionId === "string" && DEFINITION_ID.test(item.definitionId) && isRecord(item.properties)) instances.push(safeClone(item));
+    });
+    const pairs = new Set(); const placements = [];
+    sourcePlacements.forEach((item, index) => {
+      const path = `build.jewels.placements[${index}]`;
+      if (!isRecord(item)) { reporter.fatal("invalid_type", path, "Placement must be an object."); return; }
+      if (typeof item.socketNodeId !== "string" || !SOCKET_ID.test(item.socketNodeId)) reporter.fatal("invalid_value", `${path}.socketNodeId`, "Invalid socket node ID.");
+      if (typeof item.instanceId !== "string" || !INSTANCE_ID.test(item.instanceId)) reporter.fatal("invalid_value", `${path}.instanceId`, "Invalid jewel instance ID.");
+      if (typeof item.socketNodeId !== "string" || !SOCKET_ID.test(item.socketNodeId) || typeof item.instanceId !== "string" || !INSTANCE_ID.test(item.instanceId)) return;
+      const pair = `${item.socketNodeId}\u0000${item.instanceId}`;
+      if (pairs.has(pair)) { reporter.warn("duplicate_placement", path, "Duplicate jewel placement was preserved once."); return; }
+      pairs.add(pair); if (!ids.has(item.instanceId)) reporter.warn("dangling_placement", `${path}.instanceId`, "Placement references a missing jewel instance.");
+      placements.push(safeClone(item));
+    });
+    const knownDefinitions = optionsForJewels?.definitions;
+    const knownSockets = optionsForJewels?.sockets;
+    const byInstance = new Map(instances.map(item => [item.id, item]));
+    const socketCounts = new Map(); const instanceCounts = new Map();
+    for (const placement of placements) { socketCounts.set(placement.socketNodeId, (socketCounts.get(placement.socketNodeId) || 0) + 1); instanceCounts.set(placement.instanceId, (instanceCounts.get(placement.instanceId) || 0) + 1); }
+    for (const instance of instances) if (knownDefinitions && !optionContains(knownDefinitions, instance.definitionId, "definition")) reporter.warn("unknown_definition", "build.jewels.instances", `${instance.definitionId} is preserved but inactive.`);
+    for (const placement of placements) {
+      const descriptor = knownSockets && (typeof knownSockets.get === "function" ? knownSockets.get(placement.socketNodeId) : null);
+      if (knownSockets && !descriptor) reporter.warn("unknown_socket", "build.jewels.placements", `${placement.socketNodeId} is preserved but inactive.`);
+      else if (descriptor && descriptor.category !== "ordinary") reporter.warn("special_socket", "build.jewels.placements", `${placement.socketNodeId} is preserved but inactive.`);
+      if (socketCounts.get(placement.socketNodeId) > 1) reporter.warn("socket_conflict", "build.jewels.placements", "Multiple instances occupy this socket; all are inactive.");
+      if (instanceCounts.get(placement.instanceId) > 1) reporter.warn("instance_conflict", "build.jewels.placements", "One instance occupies multiple sockets; all are inactive.");
+    }
+    return { instances: instances.sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0), placements: placements.sort(comparePlacements) };
+  }
+
   function decodeBuildDocument(input, options = {}) {
     const reporter = makeDiagnostics();
     const source = parseInput(input, reporter);
@@ -399,7 +472,7 @@
       reporter.fatal(
         "unsupported_schema_version",
         "schemaVersion",
-        `Schema version ${source.schemaVersion} is newer than supported version 1.`,
+        `Schema version ${source.schemaVersion} is newer than supported version 2.`,
       );
     }
 
@@ -407,6 +480,11 @@
     const classSource = requireRecord(build, "class", "build.class", reporter);
     const budgetsSource = requireRecord(build, "budgets", "build.budgets", reporter);
     const allocationsSource = requireRecord(build, "allocations", "build.allocations", reporter);
+    const optionsForJewels = options.jewelCatalog ? {
+      definitions: new Set((options.jewelCatalog.definitions || []).map(item => item.definitionId)),
+      sockets: new Map((options.jewelCatalog.sockets || []).map(item => [item.nodeId, item])),
+    } : null;
+    const jewels = readJewels(build, source.schemaVersion, reporter, optionsForJewels);
 
     const base = readNullableIdentifier(classSource, "base", "build.class.base", reporter);
     const ascendancyId = readNullableIdentifier(
@@ -521,6 +599,7 @@
           class: { base, ascendancyId: activeAscendancyId },
           budgets,
           allocations,
+          jewels,
         },
         ui,
       },
@@ -553,7 +632,7 @@
 
   function createBuildDocument(value, preservation = null) {
     if (!isRecord(value) || !isRecord(value.build)) {
-      throw new TypeError("A normalized schema-v1 Build value is required.");
+      throw new TypeError("A normalized Build value is required.");
     }
     const source = isRecord(preservation?.source) ? preservation.source : {};
     const sourceBuild = isRecord(source.build) ? source.build : {};
@@ -595,11 +674,18 @@
       ["weaponSet", budgetsValue.weaponSet],
       ["ascendancy", budgetsValue.ascendancy],
     ], ["passive", "weaponSet", "ascendancy"]);
+    const jewelValue = isRecord(value.build.jewels) ? value.build.jewels : { instances: [], placements: [] };
+    const jewelSource = isRecord(sourceBuild.jewels) ? sourceBuild.jewels : {};
+    const jewelsDocument = mergeRecord(jewelSource, [
+      ["instances", Array.isArray(jewelValue.instances) ? jewelValue.instances.slice().sort((a,b) => String(a.id).localeCompare(String(b.id))) : []],
+      ["placements", Array.isArray(jewelValue.placements) ? jewelValue.placements.slice().sort(comparePlacements) : []],
+    ], ["instances", "placements"]);
     const buildDocument = mergeRecord(sourceBuild, [
       ["class", classDocument],
       ["budgets", budgetsDocument],
       ["allocations", allocations],
-    ], ["class", "budgets", "allocations"]);
+      ["jewels", jewelsDocument],
+    ], ["class", "budgets", "allocations", "jewels"]);
     const uiDocument = composeUi(value.ui, source.ui);
 
     const document = mergeRecord(source, [

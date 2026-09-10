@@ -17,6 +17,12 @@ const buildCodec = typeof module === "object" && module.exports
 const buildStateAdapter = typeof module === "object" && module.exports
   ? require("./build-state-adapter.js")
   : window.plannerBuildStateAdapter;
+const jewelStateCore = typeof module === "object" && module.exports
+  ? require("./jewel-state.js")
+  : window.plannerJewelState;
+const jewelCatalog = typeof module === "object" && module.exports
+  ? require("../src/jewels/catalog.js")
+  : window.plannerJewelCatalog;
 const passiveGraphCore = typeof module === "object" && module.exports
   ? require("./passive-graph.js")
   : window.plannerPassiveGraph;
@@ -70,6 +76,7 @@ let maxWeaponPoints = 24;                // campaign default; adjustable for spe
 let ascAllocated = new Set();           // current ascendancy nodes
 let ascStartId = null;
 let buildPreservation = null;
+let jewelState = {instances:[],placements:[]};
 let plannerDataReady = false;
 let buildStateUnsafe = false;
 
@@ -3526,6 +3533,7 @@ function currentBuildRuntimeState() {
     showAsc,
     showLockedConditional,
     showInstillOnGraph,
+    jewelState,
     preservation:buildPreservation
   };
 }
@@ -3562,6 +3570,7 @@ function applyPlannerBuildState(next, clearTransient=true) {
   weaponSet2Allocated=new Set(next.weaponSet2Allocated);
   ascAllocated=new Set(next.ascAllocated);
   instillAllocated=new Set(next.instillAllocated);
+  jewelState=next.jewelState||{instances:[],placements:[]};
   buildPreservation=next.preservation;
 
   if(Number.isFinite(next.camera.x)) camera.x=next.camera.x;
@@ -3644,7 +3653,7 @@ function buildCatalogs() {
     const start=ascendancyStartFor(n.asc);
     if(start) ascendancyStartIds.set(n.asc,start);
   }
-  return {classStartIds,ascendancyStartIds};
+  return {classStartIds,ascendancyStartIds,normalizeJewelState:state=>jewelStateCore.normalizeJewelState(state,jewelCatalog)};
 }
 
 function knownAscendancy(id,base) {
@@ -3666,6 +3675,7 @@ function decodeBuildForCurrentCatalogs(text) {
     knownBaseClasses:new Set(classOptions.map(option=>option.name)),
     knownAscendancies:knownAscendancy,
     knownInstilledPassives:INSTILL_EXCLUSIVE_NAME_SET
+    ,jewelCatalog
   });
   if(!first.ok) return first;
   const catalogs=buildCatalogs();
@@ -3676,6 +3686,7 @@ function decodeBuildForCurrentCatalogs(text) {
     knownBaseClasses:new Set(classOptions.map(option=>option.name)),
     knownAscendancies:knownAscendancy,
     knownInstilledPassives:INSTILL_EXCLUSIVE_NAME_SET,
+    jewelCatalog,
     knownNodeIds:(id,category)=>nodeAllowedForBuild(id,category,selectedAsc,classStart,ascStart)
   });
 }

@@ -12,6 +12,8 @@ const {
   decodeBuildDocument,
   serializeBuildDocument,
 } = require("../renderer/build-codec.js");
+const jewelCatalog = require("../src/jewels/catalog.js");
+const jewelState = require("../renderer/jewel-state.js");
 
 function runtimeState(overrides = {}) {
   return {
@@ -41,6 +43,7 @@ function catalogs() {
   return {
     classStartIds: new Map([["Mercenary", "10"]]),
     ascendancyStartIds: new Map([["Mercenary1", "100"]]),
+    normalizeJewelState: state => jewelState.normalizeJewelState(state, jewelCatalog),
   };
 }
 
@@ -150,4 +153,10 @@ test("new/reset lifecycle explicitly clears the preservation sidecar", () => {
   clearBuildPreservation(state);
 
   assert.equal(state.preservation, null);
+});
+
+test("a v2 candidate rejects missing local jewel catalog validation", () => {
+  assert.throws(() => createBuildCandidate(extractBuildValue(runtimeState()), null, {
+    classStartIds: new Map([["Mercenary", "10"]]), ascendancyStartIds: new Map([["Mercenary1", "100"]]),
+  }), /local jewel catalog/);
 });

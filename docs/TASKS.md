@@ -494,7 +494,7 @@ Non-goals:
 
 ### P2AT-008E — Implement Build-v2 jewel codec and pure state validation
 
-- Status: `READY`
+- Status: `REVIEW`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-004C, P2AT-008D

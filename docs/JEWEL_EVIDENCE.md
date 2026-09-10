@@ -30,6 +30,24 @@ The accepted ordinary runtime socket IDs are:
 
 `2491`, `7960`, `21984`, `26196`, `26725`, `32763`, `46882`, `54127`, `55190`, `60735`, `61419`, `61834`.
 
+The following provenance IDs were read from the verified `official-data.json` bytes
+listed above (`nodes[nodeId].id`) and are the reviewed mapping packaged by the Planner:
+
+| node ID | official raw ID |
+| ---: | --- |
+| 2491 | `jewel_slot1974` |
+| 7960 | `jewel_slot1969` |
+| 21984 | `jewel_slot1979` |
+| 26196 | `jewel_slot1977` |
+| 26725 | `jewel_slot1956` |
+| 32763 | `jewel_slot1976` |
+| 46882 | `jewel_slot1970` |
+| 54127 | `jewel_slot1975` |
+| 55190 | `jewel_slot1971` |
+| 60735 | `jewel_slot1960` |
+| 61419 | `jewel_slot1972` |
+| 61834 | `jewel_slot1961` |
+
 For ordinary sockets, production recognition must use membership in official `jewelSlots` plus `nodes[id].isJewelSocket === true`, excluding ascendancy and Blighted special cases. Runtime graph identity remains the decimal string form of the numeric skill ID. The official raw `nodes[id].id` should be retained as provenance/validation metadata, not substituted for graph identity.
 
 Current ordinary and Voices socket coordinates match exactly between official data, `tree-pre.json` and Planner world coordinates. Zarokh's Gift is a known ID collision: slim-tree node `11184` is unrelated, while the Planner injects the official node through its sidecar path. It must not be handled as an ordinary socket.

@@ -18,9 +18,9 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | Chinese localization | Prototype | Runtime translation from community PoB2 data |
 | Local resource cache | Lock-integrated | Bundled and user-cache bytes are verified against ADR-007 before use; cache misses download immutable locked URLs |
 | Build save/open | Implemented | Desktop Save/Open controls, schema-v1 codec, safe file IPC and transactional state restoration accepted; Windows runtime round trip verified |
-| Build JSON contract | Schema v2 specified | Schema v1 remains implemented; P2AT-008D adds the accepted v2 jewel-instance/placement contract, migration and preservation policy for later codec/UI work |
+| Build JSON contract | Schema v2 implemented | v1 loads through in-memory empty-jewel migration; explicit saves normalize to v2 with deterministic jewel preservation |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
-| Jewel integration | Contract ready | Only twelve verified ordinary sockets are eligible for the first slice; implementation, special sockets and radius effects remain deferred |
+| Jewel integration | State core implemented | Local reviewed catalog and pure instance/placement operations support the 12 ordinary sockets; visible UI, special sockets, radius and rule effects remain deferred |
 | Automated tests | 64 desktop tests | Node test harness covers stat utilities, Build persistence, runtime resources and the accepted passive graph core; broader allocation-state coverage remains pending |
 | Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
 | Packaging/release | Not started | No installer or release workflow |
@@ -66,6 +66,6 @@ Milestone M1 — Reliable engineering baseline:
 - define and implement versioned Build JSON persistence;
 - document upstream data provenance and pinning policy.
 
-Milestone M2 begins with the staged jewel slice: P2AT-008E implements Build-v2 codec/state behavior, followed by visible ordinary-socket equipment. Complex sockets, verified radius behavior and rule effects follow separately.
+Milestone M2 now has P2AT-008E's Build-v2 codec/state core in review; a later task will add visible ordinary-socket equipment. Complex sockets, verified radius behavior and rule effects follow separately.
 
 P2AT-008C verified 12 production ordinary socket IDs plus seven special containers. P2AT-008D records the schema-v2 persistence and catalog contract for ordinary equipment. Radius behavior remains deferred because the locked inputs do not contain its numeric membership algorithm.
