@@ -1,9 +1,9 @@
 # Build JSON format and migration policy
 
 Status: Accepted
-Initial schema version: `1`
+Current schema version: `2` (schema v1 remains supported for migration)
 Primary consumer: `apps/planner-desktop`
-Persistence implementation: not yet implemented
+Persistence implementation: schema v1 is implemented; schema v2 is the accepted contract for follow-up codec and UI work
 
 ## 1. Purpose
 
@@ -1626,3 +1626,243 @@ or future work.
 ```
 
 That boundary is intentional and is the basis on which P2AT-004 should connect the current planner state to the existing Electron Build save/open interface.
+
+---
+
+## 35. Schema v2 — jewel persistence (normative)
+
+Schema v2 is the current Build schema.  It retains **all** schema-v1 fields, meanings,
+validation rules, preservation rules, limits, and application behavior unchanged, and adds
+only the required `build.jewels` member.  In particular, this section does not redefine
+schema-v1 allocation, class, budget, UI, or sidecar semantics.
+
+```json
+{
+  "format": "poe2-agent-tools-build",
+  "schemaVersion": 2,
+  "build": {
+    "class": { "base": null, "ascendancyId": null },
+    "budgets": { "passive": 1, "weaponSet": 0, "ascendancy": 8 },
+    "allocations": {
+      "normal": [], "weaponSet1": [], "weaponSet2": [],
+      "ascendancy": [], "instilledPassives": []
+    },
+    "jewels": { "instances": [], "placements": [] }
+  },
+  "ui": {}
+}
+```
+
+`build.jewels` is required in a source v2 file and contains exactly these two required
+array members.  Its absence is a fatal `missing_required_field` in v2.  It is not a
+schema-v1 extension: a v1 reader must retain its existing interpretation and must not
+activate an unknown `jewels` member.
+
+### 35.1 Definitions, instances, placements, and socket descriptors
+
+These four concepts are deliberately separate:
+
+| Concept | Owner | Identity | Meaning |
+| --- | --- | --- | --- |
+| definition | reviewed jewel catalog | `definitionId` | immutable kind of jewel; never a user's copy |
+| instance | one Build | `id` | one user-owned copy and its opaque per-copy properties |
+| placement | one Build | `(socketNodeId, instanceId)` | request to equip an instance in a socket |
+| socket descriptor | reviewed runtime catalog | decimal `nodeId`, `officialRawId`, `category` | evidence-backed description of a tree socket |
+
+A definition is catalog metadata and is not copied into a Build.  A placement has no
+generated ID.  A socket descriptor is not a placement and is not derived from a jewel
+name or compiler-fixture position.
+
+### 35.2 Jewel instance
+
+Each `build.jewels.instances` element MUST be an object with:
+
+| Field | Required | Type and rule |
+| --- | --- | --- |
+| `id` | yes | ASCII string matching `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$` |
+| `definitionId` | yes | project definition-ID string, 1–256 ASCII characters, matching `^[a-z][a-z0-9.-]*:[a-z0-9][a-z0-9._-]*$` |
+| `properties` | yes | JSON object; keys are strings of at most 256 characters; values are JSON primitives, arrays, or objects; no functions, non-finite numbers, or duplicate JSON object keys |
+
+The writer creates a new instance ID with 128 bits from a cryptographically secure random
+source, encoded as lowercase hexadecimal and prefixed `jwl_` (for example
+`jwl_4d2c...`), so it satisfies the grammar.  A collision with any live or preserved
+instance ID must be retried.  IDs are opaque: they must not encode display name,
+localized name, catalog position, socket, time, or a deterministic sequence.
+
+Copying creates a new ID and deep-copies `definitionId`, `properties`, and preserved
+unknown instance members.  Replacing a socket removes that placement and adds the new
+one; it does not mutate either instance.  Removing an instance removes all placements
+that reference it and then removes its preservation record.  Removing one placement does
+not remove its instance.  A semantic v2 document permits an instance in multiple
+placements, but this v2 MVP treats every multi-placement instance as inactive/preserved
+with a warning; it must not equip it in any socket until a later contract defines sharing.
+
+Unknown instance members and all unknown `properties` members are opaque JSON and must be
+deep-preserved verbatim (subject to the resource limits below).  Known code must not infer
+semantics from an unknown property.
+
+### 35.3 Placement and socket eligibility
+
+Each `build.jewels.placements` element MUST be an object with exactly these required
+known fields:
+
+| Field | Type and rule |
+| --- | --- |
+| `socketNodeId` | decimal string matching `^(0|[1-9][0-9]{0,255})$`; it is the real numeric passive `skill` ID rendered in base-10, never an official raw ID |
+| `instanceId` | instance-ID string matching the grammar above |
+
+Extra placement members are opaque and preserved.  `instanceId` must reference one unique
+parsed instance.  A duplicate `(socketNodeId, instanceId)` is warning-deduplicated.  More
+than one placement for the same socket, and one instance used in more than one socket, are
+structurally legal but warning-only inactive preservation cases in this MVP: no affected
+placement enters runtime equipment state.  This prevents a guessed replace/stack rule.
+
+Only these twelve socket IDs are eligible ordinary MVP sockets:
+
+`2491`, `7960`, `21984`, `26196`, `26725`, `32763`, `46882`, `54127`, `55190`, `60735`, `61419`, `61834`.
+
+A catalog/runtime socket descriptor must additionally confirm `category: "ordinary"`, the
+same decimal node ID, and its `officialRawId`.  The raw ID is provenance only; it must not
+replace `socketNodeId`.  Unknown/disappeared socket IDs are warning-preserved and inactive.
+`17788` (Crystalline Phylactery), `11184` (Zarokh's Gift), and every `ascendancy-special`,
+`sinister`, or `blighted` descriptor are warning-preserved and inactive.  They are never
+coerced into ordinary sockets.  Missing catalog data is a fatal catalog diagnostic: no
+jewel placement is applied and the ordinary Save action is unavailable after a failed
+transaction.
+
+### 35.4 Catalog definition IDs and radius state
+
+Definition IDs use the namespace `poe2-jewel:` and the grammar in 35.2.  They are
+project-owned registry keys, approved in a reviewed catalog change, permanently
+non-reusable, and decoupled from display/localized names.  Renaming a jewel changes only
+display metadata.  A retired definition remains in the registry with `status: "retired"`
+and is never assigned to a different jewel.  Adding, renaming, retiring, or correcting an
+ID requires human review; runtime code must never generate one from a name, Chinese text,
+or array index.
+
+The fixture registry currently assigns these fixed IDs:
+
+| Fixture display name | Stable definition ID |
+| --- | --- |
+| Voices | `poe2-jewel:unique-voices` |
+| From Nothing | `poe2-jewel:unique-from-nothing` |
+| Controlled Metamorphosis | `poe2-jewel:unique-controlled-metamorphosis` |
+| The Adorned | `poe2-jewel:unique-the-adorned` |
+| Flesh Crucible | `poe2-jewel:unique-flesh-crucible` |
+| Against the Darkness | `poe2-jewel:unique-against-the-darkness` |
+
+Catalog radius metadata is `radius: { "status": "unsupported" | "unverified" }` and
+MUST NOT contain guessed numeric radius, distance formula, boundary, or multiplier
+direction.  v2 persists a jewel even when its definition has an unsupported/unverified
+radius, but runtime radius membership, overlays, rule effects, and allocation changes are
+all disabled.  The UI must state that radius effects are not supported.
+
+### 35.5 Migration, future versions, preservation, and limits
+
+When opening a v1 document, validate it using the unchanged v1 rules and construct an
+in-memory v2 candidate with `jewels: { instances: [], placements: [] }`.  Do not rewrite
+the opened file merely because it was migrated.  The next explicit user Save serializes
+schema version 2, preserving all v1 allocations, class, ascendancy, budgets, UI, unknown
+members, unresolved identifiers, and their preservation sidecar.
+
+Schema versions greater than 2 are fatal `unsupported_schema_version`: do not load,
+mutate, or offer ordinary destructive re-save.  This contract does not claim that an old
+application can read v2, nor does it define a v2-to-v1 export.  Those behaviors do not
+exist.
+
+In addition to the inherited v1 limits (5 MiB total, depth 64, 256-character known
+identifiers, and at most 100 retained/displayed detailed diagnostics), v2 sets
+`maxJewelInstances = 20000` and `maxJewelPlacements = 20000`.  These match the existing
+per-allocation cardinality limit, rather than inventing a second scale.  Instance IDs are
+limited to 64 characters; definition IDs, socket IDs, property keys, and unknown known-ID
+strings to 256 characters; `properties` depth shares the global 64-depth traversal cap.
+Every hard limit is fatal.  The diagnostic reporter retains at most 100 details across v1
+and v2 while retaining aggregate totals.
+
+Unknown `definitionId`, unknown instance/placement fields, unknown properties, and unknown
+or structurally valid but unappliable socket placements are warnings and preservation-only.
+They do not enter runtime state, but an otherwise successful document may be saved and
+must round-trip them unchanged.  An explicit user removal of the corresponding instance
+removes its unknown definition/properties/instance sidecar and all references; explicit
+removal of a placement removes only that placement's opaque data.  Editing unrelated
+fields must not discard any such data.
+
+### 35.6 Deterministic serialization and transaction
+
+Serialization is a pure operation and must not mutate caller arrays, objects, or the
+preservation sidecar.  It emits instances ordered by Unicode code-unit `id`; placements
+by `socketNodeId` numeric value, then `socketNodeId` text, then `instanceId`; and every
+properties/opaque object with keys ordered by Unicode code unit recursively.  Duplicate
+instance IDs are fatal; duplicate placement pairs retain the first canonical occurrence,
+warn, and serialize once.  The same semantic input in any input order therefore produces
+identical output.
+
+Open/apply is transactional: (1) fully decode and bound JSON, (2) validate the definition
+and socket catalogs, (3) validate/preserve jewel records, (4) construct a complete
+candidate including unchanged v1 state, (5) atomically commit it, and (6) rebuild derived
+state only after commit.  Any fatal validation or catalog failure leaves the current Build
+untouched.  A commit failure rolls back the snapshot.  If rollback itself fails, retain the
+existing safe policy: flag the session unsafe and prohibit further Save until recovery.
+
+### 35.7 Jewel diagnostic matrix
+
+| Condition | Level | Preserved | Runtime state | Save / later unrelated save |
+| --- | --- | --- | --- | --- |
+| `jewels` missing in v2 | fatal | no candidate | none | no / unchanged source remains |
+| `instances` or `placements` non-array | fatal | no candidate | none | no |
+| duplicate instance ID | fatal | no candidate | none | no |
+| placement references absent instance | warning | yes | inactive | yes / retained |
+| unknown definition ID | warning | yes | inactive | yes / retained |
+| unknown/disappeared socket | warning | yes | inactive | yes / retained |
+| special socket | warning | yes | inactive | yes / retained |
+| instance in multiple sockets | warning | yes | all affected inactive | yes / retained |
+| multiple instances in one socket | warning | yes | all affected inactive | yes / retained |
+| unknown property/instance/placement member | warning | yes | opaque/inactive for unknown semantics | yes / retained |
+| count, ID length, property depth, or 5 MiB limit exceeded | fatal | no candidate | none | no |
+| definition/socket catalog missing | fatal | source remains untouched | none | no; unsafe after rollback failure only |
+| a catalog entry is malformed | warning for that entry and dependent records | yes | dependent records inactive | yes / retained |
+
+### 35.8 Examples
+
+The empty v2 example is the document in section 35.  A supported ordinary placement is:
+
+```json
+"jewels": {
+  "instances": [{
+    "id": "jwl_0123456789abcdef0123456789abcdef",
+    "definitionId": "poe2-jewel:unique-voices",
+    "properties": {}
+  }],
+  "placements": [{ "socketNodeId": "2491", "instanceId": "jwl_0123456789abcdef0123456789abcdef" }]
+}
+```
+
+This canonical multi-record order is required even if supplied reversed:
+
+```json
+"jewels": {
+  "instances": [
+    { "id": "jwl_a", "definitionId": "poe2-jewel:unique-voices", "properties": { "b": 2, "a": 1 } },
+    { "id": "jwl_z", "definitionId": "poe2-jewel:unique-the-adorned", "properties": {} }
+  ],
+  "placements": [
+    { "socketNodeId": "2491", "instanceId": "jwl_z" },
+    { "socketNodeId": "61834", "instanceId": "jwl_a" }
+  ]
+}
+```
+
+Unknown definition and socket preservation examples (both warn and remain inactive):
+
+```json
+{ "id": "jwl_future", "definitionId": "partner-jewel:future", "properties": { "futureRoll": { "v": 1 } } }
+```
+
+```json
+{ "socketNodeId": "999999", "instanceId": "jwl_future" }
+```
+
+Illegal examples: `{ "jewels": { "instances": {}, "placements": [] } }` is fatal
+`invalid_type`; two instances with `id: "jwl_same"` are fatal `duplicate_instance_id`; and
+`{ "socketNodeId": 2491, "instanceId": "jwl_a" }` is fatal `invalid_type` because socket
+identity must be a decimal string.

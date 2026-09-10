@@ -100,3 +100,26 @@ Reason: immutable, reviewable source identity prevents silent upstream drift whi
 Free distribution and voluntary sponsorship do not create or expand rights to third-party code, game data, translations or artwork. Before a formal public installer or offline data pack redistributes third-party content, every included source must have a documented redistribution basis and required attribution. Content whose rights remain unconfirmed stays download-only or is replaced with content the project is permitted to distribute.
 
 Reason: the product should remain freely accessible while allowing community support, without treating non-commercial intent as a substitute for copyright permission.
+
+## ADR-009 — Jewel persistence is schema v2 and radius remains deferred
+
+- Date: 2026-09-10
+- Status: Accepted
+
+Jewel instances and socket placements are durable semantic Build state, so they require
+the explicit schema-v2 `build.jewels` contract rather than schema-v1 unknown fields.
+Schema v2 retains schema v1 unchanged and migrates v1 files in memory with empty jewel
+state until the user explicitly saves.
+
+The first slice recognizes only the twelve evidence-backed ordinary sockets. Crystalline
+Phylactery, Zarokh's Gift, and Sinister/Blighted/ascendancy-special sockets are preserved
+but never treated as ordinary. Definition IDs are immutable, project-owned catalog IDs
+rather than display-name-derived or upstream IDs because the locked inputs have no
+reliable unique-jewel identifier. Radius is persisted only as `unsupported`/`unverified`
+catalog status: no guessed value, formula, multiplier direction, overlay, or effect is
+permitted.
+
+When immutable evidence establishes radius membership semantics or stable upstream IDs, a
+reviewed catalog/contract extension may add them without changing existing IDs or v2's
+meaning. It must preserve unresolved v2 data and explicitly version any incompatible
+semantic change.

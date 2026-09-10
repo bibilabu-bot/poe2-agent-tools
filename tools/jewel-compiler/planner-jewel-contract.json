@@ -1,41 +1,28 @@
 {
-  "schema_version": 1,
-  "planner_contract": {
-    "socket": {
-      "node_id": "string",
-      "type": "normal|sinister",
-      "x": "number",
-      "y": "number",
-      "jewel_id": "string|null"
-    },
-    "jewel": {
-      "id": "string",
-      "name": "string",
-      "base": "string",
-      "rarity": "normal|magic|rare|unique",
-      "mods": "array",
-      "rule_family": "string|null",
-      "radius": "number|null"
-    },
-    "runtime_rules": [
-      "normal_stats",
-      "radius_modify",
-      "disconnected_allocation",
-      "ring_disconnected_allocation",
-      "grant_sinister_sockets",
-      "grant_passives",
-      "jewel_effect_multiplier",
-      "alternate_start",
-      "timeless_replace"
-    ]
+  "schemaVersion": 2,
+  "contractStatus": "normative",
+  "buildSchemaVersion": 2,
+  "identity": {
+    "definitionId": { "pattern": "^[a-z][a-z0-9.-]*:[a-z0-9][a-z0-9._-]*$", "maxLength": 256, "rule": "Project-owned, reviewed, immutable, permanently non-reusable; never derive at runtime from displayName, localizedName, or array order." },
+    "instanceId": { "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$", "generation": "cryptographically-random 128-bit lowercase hexadecimal prefixed jwl_" },
+    "socketNodeId": { "pattern": "^(0|[1-9][0-9]{0,255})$", "rule": "Base-10 string form of the real numeric passive skill ID; officialRawId is provenance and never replaces it." }
   },
-  "evaluation_order": [
-    "socket validity",
-    "jewel uniqueness/limits",
-    "static jewel stats",
-    "radius membership",
-    "tree rule injection",
-    "node effect modification",
-    "attribute summary"
-  ]
+  "definition": {
+    "required": ["definitionId", "displayName", "status", "radius"],
+    "fields": { "definitionId": "string", "displayName": "string", "localizedName": "object|optional", "status": "active|retired", "radius": { "status": "unsupported|unverified", "rule": "No numeric radius, distance formula, multiplier direction, or membership rule is present or executable." }, "ruleFamily": "string|optional" }
+  },
+  "instance": { "required": ["id", "definitionId", "properties"], "fields": { "id": "string", "definitionId": "string", "properties": "object" }, "unknownFields": "opaque-preserve" },
+  "placement": { "required": ["socketNodeId", "instanceId"], "fields": { "socketNodeId": "decimal-string", "instanceId": "string" }, "unknownFields": "opaque-preserve" },
+  "socketDescriptor": { "required": ["nodeId", "officialRawId", "category"], "fields": { "nodeId": "decimal-string", "officialRawId": "string", "category": "ordinary|ascendancy-special|sinister|blighted" }, "firstMvpEligibleCategory": "ordinary" },
+  "ordinarySocketNodeIds": ["2491", "7960", "21984", "26196", "26725", "32763", "46882", "54127", "55190", "60735", "61419", "61834"],
+  "specialSocketPolicy": "Preserve but do not apply ascendancy-special, sinister, blighted, Crystalline Phylactery, Voices, or Zarokh's Gift sockets as ordinary MVP sockets.",
+  "fixtureDefinitions": [
+    { "definitionId": "poe2-jewel:unique-voices", "displayName": "Voices", "status": "active", "radius": { "status": "unsupported" }, "ruleFamily": "grant_sinister_sockets" },
+    { "definitionId": "poe2-jewel:unique-from-nothing", "displayName": "From Nothing", "status": "active", "radius": { "status": "unsupported" }, "ruleFamily": "disconnected_allocation" },
+    { "definitionId": "poe2-jewel:unique-controlled-metamorphosis", "displayName": "Controlled Metamorphosis", "status": "active", "radius": { "status": "unverified" }, "ruleFamily": "ring_disconnected_allocation" },
+    { "definitionId": "poe2-jewel:unique-the-adorned", "displayName": "The Adorned", "status": "active", "radius": { "status": "unsupported" }, "ruleFamily": "jewel_effect_multiplier" },
+    { "definitionId": "poe2-jewel:unique-flesh-crucible", "displayName": "Flesh Crucible", "status": "active", "radius": { "status": "unsupported" }, "ruleFamily": "random_keystone" },
+    { "definitionId": "poe2-jewel:unique-against-the-darkness", "displayName": "Against the Darkness", "status": "active", "radius": { "status": "unverified" }, "ruleFamily": "time_lost_radius" }
+  ],
+  "runtimeRules": { "equipmentPersistence": "allowed-for-supported-ordinary-sockets", "radiusMembership": "unsupported", "radiusVisualization": "unsupported", "ruleEffects": "unsupported" }
 }

@@ -27,9 +27,9 @@
 
 1. `download_poe2_jewel_sources.mjs` 下载数据到 `raw/`。
 2. `build-jewel-db.mjs` 解析并生成 `dist/` 数据。
-3. `planner-jewel-contract.json` 描述 Planner 集成所需的数据契约。
+3. `planner-jewel-contract.json` 描述 Planner 集成所需的数据契约，包括项目拥有的 definition、Build instance/placement 和带 official raw ID 的 socket descriptor。
 
-当前 `raw/` 是小型可运行 fixture，`dist/` 是对应的示例结果。
+当前 `raw/` 是小型可运行 fixture，`dist/` 是对应的示例结果。fixture socket `100`/`101` 不得作为生产映射；生产普通插槽和 Build schema-v2 jewel 持久化边界由 `docs/JEWEL_EVIDENCE.md` 与 `docs/BUILD_FORMAT.md` 约束。半径状态只能为 `unsupported`/`unverified`，不执行半径计算。
 
 ## 外部依赖
 
