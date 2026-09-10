@@ -26,7 +26,7 @@
   function extractBuildValue(state) {
     return {
       format: "poe2-agent-tools-build",
-      schemaVersion: 1,
+      schemaVersion: 2,
       build: {
         class: {
           base: state.baseClassName,

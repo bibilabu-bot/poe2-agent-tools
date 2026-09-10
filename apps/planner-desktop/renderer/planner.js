@@ -2577,14 +2577,11 @@ function updatePlannerUI(message="") {
 
   $("#undo").disabled=undoStack.length===0;
   $("#redo").disabled=redoStack.length===0;
-  $("#resetBuild").disabled=!classStartId || (
-    allocated.size<=1 &&
-    ws1===0 &&
-    ws2===0 &&
-    ascUsed===0 &&
-    instillAllocated.size===0 &&
-    !buildPreservation
-  );
+  const hasJewels=jewelStateCore.hasJewelState(jewelState);
+  $("#resetBuild").disabled=classStartId
+    ? allocated.size<=1 && ws1===0 && ws2===0 && ascUsed===0
+      && instillAllocated.size===0 && !hasJewels && !buildPreservation
+    : !hasJewels && !buildPreservation;
 
   renderInstillCatalog();
   updateConditionalUI();
@@ -3094,13 +3091,14 @@ function allocateTarget(n) {
 }
 
 function resetBuild() {
-  if(!classStartId) return;
+  if(!classStartId && !jewelStateCore.hasJewelState(jewelState) && !buildPreservation) return;
   pushUndo();
-  allocated=new Set([classStartId]);
+  allocated=classStartId?new Set([classStartId]):new Set();
   weaponSet1Allocated=new Set();
   weaponSet2Allocated=new Set();
   resetAscAllocation();
   instillAllocated=new Set();
+  jewelState=jewelStateCore.clearJewelState();
   buildPreservation=null;
   clearPreviews();
   rebuildPathIndex();
@@ -3256,6 +3254,7 @@ function selectAscendancy(id, doFocus=true) {
 
 function selectClass(name) {
   buildPreservation=null;
+  jewelState=jewelStateCore.clearJewelState();
   baseClassName=name||null;
   // Invalidate the previous class portrait before any async load starts.
   if(classPortraitRenderedClass!==baseClassName) {

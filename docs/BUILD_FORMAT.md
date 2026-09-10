@@ -1792,10 +1792,12 @@ fields must not discard any such data.
 Serialization is a pure operation and must not mutate caller arrays, objects, or the
 preservation sidecar.  It emits instances ordered by Unicode code-unit `id`; placements
 by `socketNodeId` numeric value, then `socketNodeId` text, then `instanceId`; and every
-properties/opaque object with keys ordered by Unicode code unit recursively.  Duplicate
-instance IDs are fatal; duplicate placement pairs retain the first canonical occurrence,
-warn, and serialize once.  The same semantic input in any input order therefore produces
-identical output.
+properties/opaque object with keys ordered by Unicode code unit recursively. Duplicate
+instance IDs are fatal. For duplicate placement pairs, recursively order every object key,
+encode each complete candidate as compact JSON, sort those strings in Unicode code-unit
+order, retain the first canonical candidate, warn, and serialize once. The same semantic
+input in any input order therefore produces identical output without discarding opaque
+placement members.
 
 Open/apply is transactional: (1) fully decode and bound JSON, (2) validate the definition
 and socket catalogs, (3) validate/preserve jewel records, (4) construct a complete

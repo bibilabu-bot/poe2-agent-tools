@@ -35,6 +35,7 @@ function runtimeState(overrides = {}) {
     showLockedConditional: false,
     showInstillOnGraph: true,
     preservation: null,
+    jewelState: { instances: [], placements: [] },
     ...overrides,
   };
 }
@@ -47,7 +48,7 @@ function catalogs() {
   };
 }
 
-test("complete schema-v1 state round-trips through the pure adapter", () => {
+test("complete schema-v2 state round-trips through the pure adapter", () => {
   const source = runtimeState();
   const value = extractBuildValue(source);
   const decoded = decodeBuildDocument(serializeBuildDocument(value));
@@ -56,6 +57,27 @@ test("complete schema-v1 state round-trips through the pure adapter", () => {
   assert.equal(decoded.ok, true);
   assert.deepEqual(extractBuildValue(candidate), extractBuildValue(source));
   assert.equal(candidate.preservation, decoded.preservation);
+});
+
+test("adapter extracts a truthful schema-v2 value with normalized empty jewels", () => {
+  const value = extractBuildValue(runtimeState());
+  assert.equal(value.schemaVersion, 2);
+  assert.deepEqual(value.build.jewels, { instances: [], placements: [] });
+  assert.deepEqual(value.build.class, { base: "Mercenary", ascendancyId: "Mercenary1" });
+  assert.deepEqual(value.build.budgets, { passive: 123, weaponSet: 24, ascendancy: 8 });
+  assert.equal(value.ui.weaponMode, "ws1");
+  const saved = JSON.parse(serializeBuildDocument(value));
+  assert.equal(saved.schemaVersion, 2);
+  assert.deepEqual(saved.build.jewels, { instances: [], placements: [] });
+});
+
+test("adapter preserves normalized jewels through successful open/apply", () => {
+  const savedJewels = { instances: [{ id: "jwl_a", definitionId: jewelCatalog.definitions[0].definitionId, properties: {} }], placements: [{ socketNodeId: "2491", instanceId: "jwl_a" }] };
+  const candidate = createBuildCandidate(extractBuildValue(runtimeState({ jewelState: savedJewels })), null, catalogs());
+  const holder = { current: runtimeState() };
+  const result = applyBuildCandidateTransaction(candidate, { snapshot: () => holder.current, commit: next => { holder.current = next; }, rollback: previous => { holder.current = previous; } });
+  assert.equal(result.ok, true);
+  assert.deepEqual(holder.current.jewelState, savedJewels);
 });
 
 test("all five allocation categories are extracted without derived start nodes", () => {
@@ -83,7 +105,8 @@ test("class and ascendancy zero-cost starts are reconstructed", () => {
 });
 
 test("an application failure rolls back the old state", () => {
-  const oldState = runtimeState({ baseClassName: "Witch", classStartId: "11" });
+  const oldJewels = { instances: [{ id: "jwl_old", definitionId: jewelCatalog.definitions[0].definitionId, properties: {} }], placements: [] };
+  const oldState = runtimeState({ baseClassName: "Witch", classStartId: "11", jewelState: oldJewels });
   const holder = { current: oldState };
   const candidate = runtimeState();
 
@@ -96,6 +119,7 @@ test("an application failure rolls back the old state", () => {
 
   assert.equal(result.ok, false);
   assert.equal(holder.current, oldState);
+  assert.deepEqual(holder.current.jewelState, oldJewels);
   assert.equal(result.rollbackError, undefined);
   assert.deepEqual(classifyBuildApplyResult(result), {
     rollbackFailed: false,

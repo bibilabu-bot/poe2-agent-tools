@@ -387,6 +387,10 @@
       : left.instanceId < right.instanceId ? -1 : left.instanceId > right.instanceId ? 1 : 0;
   }
 
+  function canonicalPlacementKey(placement) {
+    return JSON.stringify(safeClone(placement));
+  }
+
   function readJewels(build, sourceVersion, reporter, optionsForJewels = null) {
     if (sourceVersion === 1) return { instances: [], placements: [] };
     const jewels = requireRecord(build, "jewels", "build.jewels", reporter);
@@ -420,7 +424,7 @@
       if (ids.has(item.id)) reporter.fatal("duplicate_instance_id", `${path}.id`, `Duplicate jewel instance ID: ${item.id}`); else ids.add(item.id);
       if (typeof item.id === "string" && INSTANCE_ID.test(item.id) && typeof item.definitionId === "string" && DEFINITION_ID.test(item.definitionId) && isRecord(item.properties)) instances.push(safeClone(item));
     });
-    const pairs = new Set(); const placements = [];
+    const placementGroups = new Map();
     sourcePlacements.forEach((item, index) => {
       const path = `build.jewels.placements[${index}]`;
       if (!isRecord(item)) { reporter.fatal("invalid_type", path, "Placement must be an object."); return; }
@@ -428,10 +432,21 @@
       if (typeof item.instanceId !== "string" || !INSTANCE_ID.test(item.instanceId)) reporter.fatal("invalid_value", `${path}.instanceId`, "Invalid jewel instance ID.");
       if (typeof item.socketNodeId !== "string" || !SOCKET_ID.test(item.socketNodeId) || typeof item.instanceId !== "string" || !INSTANCE_ID.test(item.instanceId)) return;
       const pair = `${item.socketNodeId}\u0000${item.instanceId}`;
-      if (pairs.has(pair)) { reporter.warn("duplicate_placement", path, "Duplicate jewel placement was preserved once."); return; }
-      pairs.add(pair); if (!ids.has(item.instanceId)) reporter.warn("dangling_placement", `${path}.instanceId`, "Placement references a missing jewel instance.");
-      placements.push(safeClone(item));
+      if (!placementGroups.has(pair)) placementGroups.set(pair, []);
+      placementGroups.get(pair).push(safeClone(item));
     });
+    const placements = [];
+    for (const candidates of placementGroups.values()) {
+      candidates.sort((a, b) => {
+        const left = canonicalPlacementKey(a); const right = canonicalPlacementKey(b);
+        return left < right ? -1 : left > right ? 1 : 0;
+      });
+      placements.push(candidates[0]);
+      for (let index = 1; index < candidates.length; index += 1) {
+        reporter.warn("duplicate_placement", "build.jewels.placements", "Duplicate jewel placement was preserved once.");
+      }
+    }
+    for (const item of placements) if (!ids.has(item.instanceId)) reporter.warn("dangling_placement", "build.jewels.placements", "Placement references a missing jewel instance.");
     const knownDefinitions = optionsForJewels?.definitions;
     const knownSockets = optionsForJewels?.sockets;
     const byInstance = new Map(instances.map(item => [item.id, item]));

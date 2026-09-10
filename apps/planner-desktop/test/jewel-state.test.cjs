@@ -48,3 +48,32 @@ test("properties enforce key, depth, and cardinality limits", () => {
   assert.equal(jewels.normalizeJewelState({instances:[{id:"jwl_a",definitionId:catalog.definitions[0].definitionId,properties:deep}],placements:[]},catalog).ok,false);
   assert.equal(jewels.normalizeJewelState({instances:Array.from({length:20001},(_,i)=>({id:`jwl_${i}`,definitionId:catalog.definitions[0].definitionId,properties:{}})),placements:[]},catalog).ok,false);
 });
+
+test("jewel lifecycle helpers recognize instance-only and placement-only state and clear both", () => {
+  const states = [
+    { instances: [{ id: "jwl_a" }], placements: [] },
+    { instances: [], placements: [{ socketNodeId: "999", instanceId: "missing", future: true }] },
+    { instances: [{ id: "jwl_a" }], placements: [{ socketNodeId: "2491", instanceId: "jwl_a" }] },
+  ];
+  assert.ok(states.every(state => jewels.hasJewelState(state)));
+  assert.equal(jewels.hasJewelState(jewels.emptyJewelState()), false);
+  for (const state of states) {
+    const before = structuredClone(state);
+    assert.deepEqual(jewels.clearJewelState(state), { instances: [], placements: [] });
+    assert.deepEqual(state, before);
+  }
+});
+
+test("duplicate placement canonical choice is permutation-invariant and preserves unknown fields", () => {
+  const instance = { id: "jwl_a", definitionId: catalog.definitions[0].definitionId, properties: {} };
+  const candidates = [
+    { socketNodeId: "2491", instanceId: "jwl_a", x: 2, nested: { z: 1, a: 2 } },
+    { instanceId: "jwl_a", socketNodeId: "2491", nested: { a: 2, z: 1 }, x: 2 },
+    { socketNodeId: "2491", instanceId: "jwl_a", x: 1, future: true },
+  ];
+  const permutations = [candidates, [...candidates].reverse(), [candidates[1], candidates[2], candidates[0]]];
+  const results = permutations.map(placements => jewels.normalizeJewelState({ instances: [instance], placements }, catalog));
+  assert.ok(results.every(result => result.ok && result.inactive.filter(item => item.type === "duplicate_placement").length === 2));
+  assert.ok(results.every(result => JSON.stringify(result.state.placements) === JSON.stringify(results[0].state.placements)));
+  assert.equal(results[0].state.placements[0].future, true);
+});
