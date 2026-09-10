@@ -589,3 +589,34 @@ Non-goals:
 - changing native schema v2 or P2AT-008E;
 - claiming game or website compatibility from structural validation alone;
 - adding private fields to game-bound fixtures.
+
+### P2AT-020A — Prototype a particle-driven loading experience
+
+- Status: `READY`
+- Priority: P1
+- Assignment target: `Codex local executor`
+- Depends on: none
+- Type: isolated visual prototype; may run in parallel with P2AT-008E and P2AT-013
+
+Goal: create an original, runnable loading-screen prototype inspired by the particle typography and wave-field atmosphere observed at `https://ai.novacode.top/login`, suitable for later integration without copying third-party code, branding or assets.
+
+Acceptance criteria:
+
+1. Add the prototype only under a new isolated experiment directory; do not modify current Planner production HTML/JS/CSS, package scripts or persistence code.
+2. Render an original PoE2 Agent Tools title treatment using locally generated particles, a dark game-appropriate palette and a secondary flowing particle field.
+3. Demonstrate coherent enter, ambient and completion/exit states tied to mock loading progress rather than a perpetual decorative loop.
+4. Provide at least two selectable density/quality presets and automatic degradation based on frame time or device constraints.
+5. Honor `prefers-reduced-motion`, expose keyboard-accessible pause/resume and continue to communicate loading progress without animation.
+6. Use no remote runtime assets, trackers, copied NovaCode source, logos, fonts or particle data; document the reference as visual inspiration only.
+7. Cap device-pixel ratio and particle count, stop animation when hidden, clean up timers/listeners/animation frames and avoid unbounded allocations per frame.
+8. Include deterministic pure tests for particle target generation, seeded layout/state transitions and quality selection where practical.
+9. Provide measured performance at desktop 1920×1080 for both presets, screenshots and a short local review procedure.
+10. Existing repository tests/checks remain green; task stays `REVIEW` and production integration is a separate controller-approved task.
+
+Non-goals:
+
+- integrating into the current Electron loading path;
+- copying or reverse-engineering the referenced site's source code;
+- using the referenced site's name, logo or assets;
+- adding runtime network dependencies or a heavy 3D engine;
+- changing Planner functionality.
