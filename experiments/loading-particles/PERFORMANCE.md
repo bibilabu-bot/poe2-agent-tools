@@ -9,12 +9,14 @@ Measured 2026-09-10 in Microsoft Edge (Chromium headless/in-app browser), at an 
 
 | Mode | Title particles | Wave particles | Total | Average frame interval | P95 frame interval | First target generation | Full layout / resize |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Balanced | 1,877 | 520 | 2,397 | 8.40 ms | 8.60 ms | 3.30 ms | 5.40 ms |
-| Cinematic | 4,209 | 980 | 5,189 | 8.33 ms | 8.50 ms | 4.10 ms | 7.30 ms |
+| Balanced | 3,200 | 685 | 3,885 | 8.33 ms | 8.50 ms | 13.40 ms | 17.50 ms |
+| Cinematic | 6,200 | 1,129 | 7,329 | 9.91 ms | 16.70 ms | 13.10 ms | 18.50 ms |
 
-The host browser was presenting at roughly 120 Hz, so the observed 8.3 ms interval is the refresh cadence and should not be converted into a claim about unconstrained maximum FPS. No obvious dropped-frame cluster appeared in the captured P95 sample, and Cinematic did not trigger its sustained-low-frame-rate downgrade.
+The host browser was presenting at roughly 120 Hz, so Balanced's observed 8.3 ms interval is the refresh cadence and should not be converted into a claim about unconstrained maximum FPS. Cinematic remained below one 60 Hz frame at P95 and did not trigger its sustained-low-frame-rate downgrade.
 
-For the 60-second stability run, Cinematic began and ended with exactly 5,189 particles; its peak remained 5,189. The rendered-frame counter advanced from 1,860 to 8,460 during the recorded 55-second tail after the initial warm-up, with no particle growth.
+The earlier 60-second stability run established fixed-array behavior with no growth. The revised density presets use the same allocation model: the observed peak equals the initialized count (3,885 Balanced, 7,329 Cinematic), and terminal states do not allocate new particles. Automated lifecycle tests assert terminal stability directly.
+
+Particle size ranges are 0.52–0.88 px Stardust, 1.05–1.72 px Embers and 1.7–2.55 px Guiding stars in Balanced. Cinematic extends Stardust only to 1.02 px; the larger classes retain the same restrained ranges. The evidence recorder captures a 12-second wall-clock window at 1280×720, preserves browser screencast timestamps, and uses variable-frame-rate encoding so irregular delivery is not normalized away. Its roughly 15 fps evidence cadence is sufficient to judge phase timing but not micro-stutter; frame-time reporting comes from the separate 90-sample `requestAnimationFrame` ring buffer above.
 
 The in-app browser used for measurement keeps automation tabs foreground-renderable and continued reporting `document.hidden === false` after another tab opened, so it could not produce an honest browser-hidden timing measurement. Background stopping is therefore verified by the deterministic lifecycle test plus the implementation path: `visibilitychange` cancels the scheduled frame when `document.hidden` becomes true and schedules again only after it becomes false. A manual reviewer can confirm it in ordinary Edge DevTools by switching tabs and observing that the exposed rendered-frame counter stops. This limitation is reported instead of claiming a measurement the harness could not make.
 <!-- PERF_RESULTS_END -->

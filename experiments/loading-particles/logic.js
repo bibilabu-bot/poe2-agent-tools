@@ -6,8 +6,8 @@
   "use strict";
 
   const QUALITY_PRESETS = Object.freeze({
-    balanced: Object.freeze({ titleMax: 2400, waveMax: 520, sampleStep: 3, dprMax: 1.5, glow: 0.48 }),
-    cinematic: Object.freeze({ titleMax: 4400, waveMax: 980, sampleStep: 2, dprMax: 2, glow: 0.72 })
+    balanced: Object.freeze({ titleMax: 3200, waveMax: 700, sampleStep: 2, dprMax: 1.5, glow: 0.42 }),
+    cinematic: Object.freeze({ titleMax: 6200, waveMax: 1400, sampleStep: 1, dprMax: 2, glow: 0.62 })
   });
   const STATES = Object.freeze(["enter", "loading", "complete", "error"]);
   const TRANSITIONS = Object.freeze({
@@ -110,6 +110,14 @@
     return systemReduced ? "reduced" : "animated";
   }
 
+  function getVisualPhase(elapsedMs) {
+    const elapsed = Math.max(0, Number(elapsedMs) || 0);
+    if (elapsed < 1000) return "void";
+    if (elapsed < 3200) return "ignition";
+    if (elapsed < 8000) return "convergence";
+    return "revelation";
+  }
+
   function createLifecycle(scheduler, canceller) {
     let destroyed = false;
     let paused = false;
@@ -131,5 +139,5 @@
     };
   }
 
-  return { QUALITY_PRESETS, STATES, createSeededRandom, clampProgress, transitionState, selectQuality, shouldDegrade, selectTargetPoints, assignTargets, capCounts, chooseMotionMode, createLifecycle };
+  return { QUALITY_PRESETS, STATES, createSeededRandom, clampProgress, transitionState, selectQuality, shouldDegrade, selectTargetPoints, assignTargets, capCounts, chooseMotionMode, getVisualPhase, createLifecycle };
 });

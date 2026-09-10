@@ -57,8 +57,8 @@ test("quality preset honors constraints and exposes hard caps", () => {
   assert.equal(L.selectQuality("cinematic", { cores: 8, deviceMemory: 8 }), "cinematic");
   assert.equal(L.selectQuality("cinematic", { cores: 2, deviceMemory: 8 }), "balanced");
   assert.equal(L.selectQuality("cinematic", { reducedMotion: true }), "balanced");
-  assert.deepEqual(L.capCounts(9000, 3000, "cinematic"), { title: 4400, wave: 980 });
-  assert.deepEqual(L.capCounts(9000, 3000, "balanced"), { title: 2400, wave: 520 });
+  assert.deepEqual(L.capCounts(9000, 3000, "cinematic"), { title: 6200, wave: 1400 });
+  assert.deepEqual(L.capCounts(9000, 3000, "balanced"), { title: 3200, wave: 700 });
 });
 
 test("automatic degradation requires a sustained slow-frame majority", () => {
@@ -72,6 +72,16 @@ test("reduced-motion choice requires an explicit opt-in to override the system",
   assert.equal(L.chooseMotionMode(true, "animate"), "animated");
   assert.equal(L.chooseMotionMode(false, "reduce"), "reduced");
   assert.equal(L.chooseMotionMode(false, null), "animated");
+});
+
+test("visual narrative advances through void, ignition, convergence and revelation", () => {
+  assert.equal(L.getVisualPhase(0), "void");
+  assert.equal(L.getVisualPhase(999), "void");
+  assert.equal(L.getVisualPhase(1000), "ignition");
+  assert.equal(L.getVisualPhase(3199), "ignition");
+  assert.equal(L.getVisualPhase(3200), "convergence");
+  assert.equal(L.getVisualPhase(7999), "convergence");
+  assert.equal(L.getVisualPhase(8000), "revelation");
 });
 
 test("resize count calculations never exceed quality caps", () => {

@@ -12,8 +12,8 @@ html, body { width: 100%; min-height: 100%; margin: 0; }
 body {
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 38%, rgba(89, 45, 123, .22), transparent 35%),
-    linear-gradient(155deg, #05040a 0%, #0c0816 54%, #07101c 100%);
+    radial-gradient(ellipse at 50% 42%, rgba(31, 39, 69, .2), transparent 42%),
+    linear-gradient(155deg, #020307 0%, #080812 56%, #040912 100%);
 }
 
 .loading-shell { position: relative; width: 100vw; height: 100vh; min-height: 560px; isolation: isolate; }
@@ -38,14 +38,6 @@ body {
   font: 600 clamp(.62rem, .7vw, .76rem)/1.4 system-ui, sans-serif;
   letter-spacing: .31em;
 }
-
-.title-fallback {
-  position: absolute; top: 23%; left: 50%; translate: -50% 0; width: 100%;
-  color: rgba(255, 235, 177, .08); letter-spacing: .19em; text-shadow: 0 0 28px rgba(196, 128, 255, .12);
-  pointer-events: none;
-}
-.title-fallback span { display: block; font-size: clamp(2.2rem, 5vw, 5rem); line-height: .92; }
-.title-fallback strong { display: block; font-size: clamp(1.1rem, 2.45vw, 2.45rem); font-weight: 400; }
 
 .status-cluster { width: min(100%, 520px); margin-top: auto; font-family: system-ui, sans-serif; }
 .status-line { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 10px; color: #f2d99b; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; }
