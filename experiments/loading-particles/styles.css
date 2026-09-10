@@ -40,6 +40,11 @@ body {
 }
 
 .status-cluster { width: min(100%, 520px); margin-top: auto; font-family: system-ui, sans-serif; }
+.community-subtitle {
+  position: absolute; left: 5%; width: 90%; margin: 0;
+  color: #e3edf9; font: 600 clamp(12px, 1.05vw, 17px)/1.6 Arial, sans-serif;
+  letter-spacing: .12em; opacity: 0; pointer-events: none;
+}
 .status-line { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 10px; color: #f2d99b; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; }
 
 progress { display: block; width: 100%; height: 4px; border: 0; border-radius: 99px; overflow: hidden; background: rgba(255,255,255,.09); }

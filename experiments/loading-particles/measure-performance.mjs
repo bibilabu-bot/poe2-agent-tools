@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -54,12 +54,21 @@ async function measure(quality) {
   await command("Page.navigate", {
     url: `http://127.0.0.1:8765/index.html?seed=20260220&quality=${quality}`
   });
-  await delay(12000);
+  const phases = [];
+  for (const waitMs of [5500, 2500, 4000]) {
+    await delay(waitMs);
+    const sample = await command("Runtime.evaluate", {
+      expression: "document.body.dataset.metrics", returnByValue: true
+    });
+    phases.push(JSON.parse(sample.result.value));
+  }
   const result = await command("Runtime.evaluate", {
     expression: "JSON.stringify({ viewport: [innerWidth, innerHeight, devicePixelRatio], metrics: JSON.parse(document.body.dataset.metrics) })",
     returnByValue: true
   });
-  return JSON.parse(result.result.value);
+  const screenshot = await command("Page.captureScreenshot", { format: "png" });
+  await writeFile(join("screenshots", `${quality}-1920x1080.png`), Buffer.from(screenshot.data, "base64"));
+  return { ...JSON.parse(result.result.value), phases };
 }
 
 try {
@@ -70,6 +79,10 @@ try {
   });
   const balanced = await measure("balanced");
   const cinematic = await measure("cinematic");
+  await command("Page.navigate", { url: "http://127.0.0.1:8765/index.html?seed=20260220&motion=reduced" });
+  await delay(1000);
+  const reduced = await command("Page.captureScreenshot", { format: "png" });
+  await writeFile(join("screenshots", "reduced-motion-1920x1080.png"), Buffer.from(reduced.data, "base64"));
   console.log(JSON.stringify({ measuredAt: new Date().toISOString(), balanced, cinematic }, null, 2));
 } finally {
   socket.close();

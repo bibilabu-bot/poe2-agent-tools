@@ -9,10 +9,10 @@ Measured 2026-09-10 in Microsoft Edge (Chromium headless/in-app browser), at an 
 
 | Mode | Title particles | Wave particles | Total | Average frame interval | P95 frame interval | First target generation | Full layout / resize |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Balanced | 3,200 | 685 | 3,885 | 8.33 ms | 8.60 ms | 10.20 ms | 13.00 ms |
-| Cinematic | 6,200 | 1,129 | 7,329 | 9.35 ms | 16.70 ms | 20.80 ms | 29.40 ms |
+| Balanced | 3,200 | 685 | 3,885 | 8.34 ms | 8.70 ms | 10.00 ms | 15.50 ms |
+| Cinematic | 6,200 | 1,129 | 7,329 | 9.44 ms | 16.70 ms | 14.20 ms | 20.10 ms |
 
-The host browser was presenting at roughly 120 Hz, so Balanced's observed 8.3 ms interval is the refresh cadence and should not be converted into a claim about unconstrained maximum FPS. Cinematic's P95 was approximately one 60 Hz frame and did not trigger its sustained-low-frame-rate downgrade. These values were regenerated after the denser star-stream trails and brighter revelation halo were added.
+The host browser was presenting at roughly 120 Hz, so Balanced's observed 8.3 ms interval is the refresh cadence and should not be converted into a claim about unconstrained maximum FPS. Cinematic's P95 was approximately one 60 Hz frame and did not trigger its sustained-low-frame-rate downgrade. These values were regenerated after the three-lane trajectory and crisp subtitle revision at 08:49 UTC. The table reports the last 90-frame window near 12 seconds. Additional windows near 5.5 and 8 seconds measured Balanced averages 8.33/8.34 ms (both P95 8.50 ms), and Cinematic averages 8.33/10.65 ms (P95 8.50/16.70 ms). Thus the active convergence phase, not just the settled title, was sampled. These short windows do not establish whole-run worst-case latency.
 
 The earlier 60-second stability run established fixed-array behavior with no growth. The revised density presets use the same allocation model: the observed peak equals the initialized count (3,885 Balanced, 7,329 Cinematic), and terminal states do not allocate new particles. Automated lifecycle tests assert terminal stability directly.
 

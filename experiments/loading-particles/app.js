@@ -15,6 +15,7 @@
   const errorButton = document.getElementById("error-button");
   const qualitySelect = document.getElementById("quality-select");
   const motionNote = document.getElementById("motion-note");
+  const communitySubtitle = document.getElementById("community-subtitle");
 
   const params = new URLSearchParams(location.search);
   const seed = Number(params.get("seed")) || 20260220;
@@ -44,7 +45,7 @@
     hiddenFrameCount: 0, renderedFrameCount: 0, animationFrameId: null, completeAt: 0,
     pausedDuration: 0, timelineOffset: 0, frozenTimeline: motionMode === "reduced" ? 10600 : 0,
     freezeStartedAt: motionMode === "reduced" ? performance.now() : 0, pendingComplete: false,
-    catchUpStartedAt: 0, catchUpDuration: 0, catchUpBoost: 0
+    catchUpStartedAt: 0, catchUpDuration: 0, catchUpBoost: 0, frameStep: 1
   };
 
   const steps = [
@@ -104,7 +105,8 @@
       damping: randomBetween(rng, .9, .946), color: type === "ember" ? palette[3 + (index % 2)] : palette[index % 3],
       alpha: type === "guide" ? randomBetween(rng, .92, 1) : randomBetween(rng, .74, 1), size,
       life: randomBetween(rng, 0, Math.PI * 2), drift: randomBetween(rng, .08, .38),
-      scattered: index % 37 === 0, type, role: target.role, bornAt, swirl: rng() < .5 ? -1 : 1, depth: randomBetween(rng, .45, 1)
+      scattered: index % 37 === 0, type, role: target.role, bornAt, swirl: rng() < .5 ? -1 : 1, depth: randomBetween(rng, .45, 1),
+      lane: index % 3, streamPhase: rng() * Math.PI * 2
     };
   }
 
@@ -135,6 +137,7 @@
     const points = main.concat(subtitle);
     const offsetX = (state.width - sampleWidth) / 2;
     const offsetY = Math.max(100, state.height * .18);
+    communitySubtitle.style.top = `${offsetY + sampleHeight * .69 - 12}px`;
     for (let i = 0; i < points.length; i += 1) { points[i].x += offsetX; points[i].y += offsetY; }
     state.targetGenerationMs = performance.now() - started;
     return points;
@@ -194,7 +197,7 @@
       const birth = smoothstep(point.bornAt, point.bornAt + 650, elapsed);
       const normalizedX = point.baseX / state.width;
       const perspective = .24 + point.depth * .76;
-      const wave = Math.sin(normalizedX * 9 + elapsed * .00042 + point.phase) * 18 * perspective
+      const wave = Math.sin(normalizedX * 9 + elapsed * .00042 + point.depth * 2) * 28 * perspective
         + Math.sin(normalizedX * 23 - elapsed * .00017) * 6;
       const y = horizon + point.depth * state.height * .18 + wave * progressEnergy;
       context.globalAlpha = point.alpha * birth * ignition * (1 - point.depth * .42);
@@ -209,6 +212,8 @@
     const elapsed = timelineTime(time);
     const convergence = smoothstep(3200, 9900, elapsed);
     const revelation = smoothstep(7600, 10300, elapsed);
+    const subtitleInk = smoothstep(9400, 10600, elapsed);
+    communitySubtitle.style.opacity = String(subtitleInk);
     const parallaxX = motionMode === "reduced" ? 0 : state.pointerX * 4;
     const parallaxY = motionMode === "reduced" ? 0 : state.pointerY * 3;
     context.save();
@@ -221,22 +226,38 @@
       if (!staticFrame && motionMode !== "reduced") {
         particle.previousX = particle.x;
         particle.previousY = particle.y;
-        const dx = particle.targetX - particle.x;
-        const dy = particle.targetY - particle.y;
+        // Shared moving attractors create broad orbital streams before glyph capture.
+        // Each lane crosses the lower reservoir and rises through the title region.
+        const phase = particle.streamPhase + elapsed * (.00034 + particle.lane * .000045);
+        const radius = state.width * (.27 + particle.lane * .035);
+        const streamX = state.width * .5 + Math.cos(phase) * radius;
+        const rise = smoothstep(1500, 6100, elapsed);
+        const streamY = state.height * (.76 - rise * .34 + .018 * particle.lane)
+          + Math.sin(phase) * state.height * (.16 - rise * .11)
+          + Math.sin(phase * 2 + particle.lane) * 15 + (particle.depth - .72) * 45;
+        const capture = smoothstep(6500 + particle.depth * 420, 9900, elapsed);
+        const release = particle.scattered && state.mode === "loading"
+          ? Math.pow(Math.max(0, Math.sin(elapsed * .0008 + particle.life)), 4) * capture : 0;
+        const aimX = streamX * (1 - capture) + particle.targetX * capture + release * Math.cos(particle.life) * 24;
+        const aimY = streamY * (1 - capture) + particle.targetY * capture - release * 20;
+        const dx = aimX - particle.x;
+        const dy = aimY - particle.y;
         const distance = Math.max(24, Math.hypot(dx, dy));
-        const attraction = .0015 + convergence * .026;
+        const attraction = .0035 + capture * .024;
         const curl = (1 - convergence) * particle.swirl * (.12 + particle.depth * .12) * Math.sin(distance * .009 + elapsed * .0007 + particle.life);
         const flowX = -dy / distance * curl + Math.sin(particle.y * .012 + elapsed * .00034) * .035;
         const flowY = dx / distance * curl - (1 - convergence) * .018 * particle.depth;
         const edgeScatter = particle.scattered && state.mode !== "complete" ? Math.sin(elapsed * .0009 + particle.life) * (1 - convergence) * 5 : 0;
         const driftX = Math.sin(elapsed * .00042 + particle.life) * particle.drift + edgeScatter;
         const driftY = Math.cos(elapsed * .00038 + particle.life) * particle.drift;
-        particle.velocityX += dx * attraction + flowX + driftX * .008;
-        particle.velocityY += dy * attraction + flowY + driftY * .008;
-        particle.velocityX *= particle.damping;
-        particle.velocityY *= particle.damping;
-        particle.x += particle.velocityX;
-        particle.y += particle.velocityY;
+        const dt = state.frameStep;
+        particle.velocityX += (dx * attraction + flowX + driftX * .008) * dt;
+        particle.velocityY += (dy * attraction + flowY + driftY * .008) * dt;
+        const damping = Math.pow(particle.damping, dt);
+        particle.velocityX *= damping;
+        particle.velocityY *= damping;
+        particle.x += particle.velocityX * dt;
+        particle.y += particle.velocityY * dt;
       } else if (motionMode === "reduced" || captureMode) {
         const curve = convergence * convergence;
         const orbit = Math.sin(particle.life + convergence * Math.PI * 2) * (1 - convergence) * 90;
@@ -249,8 +270,8 @@
       }
       const twinkle = motionMode === "reduced" ? .94 : .84 + Math.sin(elapsed * .0017 + particle.life) * .16;
       const isBeacon = particle.type === "ember" || particle.type === "guide";
-      const ignitionPresence = isBeacon ? birth : birth * (.48 + convergence * .52);
-      const revealFactor = isBeacon ? 1 : .52 + roleReveal * .48;
+      const ignitionPresence = isBeacon ? birth : birth * (.78 + convergence * .22);
+      const revealFactor = isBeacon ? 1 : .86 + roleReveal * .14;
       let completionBoost = 0;
       if (state.completeAt) {
         const sweepAge = time - state.completeAt;
@@ -260,7 +281,8 @@
         }
       }
       const titleLift = particle.role === "title" ? .22 * roleReveal : .1 * roleReveal;
-      const coreAlpha = Math.min(1, particle.alpha * twinkle * ignitionPresence * (revealFactor + titleLift) * (1 + completionBoost));
+      const coreAlpha = Math.min(1, particle.alpha * twinkle * ignitionPresence * (revealFactor + titleLift) * (1 + completionBoost))
+        * (particle.role === "subtitle" ? 1 - subtitleInk : 1);
       context.globalAlpha = coreAlpha;
       context.fillStyle = particle.color;
       const size = particle.size * (.76 + roleReveal * .42 + completionBoost * .35);
@@ -314,6 +336,7 @@
   function animate(time) {
     state.animationFrameId = null;
     if (state.destroyed || state.paused || state.hidden) return;
+    state.frameStep = state.lastFrame ? Math.min(2, Math.max(.1, (time - state.lastFrame) / (1000 / 60))) : 1;
     if (state.lastFrame) recordFrame(Math.min(100, time - state.lastFrame));
     state.lastFrame = time;
     if (state.pendingComplete && timelineTime(time) >= 10300) finalizeComplete();

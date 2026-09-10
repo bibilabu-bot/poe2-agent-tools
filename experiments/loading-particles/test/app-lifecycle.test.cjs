@@ -31,7 +31,7 @@ function createHarness(options = {}) {
     }
   };
   const elements = new Map();
-  for (const id of ["particle-canvas", "loading-progress", "progress-value", "step-text", "state-label", "error-text", "completion-text", "pause-button", "restart-button", "error-button", "quality-select", "motion-note"]) elements.set(id, element(id));
+  for (const id of ["community-subtitle", "particle-canvas", "loading-progress", "progress-value", "step-text", "state-label", "error-text", "completion-text", "pause-button", "restart-button", "error-button", "quality-select", "motion-note"]) elements.set(id, element(id));
   const canvas = elements.get("particle-canvas");
   canvas.getContext = () => context2d;
   canvas.width = 0;
@@ -93,6 +93,18 @@ test("public completion stops mock progress and terminal states do not create pa
   assert.equal(JSON.parse(harness.document.body.dataset.metrics).totalParticles, before);
   api.fail();
   assert.equal(JSON.parse(harness.document.body.dataset.metrics).totalParticles, before);
+});
+
+test("subtitle is fully readable in reduced motion and hidden again on an animated restart", () => {
+  const reduced = createHarness({ reduced: true });
+  assert.equal(reduced.document.getElementById("community-subtitle").style.opacity, "1");
+  const animated = createHarness();
+  animated.advance(11000);
+  animated.runFrame();
+  assert.equal(animated.document.getElementById("community-subtitle").style.opacity, "1");
+  animated.sandbox.__loadingPrototype.restart();
+  animated.runFrame();
+  assert.equal(animated.document.getElementById("community-subtitle").style.opacity, "0");
 });
 
 test("destroy cancels work, removes listeners/API and retained controls cannot restart", () => {
