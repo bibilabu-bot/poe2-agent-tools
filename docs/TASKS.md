@@ -367,7 +367,7 @@ Acceptance note: adjacency entries intentionally retain duplicate and reversed i
 
 ### P2AT-008A — Add the first visible jewel socket workflow
 
-- Status: `BLOCKED`
+- Status: `CANCELLED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-006A
@@ -375,7 +375,7 @@ Acceptance note: adjacency entries intentionally retain duplicate and reversed i
 
 Goal: deliver the first end-to-end, user-visible jewel interaction without prematurely implementing every jewel rule family.
 
-Blocked on 2026-09-09 before implementation: schema v1 explicitly excludes jewel socket contents, while the committed compiler fixture does not yet satisfy its advertised stable-ID/radius contract or map demonstrably to runtime tree sockets. Resume only after P2AT-008B is accepted and its approved contract/data corrections are integrated.
+Cancelled without implementation: investigation proved that the requested radius behavior cannot be implemented from verified inputs. The safe deliverable is split into P2AT-008E (codec/state) and a later ordinary-socket UI task; radius will be a separate evidence-dependent task.
 
 Acceptance criteria:
 
@@ -400,7 +400,7 @@ Non-goals:
 
 ### P2AT-008B — Specify the jewel identity, radius, socket mapping and persistence contract
 
-- Status: `BLOCKED`
+- Status: `CANCELLED`
 - Priority: P0
 - Assignment target: `ChatGPT chat-mode research/design`
 - Depends on: P2AT-003A, P2AT-006A
@@ -408,7 +408,7 @@ Non-goals:
 
 Goal: remove the contract ambiguity blocking P2AT-008A by defining an implementable, deterministic and forward-compatible jewel data and Build persistence contract grounded in the repository's real runtime tree and compiler outputs.
 
-Blocked after two research drafts: the artifact correctly identified the missing evidence but could not verify real runtime socket markers, Sinister/no-radius representation, radius units or multiplier application. Its schema and identity sections therefore remain proposals rather than an approvable normative contract. Resume after P2AT-008C supplies repository-grounded evidence.
+Cancelled after two research drafts: the useful questions were retained, but the draft could not establish the required runtime evidence. P2AT-008C supplied evidence and P2AT-008D produced the accepted normative contract instead.
 
 Acceptance criteria:
 
@@ -463,11 +463,12 @@ Non-goals:
 
 ### P2AT-008D — Integrate the minimal jewel and Build-v2 contract
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-003A, P2AT-008C
 - Scope: normative documentation and data-contract integration only; no Planner UI or runtime behavior
+- Delivery: `324fae3`; accepted and merged by controller in `12f7a6f`
 
 Goal: convert the accepted evidence and controller decisions into an exact, implementable contract for ordinary socket equipment and Build persistence without inventing radius behavior.
 
@@ -490,6 +491,36 @@ Non-goals:
 - supporting special socket mechanics;
 - acquiring new upstream evidence;
 - changing schema-v1 interpretation.
+
+### P2AT-008E — Implement Build-v2 jewel codec and pure state validation
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-004C, P2AT-008D
+- Scope: pure Build codec migration/serialization, governed local jewel/socket catalog, pure jewel state validation and adapter integration; no visible jewel UI
+
+Goal: make schema-v2 jewel instances and ordinary-socket placements safe, deterministic application state so the following UI task only needs to expose already-tested operations.
+
+Acceptance criteria:
+
+1. `build-codec.js` accepts schema v1 and v2, migrates v1 to an in-memory v2 value with empty jewel state, and serializes every explicit Save as canonical schema v2 without changing schema-v1 meanings.
+2. Implement the exact P2AT-008D limits, ID grammar, ordering, duplicate/reference diagnostics, unknown-field preservation and future-version rejection.
+3. Add a governed packaged catalog containing the six approved definition IDs and twelve eligible ordinary socket descriptors with official raw IDs; runtime behavior must not depend on compiler fixture IDs `100`/`101`.
+4. A pure browser/Node module validates catalogs and implements create/equip/replace/remove operations without DOM, Canvas, Electron, filesystem, network or Planner globals.
+5. Unknown definitions, sockets, special sockets, fields and properties are preservation-only and inactive; explicit removal clears only the contract-approved related preservation data.
+6. The Build state adapter extracts and transactionally applies jewel state while retaining the existing rollback/unsafe-save protections.
+7. Radius membership, overlay and jewel rule effects remain disabled; the code exposes no guessed radius calculation.
+8. Tests cover v1 migration, v2 round trips, deterministic serialization, all diagnostics, catalog failures, equip/replace/remove, preservation, rollback and caller-input immutability.
+9. Existing desktop, canonical-lock, syntax and jewel-fixture checks remain green; no Electron binary or live network is required.
+10. Supporting architecture/status documentation describes implementation truth and does not mark the task `ACCEPTED`.
+
+Non-goals:
+
+- adding visible socket controls or Canvas changes;
+- implementing special sockets, radius or rule effects;
+- changing IPC/file replacement behavior;
+- downloading or recompiling upstream sources at runtime.
 
 ## Backlog
 

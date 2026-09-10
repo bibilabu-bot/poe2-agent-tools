@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 ## Product objective
 
@@ -66,6 +66,6 @@ Milestone M1 — Reliable engineering baseline:
 - define and implement versioned Build JSON persistence;
 - document upstream data provenance and pinning policy.
 
-Milestone M2 begins with P2AT-008A: a visible jewel socket, equip/remove and radius workflow backed by the existing normalized fixture data. Complex jewel rule effects follow after this end-to-end slice is accepted.
+Milestone M2 begins with the staged jewel slice: P2AT-008E implements Build-v2 codec/state behavior, followed by visible ordinary-socket equipment. Complex sockets, verified radius behavior and rule effects follow separately.
 
 P2AT-008C verified 12 production ordinary socket IDs plus seven special containers. P2AT-008D records the schema-v2 persistence and catalog contract for ordinary equipment. Radius behavior remains deferred because the locked inputs do not contain its numeric membership algorithm.
