@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08060f">
+  <title>PoE2 Agent Tools — Loading Particle Prototype</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="loading-shell" aria-labelledby="loading-title">
+    <canvas id="particle-canvas" aria-hidden="true"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <section class="loading-panel">
+      <p class="eyebrow">PATH OF EXILE 2 · BUILD INTELLIGENCE</p>
+      <h1 id="loading-title" class="sr-only">PoE2 Agent Tools</h1>
+      <div class="title-fallback" aria-hidden="true">
+        <span>POE2</span>
+        <strong>AGENT TOOLS</strong>
+      </div>
+
+      <div class="status-cluster">
+        <div class="status-line">
+          <span id="state-label">Awakening the atlas</span>
+          <output id="progress-value" for="loading-progress">0%</output>
+        </div>
+        <progress id="loading-progress" max="100" value="0" aria-describedby="step-text">0%</progress>
+        <p id="step-text" class="step-text" aria-live="polite">Preparing arcane instruments…</p>
+        <p id="error-text" class="error-text" role="alert" hidden></p>
+        <p id="completion-text" class="completion-text" role="status" hidden>Atlas intelligence ready.</p>
+      </div>
+
+      <div class="controls" aria-label="Animation and prototype controls">
+        <button id="pause-button" type="button" aria-pressed="false">Pause animation</button>
+        <label>
+          <span>Quality</span>
+          <select id="quality-select" aria-label="Particle quality">
+            <option value="balanced">Balanced</option>
+            <option value="cinematic">Cinematic</option>
+          </select>
+        </label>
+        <button id="restart-button" type="button">Restart demo</button>
+        <button id="error-button" class="quiet" type="button">Simulate error</button>
+      </div>
+      <p id="motion-note" class="motion-note" hidden>
+        Reduced motion is active. Progress remains live; choose “Resume animation” to opt in.
+      </p>
+    </section>
+  </main>
+
+  <script src="logic.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

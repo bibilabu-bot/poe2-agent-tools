@@ -592,7 +592,7 @@ Non-goals:
 
 ### P2AT-020A — Prototype a particle-driven loading experience
 
-- Status: `READY`
+- Status: `REVIEW`
 - Priority: P1
 - Assignment target: `Codex local executor`
 - Depends on: none
