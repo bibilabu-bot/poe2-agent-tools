@@ -1,1 +1,1 @@
-{"name":"Nested markup","description":"<r>{Outer <b>{Nested}}</r>"}
+{"name":"Nested markup","passives":[{"id":"jewel_slot1974","additional_text":"<r>{Outer <b>{Nested}}"}]}
