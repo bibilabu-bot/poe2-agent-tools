@@ -1,1 +1,0 @@
-{"name":"Skills","skills":[{"id":"Metadata/Items/Gems/SkillGemTest","level_interval":1,"weapon_set":0,"supports":["Metadata/Items/Gems/SupportGemTest",{"id":"Metadata/Items/Gems/SupportGemArray","level_interval":[1,20]}]},{"id":"Metadata/Items/Gems/SkillGemWeaponTwo","weapon_set":2}],"inventory_slots":[{"id":"Metadata/Items/Weapons/Test","weapon_set":1}]}
