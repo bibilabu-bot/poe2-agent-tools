@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "url": "https://www.pathofexile.com/developer/docs/game#buildplanner",
+    "accessedAt": "2026-09-10"
+  },
+  "communityDependencies": [],
+  "fixtures": [
+    {
+      "id": "invalid-known-type",
+      "file": "invalid-known-type.build",
+      "sha256": "1ab27e85474b11dfc7216b93b7aabf208d2bcf18e7f5b98b0a6215940336669a",
+      "source": "derived-probe",
+      "structuralExpectation": "invalid-known-type",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": [
+        "parser or acceptance behavior"
+      ]
+    },
+    {
+      "id": "inventory-slot",
+      "file": "inventory-slot.build",
+      "sha256": "3ee91113d9db5a2c649e24371a942592e4da137582e1abed3e1a4524eef80054",
+      "source": "official-documented",
+      "structuralExpectation": "inventory-slot",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    },
+    {
+      "id": "level-interval-array",
+      "file": "level-interval-array.build",
+      "sha256": "9abd51156968a9bec38b03383856a1f344a8285b69ad6376a84e8f768280d43b",
+      "source": "official-documented",
+      "structuralExpectation": "level-interval-array",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    },
+    {
+      "id": "level-interval-scalar",
+      "file": "level-interval-scalar.build",
+      "sha256": "35fed60a327c862066dd99953200e5ae3580142d33912959e94caf1f3d42616f",
+      "source": "official-documented",
+      "structuralExpectation": "level-interval-scalar",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    },
+    {
+      "id": "markup-nested",
+      "file": "markup-nested.build",
+      "sha256": "49313a233f7470ddb15b1d6efc633f195097edb08db49abcf502ccc67c7b225a",
+      "source": "derived-probe",
+      "structuralExpectation": "markup-nested",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": [
+        "parser or acceptance behavior"
+      ]
+    },
+    {
+      "id": "minimal",
+      "file": "minimal.build",
+      "sha256": "46359629252f22bd13d460686e10dde087eaa92cc22bf4aa29674c44c1c954f9",
+      "source": "official-documented",
+      "structuralExpectation": "minimal",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    },
+    {
+      "id": "missing-name",
+      "file": "missing-name.build",
+      "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      "source": "derived-probe",
+      "structuralExpectation": "missing-name",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": [
+        "parser or acceptance behavior"
+      ]
+    },
+    {
+      "id": "nonexistent-passive-id",
+      "file": "nonexistent-passive-id.build",
+      "sha256": "9549237b3791e66f99ed85a5fc14734a8f236d9bcefb250aefd5c052df7c80f7",
+      "source": "derived-probe",
+      "structuralExpectation": "nonexistent-passive-id",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": [
+        "parser or acceptance behavior"
+      ]
+    },
+    {
+      "id": "passive-object",
+      "file": "passive-object.build",
+      "sha256": "b13e31b1fdd6fe01f09378f25aab716435e9b0bbaeaf3695dbf89e74bd4eca05",
+      "source": "official-documented",
+      "structuralExpectation": "passive-object",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    },
+    {
+      "id": "passive-string",
+      "file": "passive-string.build",
+      "sha256": "756559d97badd6abe0f9ba5d5e43530f6d5e37222414cb190f7f1c932df1abfa",
+      "source": "official-documented",
+      "structuralExpectation": "passive-string",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    },
+    {
+      "id": "skill-support",
+      "file": "skill-support.build",
+      "sha256": "91c1354535b2f75134db19e567ed94d563da0376dd4f3ab9a0b79c3ae69a2b86",
+      "source": "official-documented",
+      "structuralExpectation": "skill-support",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    },
+    {
+      "id": "unknown-nested",
+      "file": "unknown-nested.build",
+      "sha256": "3b4611d5e81300e13867fff58758af11fdf7f12bd2d90176442e2d19da7d32f9",
+      "source": "derived-probe",
+      "structuralExpectation": "unknown-nested",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": [
+        "parser or acceptance behavior"
+      ]
+    },
+    {
+      "id": "unknown-top-level",
+      "file": "unknown-top-level.build",
+      "sha256": "ccc8127f64e6d6aed562b753c8a870edb385dc7d91db085be8a17d639707fc86",
+      "source": "derived-probe",
+      "structuralExpectation": "unknown-top-level",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": [
+        "parser or acceptance behavior"
+      ]
+    },
+    {
+      "id": "utf8-bom",
+      "file": "utf8-bom.build",
+      "sha256": "a00a8507e06b21dd76fa22c0a6b699f3295bbe989e138afb5c040ec1e51f55dc",
+      "source": "derived-probe",
+      "structuralExpectation": "utf8-bom",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": [
+        "parser or acceptance behavior"
+      ]
+    },
+    {
+      "id": "utf8-no-bom-newline",
+      "file": "utf8-no-bom-newline.build",
+      "sha256": "8fcbe342d45213e9acd3eab50616400fa64f77499393711605b9c2e2afc99bc1",
+      "source": "derived-probe",
+      "structuralExpectation": "utf8-no-bom-newline",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": [
+        "parser or acceptance behavior"
+      ]
+    },
+    {
+      "id": "weapon-set-0",
+      "file": "weapon-set-0.build",
+      "sha256": "78fc78f06837e1d7d92a1a770cec41c93abcff7c46c99590107d4242d2089368",
+      "source": "official-documented",
+      "structuralExpectation": "weapon-set-0",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    },
+    {
+      "id": "weapon-set-1",
+      "file": "weapon-set-1.build",
+      "sha256": "3adc1bdea96d034ff303b3af62ccb424f455c6526ed43b3590dc8e60f7b60412",
+      "source": "official-documented",
+      "structuralExpectation": "weapon-set-1",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    },
+    {
+      "id": "weapon-set-2",
+      "file": "weapon-set-2.build",
+      "sha256": "68f01c95070fe26cd546700e9eea137cb237d6dd5df89f2f58d5e3360c18e86c",
+      "source": "official-documented",
+      "structuralExpectation": "weapon-set-2",
+      "gameTest": "not tested",
+      "websiteUploadTest": "not tested",
+      "unverified": []
+    }
+  ],
+  "hashing": "sha256 UTF-8 with CRLF normalized to LF",
+  "titanExample": {
+    "sourceUrl": "https://www.pathofexile.com/developer/docs/game#buildplanner",
+    "accessedAt": "2026-09-10",
+    "content": "not copied",
+    "relatedFixtures": [
+      "minimal",
+      "passive-string",
+      "passive-object",
+      "skill-support",
+      "inventory-slot"
+    ]
+  }
+}

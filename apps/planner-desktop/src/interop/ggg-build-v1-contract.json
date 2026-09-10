@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "status": "experimental",
+  "source": { "url": "https://www.pathofexile.com/developer/docs/game#buildplanner", "accessedAt": "2026-09-10" },
+  "unknownFieldBehavior": "unverified",
+  "Build": { "name": { "type": "string", "required": true }, "author": { "type": "string", "required": false }, "link": { "type": "string", "required": false }, "description": { "type": "string", "required": false }, "ascendancy": { "type": "string", "required": false }, "passives": { "type": "array<BuildPassive>", "required": false }, "skills": { "type": "array<string | BuildSkill>", "required": false, "shorthand": "BaseItemTypes.Id" }, "inventory_slots": { "type": "array<BuildInventorySlot>", "required": false } },
+  "BuildPassive": { "shorthand": "string (PassiveSkills.Id)", "object": { "id": "string (PassiveSkills.Id), required", "level_interval": "uint | array<uint>, optional", "weapon_set": "uint, optional, documented range 0-2", "additional_text": "string, optional" } },
+  "BuildSkill": { "id": "string (BaseItemTypes.Id), required", "level_interval": "uint | array<uint>, optional", "additional_text": "string, optional", "support_skills": "array<string | BuildSupport>, optional" },
+  "BuildSupport": { "shorthand": "string (BaseItemTypes.Id)", "object": { "id": "string (BaseItemTypes.Id), required", "level_interval": "uint | array<uint>, optional", "additional_text": "string, optional" } },
+  "BuildInventorySlot": { "inventory_id": "string (Inventories.Id), required", "slot_x": "uint, optional, default 0", "slot_y": "uint, optional, default 0", "level_interval": "uint | array<uint>, optional", "unique_name": "string (Words.UniqueName entry), optional", "additional_text": "string, optional" },
+  "markupVocabulary": { "syntax": "<tag>{ Text }", "fonts": ["r","b","i","u","s","m","l"], "colors": ["red","orange","yellow","green","blue","indigo","violet","black","white","grey","bronze","silver","gold","unique","rgb(r,g,b)"], "nestedMarkup": "unverified" },
+  "notes": ["No undocumented length bounds are imposed.", "The documentation does not establish unknown-field acceptance or game/site parser behavior."]
+}
