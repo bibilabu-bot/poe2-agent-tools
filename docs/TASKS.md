@@ -528,3 +528,33 @@ Non-goals:
 - P2AT-008: continue normalized jewel integration and implement rule families after P2AT-008A.
 - P2AT-009: add Windows packaging and release automation.
 - P2AT-010: establish performance fixtures and benchmarks.
+
+### P2AT-012 — Research official PoE2 `.build` compatibility and migration
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `ChatGPT deep research/chat-mode research`
+- Depends on: P2AT-003A, P2AT-008D
+- Type: read-only external and repository research; may run in parallel with P2AT-008E
+
+Goal: determine how the official experimental PoE2 Build Planner `.build` JSON format can become the product's user-facing file format without silently losing the Planner's richer state or producing files the game rejects.
+
+Acceptance criteria:
+
+1. Transcribe the current official GGG Build Planner v1 contract from primary documentation, including every field, type, identifier namespace, markup rule, file location and official example.
+2. Establish which behaviors are documented versus only observed or claimed by community implementations, especially unknown-field handling, required fields, watcher behavior and version evolution.
+3. Compare official `.build` identity and semantics with every current `poe2-agent-tools` schema-v2 field: class, ascendancy, budgets, five allocation categories, UI state, preservation sidecar, jewel instances and placements.
+4. Resolve the numeric skill-ID versus official `PassiveSkills` table-ID mapping problem for ordinary, ascendancy, weapon-set, instilled and jewel-socket passives, identifying authoritative data sources and loss cases.
+5. Determine whether a single file can be both strict game-compatible `.build` and lossless native Planner storage. Test or source evidence for unknown top-level/nested fields; do not assume JSON extensions are ignored.
+6. Evaluate at least three architectures: strict official-only storage, official document plus namespaced extension, and a lossless native `.build` profile with explicit official export. Give compatibility, data-loss and user-confusion trade-offs.
+7. Define import/export and migration expectations for existing `.json` schema-v1/v2 files, official `.build` files and future official format versions, including backups and no-silent-loss rules.
+8. Survey maintained open-source converters/validators against the official spec and record concrete interoperability fixtures or tests worth adopting; community code is supporting evidence, not authority.
+9. Identify what can be implemented immediately and what requires an installed-game acceptance test or additional GGG documentation.
+10. Deliver one cited Markdown report with a recommended architecture and a staged task breakdown; do not modify the repository or claim the recommendation is already approved.
+
+Non-goals:
+
+- implementing codecs, changing file dialogs or renaming current files;
+- overriding the in-progress P2AT-008E contract implementation;
+- assuming official `.build` can encode jewels or private fields without evidence;
+- legal/licensing research beyond attribution of technical sources.
