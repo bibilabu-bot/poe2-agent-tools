@@ -432,11 +432,12 @@ Non-goals:
 
 ### P2AT-008C — Extract real socket and jewel-radius evidence
 
-- Status: `READY`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-006A
 - Type: local read-only investigation; no product implementation
+- Delivery: read-only report accepted by controller on 2026-09-10; durable findings recorded in `docs/JEWEL_EVIDENCE.md`
 
 Goal: inspect the exact passive-tree bytes consumed by the Planner and the locked jewel compiler sources to establish verifiable socket recognition and radius semantics before finalizing P2AT-008B.
 
@@ -459,6 +460,36 @@ Non-goals:
 - implementing jewel UI, persistence, compiler corrections or rules;
 - downloading unpinned moving-branch content;
 - legal, packaging or mirror research.
+
+### P2AT-008D — Integrate the minimal jewel and Build-v2 contract
+
+- Status: `READY`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-003A, P2AT-008C
+- Scope: normative documentation and data-contract integration only; no Planner UI or runtime behavior
+
+Goal: convert the accepted evidence and controller decisions into an exact, implementable contract for ordinary socket equipment and Build persistence without inventing radius behavior.
+
+Acceptance criteria:
+
+1. Add an accepted normative Build schema v2 section while preserving every schema-v1 field and rule; define automatic in-memory v1-to-v2 migration without rewriting a file until the user saves.
+2. Specify exact `build.jewels.instances` and `build.jewels.placements` JSON shapes, required/optional fields, types, limits, deterministic ordering, duplicate/reference validation, diagnostics and transactional application behavior.
+3. Specify preservation for unknown instance fields, unknown definition IDs, missing socket IDs and future properties without allowing unresolved data to affect runtime behavior.
+4. Define project-owned immutable jewel definition IDs, valid syntax, registry lifecycle, collision/non-reuse rules and initial fixture mappings without deriving identity from display names at runtime.
+5. Revise `planner-jewel-contract.json` so definitions, instances and placements are distinct and its socket identity/category fields agree with `docs/JEWEL_EVIDENCE.md`.
+6. Specify that only the 12 verified ordinary socket IDs are supported in the first MVP; ascendancy and Sinister/Blighted sockets are preserved or rejected as documented but never treated as ordinary.
+7. Radius fields may be preserved as catalog metadata, but runtime radius membership and visualization must be explicitly unsupported until verified formula evidence is accepted.
+8. Give complete valid/invalid JSON examples and a migration/diagnostic matrix sufficient for codec implementation tests.
+9. Reconcile all touched architecture/status documentation and record the decision as an ADR; do not mark the task `ACCEPTED`.
+10. Run JSON parsing, Markdown fence checks and `git diff --check`; application tests are required only if existing executable files are touched.
+
+Non-goals:
+
+- implementing the codec, UI, compiler or radius engine;
+- supporting special socket mechanics;
+- acquiring new upstream evidence;
+- changing schema-v1 interpretation.
 
 ## Backlog
 

@@ -67,3 +67,5 @@ Milestone M1 — Reliable engineering baseline:
 - document upstream data provenance and pinning policy.
 
 Milestone M2 begins with P2AT-008A: a visible jewel socket, equip/remove and radius workflow backed by the existing normalized fixture data. Complex jewel rule effects follow after this end-to-end slice is accepted.
+
+P2AT-008C verified 12 production ordinary socket IDs plus seven special containers. The first jewel slice will support ordinary socket equipment and persistence; radius behavior is deferred because the locked inputs do not contain its numeric membership algorithm.
