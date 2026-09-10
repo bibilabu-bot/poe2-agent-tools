@@ -9,6 +9,8 @@
 - `electron/preload.cjs`：受控的 Renderer API 边界。
 - `renderer/index.html`：界面、样式与页面结构。
 - `renderer/passive-graph.js`：浏览器与 Node 共用的纯图构建、邻接查询、可达集合及确定性最短可用路径模块。
+- `src/interop/passive-id-map.js`：浏览器与 Node 共用的、无 I/O numeric skill ID ↔ official `PassiveSkills.Id` evidence mapper；仅供未来官方边界使用。
+- `src/interop/ggg-build-v1-contract.json` 与 `fixtures/ggg-build-v1/`：GGG v1 Experimental 的机器可读文档摘录和未进行游戏/网站验收的结构性 fixture。
 - `renderer/planner.js`：天赋树数据加载、绘制、路径、分配、翻译与交互逻辑。
 - `data/cache/manifest.json`：需要缓存的核心远程资源清单。
 - `src/jewels/`、`src/rules/`：后续珠宝系统和规则引擎的模块边界。

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "status": "experimental",
+  "source": { "url": "https://www.pathofexile.com/developer/docs/game#buildplanner", "accessedAt": "2026-09-10" },
+  "unknownFieldBehavior": "unverified",
+  "Build": { "name": { "type": "string", "required": true }, "author": { "type": "string", "required": false }, "link": { "type": "string", "required": false }, "description": { "type": "string", "required": false, "markup": "additional_text" }, "ascendancy": { "type": "string", "required": false }, "passives": { "type": "array<BuildPassive>", "required": false }, "skills": { "type": "array<BuildSkill>", "required": false }, "inventory_slots": { "type": "array<BuildInventorySlot>", "required": false } },
+  "BuildPassive": { "shorthand": "string (PassiveSkills.Id)", "object": { "id": "string (PassiveSkills.Id), required", "weapon_set": "uint, optional, documented range 0-2" } },
+  "BuildSkill": { "id": "string (BaseItemTypes.Id), required", "level_interval": "uint | array<uint>, optional", "weapon_set": "uint, optional, documented range 0-2", "supports": "array<BuildSupport>, optional" },
+  "BuildSupport": { "shorthand": "string (BaseItemTypes.Id)", "object": { "id": "string (BaseItemTypes.Id), required", "level_interval": "uint | array<uint>, optional" } },
+  "BuildInventorySlot": { "id": "string (BaseItemTypes.Id), required", "weapon_set": "uint, optional, documented range 0-2" },
+  "markupVocabulary": { "additional_text": "documented markup; nested markup structural tolerance is unverified" },
+  "notes": ["No undocumented length bounds are imposed.", "The documentation does not establish unknown-field acceptance or game/site parser behavior."]
+}
