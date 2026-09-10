@@ -562,7 +562,7 @@ Non-goals:
 
 ### P2AT-013 — Establish official `.build` fixtures and passive-ID mapping oracle
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-012
