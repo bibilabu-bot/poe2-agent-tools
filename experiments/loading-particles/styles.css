@@ -39,7 +39,19 @@ body {
   letter-spacing: .31em;
 }
 
-.status-cluster { width: min(100%, 520px); margin-top: auto; font-family: system-ui, sans-serif; }
+.status-cluster { width: min(100%, 520px); min-height: 116px; margin-top: auto; font-family: system-ui, sans-serif; }
+.loading-details { opacity: 1; transition: opacity 850ms ease; }
+body[data-state="complete"] .loading-details { opacity: 0; pointer-events: none; }
+.enter-button {
+  margin-top: 30px; min-width: 180px; min-height: 52px; padding: 14px 24px;
+  border: 0; background: transparent; box-shadow: none;
+  color: #e5dfcf; font: 400 23px/1.2 Georgia, serif; letter-spacing: .4em;
+  text-indent: .4em; transition: color 200ms ease, text-shadow 200ms ease;
+  animation: enter-reveal 650ms ease both;
+}
+.enter-button:hover { background: transparent; border: 0; color: #fff8e8; text-shadow: 0 0 18px rgba(240, 218, 162, .45); }
+body[data-motion="reduced"] .enter-button { animation: none; transition: none; }
+@keyframes enter-reveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .community-subtitle {
   position: absolute; left: 5%; width: 90%; margin: 0;
   color: #e3edf9; font: 600 clamp(12px, 1.05vw, 17px)/1.6 Arial, sans-serif;

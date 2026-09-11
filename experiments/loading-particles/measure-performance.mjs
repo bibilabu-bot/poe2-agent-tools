@@ -63,18 +63,33 @@ async function measure(quality) {
     phases.push(JSON.parse(sample.result.value));
   }
   const result = await command("Runtime.evaluate", {
-    expression: "JSON.stringify({ viewport: [innerWidth, innerHeight, devicePixelRatio], metrics: JSON.parse(document.body.dataset.metrics) })",
+    expression: "JSON.stringify({ viewport: [innerWidth, innerHeight, devicePixelRatio], metrics: JSON.parse(document.body.dataset.metrics), entrance: { hidden: document.getElementById('enter-button').hidden, text: document.getElementById('enter-button').textContent, background: getComputedStyle(document.getElementById('enter-button')).backgroundColor, borderWidth: getComputedStyle(document.getElementById('enter-button')).borderWidth, progressHidden: document.getElementById('loading-details').hidden } })",
     returnByValue: true
   });
+  const entry = JSON.parse(result.result.value).entrance;
+  if (entry.hidden || !entry.progressHidden || entry.background !== "rgba(0, 0, 0, 0)" || entry.borderWidth !== "0px") throw new Error("Plain-text entrance did not replace the progress area");
   const screenshot = await command("Page.captureScreenshot", { format: "png" });
   await writeFile(join("screenshots", `${quality}-1920x1080.png`), Buffer.from(screenshot.data, "base64"));
-  await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 960, y: 333 });
-  await delay(1500);
+  for (let index = 0; index < 19; index += 1) {
+    await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 730 + index * 12, y: 333 });
+    await delay(90);
+  }
+  const slowResult = await command("Runtime.evaluate", {
+    expression: "JSON.stringify(window.__loadingPrototype.getMetrics())", returnByValue: true
+  });
+  const slowMetrics = JSON.parse(slowResult.result.value);
+  await delay(5000);
+  for (let index = 0; index < 10; index += 1) {
+    await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 730 + index * 50, y: 333 });
+    await delay(60);
+  }
+  await delay(150);
   const hover = await command("Runtime.evaluate", {
     expression: "JSON.stringify(window.__loadingPrototype.getMetrics())", returnByValue: true
   });
   const hoverMetrics = JSON.parse(hover.result.value);
   if (hoverMetrics.hoverInfluenced <= 0) throw new Error("Hover did not affect the completed title");
+  if (hoverMetrics.maxWakeOffset <= slowMetrics.maxWakeOffset) throw new Error("Fast sweep was not stronger than slow sweep");
   const hoverImage = await command("Page.captureScreenshot", { format: "png" });
   await writeFile(join("screenshots", `${quality}-hover-1920x1080.png`), Buffer.from(hoverImage.data, "base64"));
   await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 10, y: 10 });
@@ -84,7 +99,7 @@ async function measure(quality) {
   });
   const stableMetrics = JSON.parse(stable.result.value);
   if (stableMetrics.totalParticles !== phases[0].totalParticles) throw new Error("Particle population changed during stability run");
-  return { ...JSON.parse(result.result.value), phases, hoverMetrics, stableMetrics };
+  return { ...JSON.parse(result.result.value), phases, slowMetrics, hoverMetrics, stableMetrics };
 }
 
 try {

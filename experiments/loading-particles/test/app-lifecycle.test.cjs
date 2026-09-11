@@ -31,7 +31,7 @@ function createHarness(options = {}) {
     }
   };
   const elements = new Map();
-  for (const id of ["community-subtitle", "particle-canvas", "loading-progress", "progress-value", "step-text", "state-label", "error-text", "completion-text", "pause-button", "restart-button", "error-button", "quality-select", "motion-note"]) elements.set(id, element(id));
+  for (const id of ["loading-details", "enter-button", "community-subtitle", "particle-canvas", "loading-progress", "progress-value", "step-text", "state-label", "error-text", "completion-text", "pause-button", "restart-button", "error-button", "quality-select", "motion-note"]) elements.set(id, element(id));
   const canvas = elements.get("particle-canvas");
   canvas.getContext = () => context2d;
   canvas.width = 0;
@@ -188,7 +188,7 @@ test("independent background keeps its bounded population and freezes on pause",
   harness.runFrame();
   harness.advance(16); harness.runFrame();
   const before = api.getMetrics();
-  assert.equal(before.backgroundParticles, 1000);
+  assert.equal(before.backgroundParticles, 4000);
   assert.ok(before.ambientElapsedMs > 0);
   api.setProgress(99);
   assert.equal(api.getMetrics().ambientElapsedMs, before.ambientElapsedMs);
@@ -199,7 +199,7 @@ test("independent background keeps its bounded population and freezes on pause",
   harness.listeners.get("pause-button:click")();
   harness.runFrame();
   assert.equal(api.getMetrics().ambientElapsedMs, before.ambientElapsedMs);
-  assert.equal(api.getMetrics().backgroundParticles, 1000);
+  assert.equal(api.getMetrics().backgroundParticles, 4000);
 });
 
 test("hover affects a bounded title region after completion and clears on exit", () => {
@@ -209,18 +209,43 @@ test("hover affects a bounded title region after completion and clears on exit",
   harness.advance(7000); harness.runFrame();
   assert.equal(api.getMetrics().state, "complete");
   harness.advance(60);
+  harness.listeners.get("window:pointermove")({ clientX: 340, clientY: 200, pointerType: "mouse" });
+  harness.advance(60);
   harness.listeners.get("window:pointermove")({ clientX: 400, clientY: 200, pointerType: "mouse" });
   harness.runFrame();
   assert.ok(api.getMetrics().hoverInfluenced > 0);
   assert.ok(api.getMetrics().hoverInfluenced < api.getMetrics().titleParticles);
   harness.listeners.get("window:pointerout")({ type: "pointerout", relatedTarget: null });
   harness.advance(16); harness.runFrame();
+  assert.ok(api.getMetrics().hoverInfluenced > 0, "wake persists after pointer exit");
+  for (let frame = 0; frame < 600; frame += 1) { harness.advance(16); harness.runFrame(); }
   assert.equal(api.getMetrics().hoverInfluenced, 0);
   const reduced = createHarness({ reduced: true });
   reduced.advance(60);
   reduced.listeners.get("window:pointermove")({ clientX: 400, clientY: 200, pointerType: "mouse" });
   assert.equal(reduced.sandbox.__loadingPrototype.getMetrics().hoverInfluenced, 0);
   assert.equal(reduced.frames.size, 0);
+});
+
+test("entrance appears only after completion fade and exposes a removable callback", () => {
+  const harness = createHarness();
+  const api = harness.sandbox.__loadingPrototype;
+  const button = harness.document.getElementById("enter-button");
+  let entered = 0;
+  api.onEnter(() => { entered += 1; });
+  harness.listeners.get("enter-button:click")();
+  assert.equal(entered, 0);
+  api.complete(); harness.advance(7000); harness.runFrame();
+  assert.equal(button.hidden, true);
+  for (const callback of harness.timeouts.values()) callback();
+  assert.equal(button.hidden, false);
+  assert.equal(harness.document.getElementById("loading-details").hidden, true);
+  const click = harness.listeners.get("enter-button:click");
+  click(); assert.equal(entered, 1);
+  api.onEnter(null); click(); assert.equal(entered, 1);
+  api.restart(); assert.equal(button.hidden, true);
+  assert.equal(harness.document.getElementById("loading-details").hidden, false);
+  api.destroy(); click(); assert.equal(entered, 1);
 });
 
 test("reduced-motion users can explicitly opt back into animation", () => {

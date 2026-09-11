@@ -18,6 +18,7 @@
       <p id="community-subtitle" class="community-subtitle" aria-hidden="true">OPEN-SOURCE INTELLIGENCE FOR THE COMMUNITY</p>
 
       <div class="status-cluster">
+        <div id="loading-details" class="loading-details">
         <div class="status-line">
           <span id="state-label">Awakening the atlas</span>
           <output id="progress-value" for="loading-progress">0%</output>
@@ -25,7 +26,9 @@
         <progress id="loading-progress" max="100" value="0" aria-describedby="step-text">0%</progress>
         <p id="step-text" class="step-text" aria-live="polite">Preparing arcane instruments…</p>
         <p id="error-text" class="error-text" role="alert" hidden></p>
-        <p id="completion-text" class="completion-text" role="status" hidden>Atlas intelligence ready.</p>
+        </div>
+        <p id="completion-text" class="completion-text sr-only" role="status" hidden>Atlas intelligence ready.</p>
+        <button id="enter-button" class="enter-button" type="button" hidden>START</button>
       </div>
 
       <div class="controls" aria-label="Animation and prototype controls">

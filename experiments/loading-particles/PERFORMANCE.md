@@ -1,22 +1,43 @@
 # Performance report
 
-Measurements are recorded after the final visual capture. They are browser-observed timings, not estimates. See the table below for the tested browser, hardware, capture date, methodology, particle counts, frame timings, generation/resize cost, 60-second stability and background-tab behavior.
+Measured 2026-09-11 at 05:54 UTC, after the final dense-surface revision, in Microsoft Edge Chromium headless at 1920×1080 CSS pixels / DPR 1. Hardware: AMD Ryzen 7 8745HS (8 cores / 16 logical processors), integrated Radeon 780M. Node v24.14.1 runs the local measurement script. No production Planner is involved.
 
-The acceptance interpretation is conservative: if exact GPU frame delivery cannot be observed, this report states only `requestAnimationFrame` interval samples exposed by the prototype. No FPS value is fabricated.
+These are observed requestAnimationFrame intervals, not GPU draw timings or an unconstrained FPS estimate. The host normally presents around 120 Hz. Raw results, entrance checks, slow/fast movement samples and >60-second stability results are committed in `screenshots/performance-results.json`.
 
-<!-- PERF_RESULTS_START -->
-Measured 2026-09-11 at 00:37 UTC in Microsoft Edge (Chromium headless), at an explicit 1920×1080 CSS-pixel viewport and device pixel ratio 1. Hardware: AMD Ryzen 7 8745HS (8 cores / 16 logical processors), integrated Radeon 780M graphics. Node v24.14.1 ran the pure tests. Browser frame samples come from a fixed 90-entry ring buffer of consecutive `requestAnimationFrame` intervals. The reproducible script and raw `screenshots/performance-results.json` cover windows near 3.5, 7 and 12 seconds, pointer interaction, and more than 60 seconds of runtime per mode.
+## Counts and settled frame window
 
-| Mode | Title | Wave | Independent background | Total | Average interval | P95 interval | Target sampling | Particle rebuild |
+| Mode | Title | Lower wave | Background surface | Total | Average interval | P95 interval | Target sampling | Particle rebuild |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Balanced | 3,200 | 685 | 1,000 | 4,885 | 8.33 ms | 8.60 ms | 7.20 ms | 11.60 ms |
-| Cinematic | 6,200 | 1,129 | 1,800 | 9,129 | 8.33 ms | 8.50 ms | 10.70 ms | 22.30 ms |
+| Balanced | 3,200 | 685 | 4,000 | 7,885 | 8.33 ms | 8.60 ms | 6.70 ms | 9.30 ms |
+| Cinematic | 6,200 | 1,129 | 6,400 | 13,729 | 13.33 ms | 17.10 ms | 30.90 ms | 39.10 ms |
 
-The host browser was presenting at roughly 120 Hz, so the observed 8.3 ms intervals are the refresh cadence, not unconstrained maximum FPS. Neither mode triggered automatic downgrade. The table reports the last 90-frame window near 12 seconds. At 3.5/7 seconds, Balanced averages were 8.33/8.33 ms (P95 8.50/8.50 ms), and Cinematic averages 8.34/8.33 ms (P95 8.50/8.40 ms). Hover in the completed title affected 868/1,643 title points, with averages 8.33/8.43 ms and P95 8.50/8.50 ms respectively. These windows do not establish whole-run worst-case latency, and should not be treated as a controlled speedup versus previous sessions. Sampling/rebuild values are the initialization-reported work timings; the rebuild runs on resize too, but these values exclude its 160 ms debounce and are not a separate new resize event measurement.
+The background uses a complete 160×25 / 200×32 particle surface. Fixed per-column caches share trigonometry for current and trailing positions, so increasing interior density does not repeat trigonometry for every particle. Title points and background points share their fine white/blue/violet palette. Title base sizes remain 0.52–0.88 px Balanced Stardust / up to 1.02 px Cinematic, 1.05–1.72 px Embers and 1.7–2.55 px Guiding stars. Background base sizes are 0.52–1.02 px with 0.8–1.24 depth scaling.
 
-The current build was run beyond 60 seconds in each mode. Background ambient clocks reached 60,807/60,974 ms; populations and peaks stayed exactly 4,885/9,129, including independent background pools of 1,000/1,800. Moving the pointer away returned the affected count to zero. The background clock advances independently of glyph formation/progress; it deliberately caps single-frame advances to 50 ms after a stall. Automated tests additionally verify pause/resume and terminal population stability.
+Sampling/rebuild values are reported initialization work timings. The same rebuild runs on resize, but these figures exclude the 160 ms debounce and are not a new independently measured resize event.
 
-Particle size ranges are 0.52–0.88 px Stardust, 1.05–1.72 px Embers and 1.7–2.55 px Guiding stars in Balanced. Cinematic extends Stardust only to 1.02 px; the larger classes retain the same restrained ranges. Independent background points are 0.65–1.35 px. The evidence recorder captures approximately 15 wall-clock seconds at 1280×720, including actual pointer input after completion, preserves browser screencast timestamps, and uses variable-frame-rate encoding. Its roughly 15 fps cadence is suitable for phase timing but not micro-stutter; performance reporting comes from the separate ring-buffer samples above.
+## Formation and speed-dependent interaction
 
-The in-app browser used for measurement keeps automation tabs foreground-renderable and continued reporting `document.hidden === false` after another tab opened, so it could not produce an honest browser-hidden timing measurement. Background stopping is therefore verified by the deterministic lifecycle test plus the implementation path: `visibilitychange` cancels the scheduled frame when `document.hidden` becomes true and schedules again only after it becomes false. A manual reviewer can confirm it in ordinary Edge DevTools by switching tabs and observing that the exposed rendered-frame counter stops. This limitation is reported instead of claiming a measurement the harness could not make.
-<!-- PERF_RESULTS_END -->
+The script samples a fixed 90-frame ring buffer near 3.5, 7 and 12 wall-clock seconds, then performs actual slow and fast pointer sweeps. It waits five seconds between sweeps to allow recovery.
+
+| Mode | 3.5 s average / P95 | 7 s average / P95 | Fast sweep average / P95 | Slow / fast maximum displacement |
+| --- | --- | --- | --- | --- |
+| Balanced | 8.33 / 8.50 ms | 8.33 / 8.50 ms | 8.33 / 8.50 ms | 21.74 / 47.38 px |
+| Cinematic | 8.89 / 16.50 ms | 13.89 / 17.10 ms | 14.35 / 24.90 ms | 20.97 / 51.39 px |
+
+Balanced stayed close to the display cadence in the sampled windows. Cinematic showed occasional longer intervals during rapid interaction; its 24.9 ms P95 is a real limitation and is not described as locked 60 FPS. Neither mode triggered automatic degradation, which requires at least 72% of a full 90-frame buffer to exceed 24 ms. These windows do not establish whole-run worst-case latency, and variation between sessions is expected.
+
+Stationary/unaffected title particles skip wake calculations. A moving pointer generates one impulse per accepted sample along the swept segment; existing displacement then decays through a spring and damping. The 100 px safety cap prevents repeated strokes from growing displacement without bound. Slow and fast sweep measurements confirm stronger displacement for faster movement; after recovery the measured affected count and maximum displacement both return to zero.
+
+## Stability, lifecycle and entrance
+
+Each mode ran more than 60 seconds. The independent background clocks reached 67,523 / 67,739 ms. Total populations and peaks remained exactly 7,885 / 13,729; terminal states created no additional particles. Fixed upper limits are 7,900 / 14,000 across viewport sizes.
+
+Browser checks confirmed that after completion the progress details are hidden and START is visible with transparent background and zero border width. The button reserves an optional `onEnter(handler)` hook and performs no default navigation. Offline lifecycle tests cover its timing, removal, restart and destroy behavior, plus reduced motion and pointer recovery.
+
+The in-app automation browser previously kept tabs foreground-renderable even after another tab opened, so it could not establish an honest browser-hidden timing measurement. Hidden-page stopping is verified through deterministic lifecycle tests and the implementation path: visibilitychange cancels animation scheduling, freezes the background and prevents new pointer impulses; resuming does not integrate hidden time. An ordinary-browser manual tab-switch check remains recommended.
+
+## Evidence and reproduction
+
+Serve this experiment directory at http://127.0.0.1:8765 and run `node measure-performance.mjs`. It writes the raw report and Balanced, Cinematic, reduced-motion and interaction screenshots. It requires local Edge and a Node runtime with WebSocket support.
+
+`node capture-evidence.mjs` records an approximately 20-second 1280×720 browser screencast, preserving browser timestamps in variable-frame-rate encoding. It shows 6.33-second formation, completion fade/START, slow movement around 10.5–13.5 seconds, a fast sweep around 14.5 seconds and several seconds of recovery. Its roughly 15 fps capture cadence demonstrates narrative timing, not fine-grained micro-stutter; performance figures come from the separate run above.

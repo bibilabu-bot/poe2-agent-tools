@@ -20,6 +20,9 @@
   const qualitySelect = document.getElementById("quality-select");
   const motionNote = document.getElementById("motion-note");
   const communitySubtitle = document.getElementById("community-subtitle");
+  const loadingDetails = document.getElementById("loading-details");
+  const enterButton = document.getElementById("enter-button");
+  let enterHandler = null;
 
   const params = new URLSearchParams(location.search);
   const seed = Number(params.get("seed")) || 20260220;
@@ -41,8 +44,9 @@
   const state = {
     mode: "enter", paused: motionMode === "reduced", hidden: document.hidden, destroyed: false,
     width: 0, height: 0, dpr: 1, progress: 0, stepIndex: 0, enteredAt: performance.now(),
-    titleParticles: [], waveParticles: [], backgroundParticles: [], ambientElapsed: 0,
+    titleParticles: [], waveParticles: [], backgroundParticles: [], backgroundColumns: [], backgroundTailColumns: [], ambientElapsed: 0,
     cursorX: 0, cursorY: 0, pointerActive: false, hoverInfluenced: 0,
+    strokeX: 0, strokeY: 0, pointerSpeed: 0, wakePending: false, maxWakeOffset: 0,
     frameSamples: new Float32Array(90), slowFrameFlags: new Uint8Array(90),
     frameSampleCount: 0, slowFrameCount: 0, frameSampleCursor: 0, lastFrame: 0,
     lastPointerUpdate: 0, pointerX: 0, pointerY: 0,
@@ -112,7 +116,8 @@
       alpha: type === "guide" ? randomBetween(rng, .92, 1) : randomBetween(rng, .74, 1), size,
       life: randomBetween(rng, 0, Math.PI * 2), drift: randomBetween(rng, .08, .38),
       scattered: index % 37 === 0, type, role: target.role, bornAt, swirl: rng() < .5 ? -1 : 1, depth: randomBetween(rng, .45, 1),
-      lane: index % 3, streamPhase: rng() * Math.PI * 2
+      lane: index % 3, streamPhase: rng() * Math.PI * 2,
+      wakeX: 0, wakeY: 0, wakeVX: 0, wakeVY: 0
     };
   }
 
@@ -167,6 +172,8 @@
       };
     }
     state.backgroundParticles = B.create(preset.backgroundMax, L.createSeededRandom(seed ^ 0x53a71));
+    state.backgroundColumns = B.createColumns(preset.backgroundMax);
+    state.backgroundTailColumns = B.createColumns(preset.backgroundMax);
     state.lastResizeMs = performance.now() - started;
     state.particleCountPeak = Math.max(state.particleCountPeak, state.titleParticles.length + state.waveParticles.length + state.backgroundParticles.length);
     exposeMetrics();
@@ -221,9 +228,10 @@
     const revelation = smoothstep(7600, 10300, elapsed);
     const subtitleInk = smoothstep(9400, 10600, elapsed);
     communitySubtitle.style.opacity = String(subtitleInk);
-    const parallaxX = motionMode === "reduced" ? 0 : state.pointerX * 4;
-    const parallaxY = motionMode === "reduced" ? 0 : state.pointerY * 3;
+    const viewParallaxX = motionMode === "reduced" ? 0 : state.pointerX * 4;
+    const viewParallaxY = motionMode === "reduced" ? 0 : state.pointerY * 3;
     state.hoverInfluenced = 0;
+    state.maxWakeOffset = 0;
     context.save();
     context.globalCompositeOperation = "lighter";
     for (let i = 0; i < state.titleParticles.length; i += 1) {
@@ -246,11 +254,20 @@
         const capture = smoothstep(6500 + particle.depth * 420, 9900, elapsed);
         const release = particle.scattered && state.mode === "loading"
           ? Math.pow(Math.max(0, Math.sin(elapsed * .0008 + particle.life)), 4) * capture : 0;
-        L.hoverOffset(ripple, particle.targetX - state.cursorX, particle.targetY - state.cursorY,
-          state.ambientElapsed, state.pointerActive && revelation > .98 && particle.role === "title");
-        if (ripple.x || ripple.y) state.hoverInfluenced += 1;
-        const aimX = streamX * (1 - capture) + particle.targetX * capture + release * Math.cos(particle.life) * 24 + ripple.x;
-        const aimY = streamY * (1 - capture) + particle.targetY * capture - release * 20 + ripple.y;
+        if (state.wakePending && state.pointerActive && revelation > .98 && particle.role === "title") {
+          L.wakeImpulse(ripple, particle.targetX + particle.wakeX, particle.targetY + particle.wakeY,
+            state.strokeX, state.strokeY, state.cursorX, state.cursorY, state.pointerSpeed, true);
+          particle.wakeVX += ripple.x;
+          particle.wakeVY += ripple.y;
+        }
+        if (particle.wakeX || particle.wakeY || particle.wakeVX || particle.wakeVY) {
+          L.advanceWake(particle, state.frameStep);
+          if (Math.abs(particle.wakeX) + Math.abs(particle.wakeY) + Math.abs(particle.wakeVX) + Math.abs(particle.wakeVY) < .001) {
+            particle.wakeX = 0; particle.wakeY = 0; particle.wakeVX = 0; particle.wakeVY = 0;
+          }
+        }
+        const aimX = streamX * (1 - capture) + particle.targetX * capture + release * Math.cos(particle.life) * 24;
+        const aimY = streamY * (1 - capture) + particle.targetY * capture - release * 20;
         const dx = aimX - particle.x;
         const dy = aimY - particle.y;
         const distance = Math.max(24, Math.hypot(dx, dy));
@@ -278,7 +295,13 @@
       if (motionMode === "reduced" && !captureStage) {
         particle.x = particle.targetX;
         particle.y = particle.targetY;
+        particle.wakeX = 0; particle.wakeY = 0; particle.wakeVX = 0; particle.wakeVY = 0;
       }
+      const wakeDistance = particle.wakeX || particle.wakeY ? Math.hypot(particle.wakeX, particle.wakeY) : 0;
+      if (wakeDistance > .5) state.hoverInfluenced += 1;
+      state.maxWakeOffset = Math.max(state.maxWakeOffset, wakeDistance);
+      const parallaxX = viewParallaxX + particle.wakeX;
+      const parallaxY = viewParallaxY + particle.wakeY;
       const twinkle = motionMode === "reduced" ? .94 : .84 + Math.sin(elapsed * .0017 + particle.life) * .16;
       const isBeacon = particle.type === "ember" || particle.type === "guide";
       const ignitionPresence = isBeacon ? birth : birth * (.78 + convergence * .22);
@@ -319,6 +342,7 @@
       }
       context.fillRect(particle.x + parallaxX, particle.y + parallaxY, size, size);
     }
+    state.wakePending = false;
     context.restore();
   }
 
@@ -333,16 +357,24 @@
   function drawBackground() {
     const elapsed = motionMode === "reduced" ? 6500 : state.ambientElapsed;
     const presence = smoothstep(850, 3200, elapsed);
+    B.prepare(state.backgroundColumns, elapsed / 1000, state.width, state.height);
+    B.prepare(state.backgroundTailColumns, Math.max(0, elapsed / 1000 - .16), state.width, state.height);
     context.save();
     context.globalCompositeOperation = "lighter";
     for (let i = 0; i < state.backgroundParticles.length; i += 1) {
       const point = state.backgroundParticles[i];
-      B.position(backgroundPoint, point, elapsed / 1000, state.width, state.height);
+      B.position(backgroundPoint, point, elapsed / 1000, state.width, state.height, state.backgroundColumns);
       context.fillStyle = point.color;
       context.globalAlpha = point.alpha * presence * backgroundPoint.alpha;
-      context.fillRect(backgroundPoint.x, backgroundPoint.y, point.size, point.size);
-      if (point.band !== 4 && i % 4 === 0) {
-        B.position(backgroundTail, point, Math.max(0, elapsed / 1000 - .16), state.width, state.height);
+      const size = point.size * backgroundPoint.scale;
+      context.fillRect(backgroundPoint.x, backgroundPoint.y, size, size);
+      if (i % 2 === 0 && Math.abs(point.cross) > .85) {
+        context.globalAlpha *= .14;
+        context.fillRect(backgroundPoint.x - .7, backgroundPoint.y - .7, size + 1.4, size + 1.4);
+        context.globalAlpha /= .14;
+      }
+      if (i % 7 === 0) {
+        B.position(backgroundTail, point, Math.max(0, elapsed / 1000 - .16), state.width, state.height, state.backgroundTailColumns);
         // Do not draw a trail across the wrapped seam.
         if (Math.abs(backgroundPoint.x - backgroundTail.x) < state.width * .05) {
           context.globalAlpha *= .35;
@@ -402,6 +434,7 @@
     pauseButton.setAttribute("aria-pressed", String(paused));
     pauseButton.textContent = paused ? "Resume animation" : "Pause animation";
     motionNote.hidden = motionMode !== "reduced";
+    document.body.dataset.motion = motionMode;
     if (paused) { stopAnimation(); draw(performance.now(), true); }
     else startAnimation();
     if (!fromMotionPreference) userMotionOverride = paused ? "reduce" : "animate";
@@ -427,7 +460,11 @@
     updateProgress(100);
     if (state.mode === "enter") setMode("loading");
     if (state.mode === "loading") setMode("complete");
-    state.completionTimer = setTimeout(function holdCompletedScene() { completionText.hidden = false; }, 900);
+    state.completionTimer = setTimeout(function revealEntrance() {
+      if (state.destroyed || state.mode !== "complete") return;
+      loadingDetails.hidden = true;
+      enterButton.hidden = false;
+    }, motionMode === "reduced" ? 0 : 900);
     exposeMetrics();
   }
 
@@ -481,8 +518,13 @@
     if (state.mode !== "enter") state.mode = L.transitionState(state.mode, "enter");
     document.body.dataset.state = "enter";
     state.enteredAt = performance.now();
+    state.completeAt = 0;
     state.ambientElapsed = 0;
     state.pointerActive = false;
+    state.wakePending = false;
+    state.pointerSpeed = 0;
+    enterButton.hidden = true;
+    loadingDetails.hidden = false;
     state.lastFrame = 0;
     state.pausedDuration = 0;
     state.timelineOffset = 0;
@@ -511,6 +553,8 @@
       if (captureStage === "complete") {
         setMode("complete");
         state.completeAt = performance.now() - 750;
+        loadingDetails.hidden = true;
+        enterButton.hidden = false;
       }
       clearInterval(state.loadingTimer);
       state.loadingTimer = null;
@@ -557,17 +601,25 @@
   function handlePointer(event) {
     const now = performance.now();
     if (motionMode === "reduced" || state.paused || state.hidden || event.pointerType === "touch" || now - state.lastPointerUpdate < 48) return;
+    const elapsed = now - state.lastPointerUpdate;
+    const connected = state.pointerActive && elapsed < 200;
+    state.strokeX = connected ? state.cursorX : event.clientX;
+    state.strokeY = connected ? state.cursorY : event.clientY;
+    state.pointerSpeed = connected ? Math.min(6000, Math.hypot(event.clientX - state.cursorX, event.clientY - state.cursorY) / elapsed * 1000) : 0;
     state.lastPointerUpdate = now;
     state.pointerX = event.clientX / state.width - .5;
     state.pointerY = event.clientY / state.height - .5;
     state.cursorX = event.clientX;
     state.cursorY = event.clientY;
     state.pointerActive = true;
+    state.wakePending = state.pointerSpeed > 0;
   }
 
   function clearPointer(event) {
     if (event.type === "pointerout" && event.relatedTarget) return;
     state.pointerActive = false;
+    state.wakePending = false;
+    state.pointerSpeed = 0;
     state.pointerX = 0;
     state.pointerY = 0;
   }
@@ -599,6 +651,7 @@
       titleParticles: state.titleParticles.length, waveParticles: state.waveParticles.length,
       backgroundParticles: state.backgroundParticles.length, ambientElapsedMs: state.ambientElapsed,
       hoverInfluenced: state.hoverInfluenced,
+      maxWakeOffset: state.maxWakeOffset,
       totalParticles: state.titleParticles.length + state.waveParticles.length + state.backgroundParticles.length, particleCountPeak: state.particleCountPeak,
       targetGenerationMs: state.targetGenerationMs, lastResizeMs: state.lastResizeMs,
       frame: sampleStats(), autoDegraded: state.autoDegraded, renderedFrameCount: state.renderedFrameCount,
@@ -609,7 +662,12 @@
       getMetrics() {
         const visualElapsedMs = timelineTime(performance.now());
         return { ...snapshot, state: state.mode, progress: state.progress, visualElapsedMs, visualPhase: L.getVisualPhase(visualElapsedMs),
-          ambientElapsedMs: state.ambientElapsed, hoverInfluenced: state.hoverInfluenced };
+          ambientElapsedMs: state.ambientElapsed, hoverInfluenced: state.hoverInfluenced, maxWakeOffset: state.maxWakeOffset };
+      },
+      onEnter(handler) {
+        if (state.destroyed) return;
+        if (handler !== null && typeof handler !== "function") throw new TypeError("Entry handler must be a function or null");
+        enterHandler = handler;
       },
       setProgress(value) { if (!state.destroyed) updateProgress(value); },
       complete: requestComplete,
@@ -637,6 +695,8 @@
     restartButton.removeEventListener("click", restart);
     errorButton.removeEventListener("click", simulateError);
     qualitySelect.removeEventListener("change", onQualityChange);
+    enterButton.removeEventListener("click", onEnterClick);
+    enterHandler = null;
     exposeMetrics();
     delete window.__loadingPrototype;
   }
@@ -649,6 +709,9 @@
     setPaused(!state.paused, false);
   }
   function onQualityChange() { setQuality(qualitySelect.value, false); }
+  function onEnterClick() {
+    if (!state.destroyed && state.mode === "complete" && !enterButton.hidden && enterHandler) enterHandler();
+  }
 
   addEventListener("resize", scheduleResize, { passive: true });
   addEventListener("pointermove", handlePointer, { passive: true });
@@ -660,6 +723,7 @@
   restartButton.addEventListener("click", restart);
   errorButton.addEventListener("click", simulateError);
   qualitySelect.addEventListener("change", onQualityChange);
+  enterButton.addEventListener("click", onEnterClick);
 
   motionNote.hidden = motionMode !== "reduced";
   resize();

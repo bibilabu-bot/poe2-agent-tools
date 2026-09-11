@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 
 const edge = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 const output = resolve("screenshots", "spark-to-stars-full.mp4");
-const captureDurationSeconds = 15;
+const captureDurationSeconds = 20;
 const frames = await mkdtemp(join(tmpdir(), "p2at020a-frames-"));
 const profile = await mkdtemp(join(tmpdir(), "p2at020a-edge-"));
 const browser = spawn(edge, [
@@ -76,13 +76,19 @@ try {
   await command("Page.startScreencast", { format: "jpeg", quality: 88, maxWidth: 1280, maxHeight: 720, everyNthFrame: 1 });
   await command("Page.navigate", { url: "http://127.0.0.1:8765/index.html?seed=20260220&quality=balanced" });
   await delay(10500);
-  // Real pointer input over the completed title, followed by recovery.
+  // Slow movement, a pause, a fast sweep, then undisturbed recovery.
   for (let index = 0; index < 30; index += 1) {
-    await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 430 + index * 14, y: 232 });
+    await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 430 + index * 7, y: 232 });
     await delay(100);
   }
+  await delay(1000);
+  for (let index = 0; index < 7; index += 1) {
+    await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 430 + index * 65, y: 232 });
+    await delay(60);
+  }
+  await delay(300);
   await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 10, y: 10 });
-  await delay(1500);
+  await delay(4800);
   await command("Page.stopScreencast");
   await delay(250);
   await Promise.all(writes);

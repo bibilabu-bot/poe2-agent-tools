@@ -6,8 +6,8 @@
   "use strict";
 
   const QUALITY_PRESETS = Object.freeze({
-    balanced: Object.freeze({ titleMax: 3200, waveMax: 700, backgroundMax: 1000, sampleStep: 2, dprMax: 1.5, glow: 0.42 }),
-    cinematic: Object.freeze({ titleMax: 6200, waveMax: 1400, backgroundMax: 1800, sampleStep: 1, dprMax: 2, glow: 0.62 })
+    balanced: Object.freeze({ titleMax: 3200, waveMax: 700, backgroundMax: 4000, sampleStep: 2, dprMax: 1.5, glow: 0.42 }),
+    cinematic: Object.freeze({ titleMax: 6200, waveMax: 1400, backgroundMax: 6400, sampleStep: 1, dprMax: 2, glow: 0.62 })
   });
   const STATES = Object.freeze(["enter", "loading", "complete", "error"]);
   const TRANSITIONS = Object.freeze({
@@ -126,15 +126,36 @@
     return elapsed < formationEnd ? 1000 + (elapsed - 1000) * 1.8 : 10600 + elapsed - formationEnd;
   }
 
-  function hoverOffset(out, dx, dy, elapsed, enabled) {
+  function wakeImpulse(out, x, y, fromX, fromY, toX, toY, speed, enabled) {
     out.x = 0; out.y = 0;
-    const distance = Math.hypot(dx, dy);
-    if (!enabled || distance >= 115) return out;
-    const envelope = (1 - distance / 115) ** 2;
-    const wave = Math.sin(distance * .075 - elapsed * .004) * 10 * envelope;
-    out.x = dx / Math.max(1, distance) * wave;
-    out.y = dy / Math.max(1, distance) * wave;
+    if (!enabled || speed <= 0) return out;
+    const dx = toX - fromX; const dy = toY - fromY;
+    const lengthSquared = dx * dx + dy * dy;
+    const t = lengthSquared ? Math.max(0, Math.min(1, ((x - fromX) * dx + (y - fromY) * dy) / lengthSquared)) : 0;
+    const awayX = x - fromX - t * dx; const awayY = y - fromY - t * dy;
+    const distance = Math.hypot(awayX, awayY);
+    const power = Math.min(1, speed / 1800);
+    const radius = 45 + power * 65;
+    if (distance >= radius) return out;
+    const force = (1 - distance / radius) ** 2 * (.2 + power * 7);
+    const length = Math.max(1, Math.sqrt(lengthSquared));
+    // Flow carries particles forward while pressure pushes them sideways.
+    out.x = (awayX / Math.max(5, distance) + dx / length * .45) * force;
+    out.y = (awayY / Math.max(5, distance) + dy / length * .45) * force;
     return out;
+  }
+
+  function advanceWake(particle, dt) {
+    const damping = Math.pow(.945, dt);
+    particle.wakeVX = (particle.wakeVX - particle.wakeX * .0028 * dt) * damping;
+    particle.wakeVY = (particle.wakeVY - particle.wakeY * .0028 * dt) * damping;
+    particle.wakeX += particle.wakeVX * dt;
+    particle.wakeY += particle.wakeVY * dt;
+    const distance = Math.hypot(particle.wakeX, particle.wakeY);
+    if (distance > 100) {
+      particle.wakeX *= 100 / distance; particle.wakeY *= 100 / distance;
+      particle.wakeVX *= .5; particle.wakeVY *= .5;
+    }
   }
 
   function createLifecycle(scheduler, canceller) {
@@ -158,5 +179,5 @@
     };
   }
 
-  return { QUALITY_PRESETS, STATES, createSeededRandom, clampProgress, transitionState, selectQuality, shouldDegrade, selectTargetPoints, assignTargets, capCounts, chooseMotionMode, getVisualPhase, narrativeTime, hoverOffset, createLifecycle };
+  return { QUALITY_PRESETS, STATES, createSeededRandom, clampProgress, transitionState, selectQuality, shouldDegrade, selectTargetPoints, assignTargets, capCounts, chooseMotionMode, getVisualPhase, narrativeTime, wakeImpulse, advanceWake, createLifecycle };
 });
