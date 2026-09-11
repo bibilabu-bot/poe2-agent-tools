@@ -5,13 +5,14 @@ import { join, resolve } from "node:path";
 
 const edge = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 const output = resolve("screenshots", "spark-to-stars-full.mp4");
-const captureDurationSeconds = 12;
+const captureDurationSeconds = 15;
 const frames = await mkdtemp(join(tmpdir(), "p2at020a-frames-"));
 const profile = await mkdtemp(join(tmpdir(), "p2at020a-edge-"));
 const browser = spawn(edge, [
   "--headless=new", "--no-first-run", "--disable-gpu", "--hide-scrollbars",
   "--remote-debugging-port=9231", `--user-data-dir=${profile}`, "--window-size=1280,720", "about:blank"
 ], { stdio: "ignore" });
+const browserExited = new Promise((resolveExit) => browser.once("exit", resolveExit));
 
 function delay(ms) { return new Promise((resolveDelay) => setTimeout(resolveDelay, ms)); }
 
@@ -74,7 +75,14 @@ try {
   await delay(350);
   await command("Page.startScreencast", { format: "jpeg", quality: 88, maxWidth: 1280, maxHeight: 720, everyNthFrame: 1 });
   await command("Page.navigate", { url: "http://127.0.0.1:8765/index.html?seed=20260220&quality=balanced" });
-  await delay(captureDurationSeconds * 1000);
+  await delay(10500);
+  // Real pointer input over the completed title, followed by recovery.
+  for (let index = 0; index < 30; index += 1) {
+    await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 430 + index * 14, y: 232 });
+    await delay(100);
+  }
+  await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 10, y: 10 });
+  await delay(1500);
   await command("Page.stopScreencast");
   await delay(250);
   await Promise.all(writes);
@@ -99,6 +107,7 @@ try {
 } finally {
   socket.close();
   browser.kill();
+  await Promise.race([browserExited, delay(2000)]);
   await rm(frames, { recursive: true, force: true });
   await rm(profile, { recursive: true, force: true });
 }

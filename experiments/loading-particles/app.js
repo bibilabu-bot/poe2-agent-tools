@@ -2,6 +2,10 @@
   "use strict";
 
   const L = window.LoadingParticleLogic;
+  const B = window.LoadingParticleBackground;
+  const backgroundPoint = { x: 0, y: 0, alpha: 0 };
+  const backgroundTail = { x: 0, y: 0, alpha: 0 };
+  const ripple = { x: 0, y: 0 };
   const canvas = document.getElementById("particle-canvas");
   const context = canvas.getContext("2d", { alpha: true });
   const progress = document.getElementById("loading-progress");
@@ -37,7 +41,9 @@
   const state = {
     mode: "enter", paused: motionMode === "reduced", hidden: document.hidden, destroyed: false,
     width: 0, height: 0, dpr: 1, progress: 0, stepIndex: 0, enteredAt: performance.now(),
-    titleParticles: [], waveParticles: [], frameSamples: new Float32Array(90), slowFrameFlags: new Uint8Array(90),
+    titleParticles: [], waveParticles: [], backgroundParticles: [], ambientElapsed: 0,
+    cursorX: 0, cursorY: 0, pointerActive: false, hoverInfluenced: 0,
+    frameSamples: new Float32Array(90), slowFrameFlags: new Uint8Array(90),
     frameSampleCount: 0, slowFrameCount: 0, frameSampleCursor: 0, lastFrame: 0,
     lastPointerUpdate: 0, pointerX: 0, pointerY: 0,
     layoutTimer: null, loadingTimer: null, completionTimer: null, qualityNoticeTimer: null,
@@ -73,7 +79,7 @@
       const catchUpProgress = smoothstep(state.catchUpStartedAt, state.catchUpStartedAt + state.catchUpDuration, effectiveNow);
       elapsed += state.catchUpBoost * catchUpProgress;
     }
-    return elapsed;
+    return L.narrativeTime(elapsed);
   }
 
   function freezeTimeline(now) {
@@ -160,8 +166,9 @@
         color: palette[(i + 2) % palette.length]
       };
     }
+    state.backgroundParticles = B.create(preset.backgroundMax, L.createSeededRandom(seed ^ 0x53a71));
     state.lastResizeMs = performance.now() - started;
-    state.particleCountPeak = Math.max(state.particleCountPeak, state.titleParticles.length + state.waveParticles.length);
+    state.particleCountPeak = Math.max(state.particleCountPeak, state.titleParticles.length + state.waveParticles.length + state.backgroundParticles.length);
     exposeMetrics();
   }
 
@@ -216,6 +223,7 @@
     communitySubtitle.style.opacity = String(subtitleInk);
     const parallaxX = motionMode === "reduced" ? 0 : state.pointerX * 4;
     const parallaxY = motionMode === "reduced" ? 0 : state.pointerY * 3;
+    state.hoverInfluenced = 0;
     context.save();
     context.globalCompositeOperation = "lighter";
     for (let i = 0; i < state.titleParticles.length; i += 1) {
@@ -238,8 +246,11 @@
         const capture = smoothstep(6500 + particle.depth * 420, 9900, elapsed);
         const release = particle.scattered && state.mode === "loading"
           ? Math.pow(Math.max(0, Math.sin(elapsed * .0008 + particle.life)), 4) * capture : 0;
-        const aimX = streamX * (1 - capture) + particle.targetX * capture + release * Math.cos(particle.life) * 24;
-        const aimY = streamY * (1 - capture) + particle.targetY * capture - release * 20;
+        L.hoverOffset(ripple, particle.targetX - state.cursorX, particle.targetY - state.cursorY,
+          state.ambientElapsed, state.pointerActive && revelation > .98 && particle.role === "title");
+        if (ripple.x || ripple.y) state.hoverInfluenced += 1;
+        const aimX = streamX * (1 - capture) + particle.targetX * capture + release * Math.cos(particle.life) * 24 + ripple.x;
+        const aimY = streamY * (1 - capture) + particle.targetY * capture - release * 20 + ripple.y;
         const dx = aimX - particle.x;
         const dy = aimY - particle.y;
         const distance = Math.max(24, Math.hypot(dx, dy));
@@ -250,7 +261,7 @@
         const edgeScatter = particle.scattered && state.mode !== "complete" ? Math.sin(elapsed * .0009 + particle.life) * (1 - convergence) * 5 : 0;
         const driftX = Math.sin(elapsed * .00042 + particle.life) * particle.drift + edgeScatter;
         const driftY = Math.cos(elapsed * .00038 + particle.life) * particle.drift;
-        const dt = state.frameStep;
+        const dt = state.frameStep * (elapsed > 1000 && elapsed < 10600 ? 1.8 : 1);
         particle.velocityX += (dx * attraction + flowX + driftX * .008) * dt;
         particle.velocityY += (dy * attraction + flowY + driftY * .008) * dt;
         const damping = Math.pow(particle.damping, dt);
@@ -314,8 +325,32 @@
   function draw(time, staticFrame) {
     context.clearRect(0, 0, state.width, state.height);
     const preset = L.QUALITY_PRESETS[qualityName];
+    drawBackground();
     if (motionMode !== "reduced" || staticFrame) drawWave(time, preset);
     drawTitle(time, staticFrame);
+  }
+
+  function drawBackground() {
+    const elapsed = motionMode === "reduced" ? 6500 : state.ambientElapsed;
+    const presence = smoothstep(850, 3200, elapsed);
+    context.save();
+    context.globalCompositeOperation = "lighter";
+    for (let i = 0; i < state.backgroundParticles.length; i += 1) {
+      const point = state.backgroundParticles[i];
+      B.position(backgroundPoint, point, elapsed / 1000, state.width, state.height);
+      context.fillStyle = point.color;
+      context.globalAlpha = point.alpha * presence * backgroundPoint.alpha;
+      context.fillRect(backgroundPoint.x, backgroundPoint.y, point.size, point.size);
+      if (point.band !== 4 && i % 4 === 0) {
+        B.position(backgroundTail, point, Math.max(0, elapsed / 1000 - .16), state.width, state.height);
+        // Do not draw a trail across the wrapped seam.
+        if (Math.abs(backgroundPoint.x - backgroundTail.x) < state.width * .05) {
+          context.globalAlpha *= .35;
+          context.fillRect(backgroundTail.x, backgroundTail.y, point.size * .7, point.size * .7);
+        }
+      }
+    }
+    context.restore();
   }
 
   function recordFrame(delta) {
@@ -337,6 +372,7 @@
     state.animationFrameId = null;
     if (state.destroyed || state.paused || state.hidden) return;
     state.frameStep = state.lastFrame ? Math.min(2, Math.max(.1, (time - state.lastFrame) / (1000 / 60))) : 1;
+    state.ambientElapsed += state.lastFrame ? Math.min(50, Math.max(0, time - state.lastFrame)) : 0;
     if (state.lastFrame) recordFrame(Math.min(100, time - state.lastFrame));
     state.lastFrame = time;
     if (state.pendingComplete && timelineTime(time) >= 10300) finalizeComplete();
@@ -445,6 +481,9 @@
     if (state.mode !== "enter") state.mode = L.transitionState(state.mode, "enter");
     document.body.dataset.state = "enter";
     state.enteredAt = performance.now();
+    state.ambientElapsed = 0;
+    state.pointerActive = false;
+    state.lastFrame = 0;
     state.pausedDuration = 0;
     state.timelineOffset = 0;
     state.catchUpStartedAt = 0;
@@ -517,16 +556,27 @@
 
   function handlePointer(event) {
     const now = performance.now();
-    if (motionMode === "reduced" || now - state.lastPointerUpdate < 48) return;
+    if (motionMode === "reduced" || state.paused || state.hidden || event.pointerType === "touch" || now - state.lastPointerUpdate < 48) return;
     state.lastPointerUpdate = now;
     state.pointerX = event.clientX / state.width - .5;
     state.pointerY = event.clientY / state.height - .5;
+    state.cursorX = event.clientX;
+    state.cursorY = event.clientY;
+    state.pointerActive = true;
+  }
+
+  function clearPointer(event) {
+    if (event.type === "pointerout" && event.relatedTarget) return;
+    state.pointerActive = false;
+    state.pointerX = 0;
+    state.pointerY = 0;
   }
 
   function handleVisibility() {
     const now = performance.now();
     if (document.hidden && !state.hidden) freezeTimeline(now);
     state.hidden = document.hidden;
+    if (state.hidden) state.pointerActive = false;
     if (state.hidden) stopAnimation();
     else {
       if (!state.paused) resumeTimeline(now);
@@ -547,7 +597,9 @@
       state: state.mode, quality: qualityName, motionMode, paused: state.paused, hidden: state.hidden,
       visualElapsedMs: timelineTime(performance.now()), visualPhase: L.getVisualPhase(timelineTime(performance.now())),
       titleParticles: state.titleParticles.length, waveParticles: state.waveParticles.length,
-      totalParticles: state.titleParticles.length + state.waveParticles.length, particleCountPeak: state.particleCountPeak,
+      backgroundParticles: state.backgroundParticles.length, ambientElapsedMs: state.ambientElapsed,
+      hoverInfluenced: state.hoverInfluenced,
+      totalParticles: state.titleParticles.length + state.waveParticles.length + state.backgroundParticles.length, particleCountPeak: state.particleCountPeak,
       targetGenerationMs: state.targetGenerationMs, lastResizeMs: state.lastResizeMs,
       frame: sampleStats(), autoDegraded: state.autoDegraded, renderedFrameCount: state.renderedFrameCount,
       hiddenFrameCount: state.hiddenFrameCount, animationScheduled: state.animationFrameId != null
@@ -556,7 +608,8 @@
     window.__loadingPrototype = {
       getMetrics() {
         const visualElapsedMs = timelineTime(performance.now());
-        return { ...snapshot, state: state.mode, progress: state.progress, visualElapsedMs, visualPhase: L.getVisualPhase(visualElapsedMs) };
+        return { ...snapshot, state: state.mode, progress: state.progress, visualElapsedMs, visualPhase: L.getVisualPhase(visualElapsedMs),
+          ambientElapsedMs: state.ambientElapsed, hoverInfluenced: state.hoverInfluenced };
       },
       setProgress(value) { if (!state.destroyed) updateProgress(value); },
       complete: requestComplete,
@@ -576,6 +629,8 @@
     clearInterval(state.loadingTimer);
     removeEventListener("resize", scheduleResize);
     removeEventListener("pointermove", handlePointer);
+    removeEventListener("pointerout", clearPointer);
+    removeEventListener("blur", clearPointer);
     document.removeEventListener("visibilitychange", handleVisibility);
     systemMotionQuery.removeEventListener("change", handleMotionPreference);
     pauseButton.removeEventListener("click", onPauseClick);
@@ -597,6 +652,8 @@
 
   addEventListener("resize", scheduleResize, { passive: true });
   addEventListener("pointermove", handlePointer, { passive: true });
+  addEventListener("pointerout", clearPointer, { passive: true });
+  addEventListener("blur", clearPointer);
   document.addEventListener("visibilitychange", handleVisibility);
   systemMotionQuery.addEventListener("change", handleMotionPreference);
   pauseButton.addEventListener("click", onPauseClick);

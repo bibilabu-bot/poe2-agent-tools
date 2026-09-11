@@ -6,8 +6,8 @@
   "use strict";
 
   const QUALITY_PRESETS = Object.freeze({
-    balanced: Object.freeze({ titleMax: 3200, waveMax: 700, sampleStep: 2, dprMax: 1.5, glow: 0.42 }),
-    cinematic: Object.freeze({ titleMax: 6200, waveMax: 1400, sampleStep: 1, dprMax: 2, glow: 0.62 })
+    balanced: Object.freeze({ titleMax: 3200, waveMax: 700, backgroundMax: 1000, sampleStep: 2, dprMax: 1.5, glow: 0.42 }),
+    cinematic: Object.freeze({ titleMax: 6200, waveMax: 1400, backgroundMax: 1800, sampleStep: 1, dprMax: 2, glow: 0.62 })
   });
   const STATES = Object.freeze(["enter", "loading", "complete", "error"]);
   const TRANSITIONS = Object.freeze({
@@ -118,6 +118,25 @@
     return "revelation";
   }
 
+  // Preserve the first breath, compress only the formation, then return to ambient speed.
+  function narrativeTime(elapsedMs) {
+    const elapsed = Math.max(0, Number(elapsedMs) || 0);
+    if (elapsed <= 1000) return elapsed;
+    const formationEnd = 1000 + 9600 / 1.8;
+    return elapsed < formationEnd ? 1000 + (elapsed - 1000) * 1.8 : 10600 + elapsed - formationEnd;
+  }
+
+  function hoverOffset(out, dx, dy, elapsed, enabled) {
+    out.x = 0; out.y = 0;
+    const distance = Math.hypot(dx, dy);
+    if (!enabled || distance >= 115) return out;
+    const envelope = (1 - distance / 115) ** 2;
+    const wave = Math.sin(distance * .075 - elapsed * .004) * 10 * envelope;
+    out.x = dx / Math.max(1, distance) * wave;
+    out.y = dy / Math.max(1, distance) * wave;
+    return out;
+  }
+
   function createLifecycle(scheduler, canceller) {
     let destroyed = false;
     let paused = false;
@@ -139,5 +158,5 @@
     };
   }
 
-  return { QUALITY_PRESETS, STATES, createSeededRandom, clampProgress, transitionState, selectQuality, shouldDegrade, selectTargetPoints, assignTargets, capCounts, chooseMotionMode, getVisualPhase, createLifecycle };
+  return { QUALITY_PRESETS, STATES, createSeededRandom, clampProgress, transitionState, selectQuality, shouldDegrade, selectTargetPoints, assignTargets, capCounts, chooseMotionMode, getVisualPhase, narrativeTime, hoverOffset, createLifecycle };
 });

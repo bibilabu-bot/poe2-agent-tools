@@ -68,6 +68,7 @@ function createHarness(options = {}) {
   vm.createContext(sandbox);
   const root = path.join(__dirname, "..");
   vm.runInContext(fs.readFileSync(path.join(root, "logic.js"), "utf8"), sandbox, { filename: "logic.js" });
+  vm.runInContext(fs.readFileSync(path.join(root, "background.js"), "utf8"), sandbox, { filename: "background.js" });
   vm.runInContext(fs.readFileSync(path.join(root, "app.js"), "utf8"), sandbox, { filename: "app.js" });
   return {
     sandbox, document, listeners, intervals, timeouts, frames,
@@ -169,16 +170,57 @@ test("fast completion catches up visually and publishes Complete only at revelat
   assert.equal(harness.runFrame(), true);
   metrics = harness.sandbox.__loadingPrototype.getMetrics();
   assert.equal(metrics.visualPhase, "void");
-  harness.advance(2700);
+  harness.advance(900);
   assert.equal(harness.runFrame(), true);
   metrics = harness.sandbox.__loadingPrototype.getMetrics();
   assert.equal(metrics.state, "loading");
-  assert.ok(metrics.visualElapsedMs >= 7000 && metrics.visualElapsedMs < 10300);
-  harness.advance(3300);
+  assert.ok(metrics.visualElapsedMs > 1000 && metrics.visualElapsedMs < 10300);
+  harness.advance(1800);
   assert.equal(harness.runFrame(), true);
   metrics = JSON.parse(harness.document.body.dataset.metrics);
   assert.equal(metrics.state, "complete");
   assert.equal(harness.document.getElementById("loading-progress").value, 100);
+});
+
+test("independent background keeps its bounded population and freezes on pause", () => {
+  const harness = createHarness();
+  const api = harness.sandbox.__loadingPrototype;
+  harness.runFrame();
+  harness.advance(16); harness.runFrame();
+  const before = api.getMetrics();
+  assert.equal(before.backgroundParticles, 1000);
+  assert.ok(before.ambientElapsedMs > 0);
+  api.setProgress(99);
+  assert.equal(api.getMetrics().ambientElapsedMs, before.ambientElapsedMs);
+  harness.listeners.get("pause-button:click")();
+  harness.advance(10000);
+  assert.equal(harness.runFrame(), false);
+  assert.equal(api.getMetrics().ambientElapsedMs, before.ambientElapsedMs);
+  harness.listeners.get("pause-button:click")();
+  harness.runFrame();
+  assert.equal(api.getMetrics().ambientElapsedMs, before.ambientElapsedMs);
+  assert.equal(api.getMetrics().backgroundParticles, 1000);
+});
+
+test("hover affects a bounded title region after completion and clears on exit", () => {
+  const harness = createHarness();
+  const api = harness.sandbox.__loadingPrototype;
+  api.complete();
+  harness.advance(7000); harness.runFrame();
+  assert.equal(api.getMetrics().state, "complete");
+  harness.advance(60);
+  harness.listeners.get("window:pointermove")({ clientX: 400, clientY: 200, pointerType: "mouse" });
+  harness.runFrame();
+  assert.ok(api.getMetrics().hoverInfluenced > 0);
+  assert.ok(api.getMetrics().hoverInfluenced < api.getMetrics().titleParticles);
+  harness.listeners.get("window:pointerout")({ type: "pointerout", relatedTarget: null });
+  harness.advance(16); harness.runFrame();
+  assert.equal(api.getMetrics().hoverInfluenced, 0);
+  const reduced = createHarness({ reduced: true });
+  reduced.advance(60);
+  reduced.listeners.get("window:pointermove")({ clientX: 400, clientY: 200, pointerType: "mouse" });
+  assert.equal(reduced.sandbox.__loadingPrototype.getMetrics().hoverInfluenced, 0);
+  assert.equal(reduced.frames.size, 0);
 });
 
 test("reduced-motion users can explicitly opt back into animation", () => {

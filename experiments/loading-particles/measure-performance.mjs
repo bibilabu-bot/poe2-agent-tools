@@ -55,7 +55,7 @@ async function measure(quality) {
     url: `http://127.0.0.1:8765/index.html?seed=20260220&quality=${quality}`
   });
   const phases = [];
-  for (const waitMs of [5500, 2500, 4000]) {
+  for (const waitMs of [3500, 3500, 5000]) {
     await delay(waitMs);
     const sample = await command("Runtime.evaluate", {
       expression: "document.body.dataset.metrics", returnByValue: true
@@ -68,7 +68,23 @@ async function measure(quality) {
   });
   const screenshot = await command("Page.captureScreenshot", { format: "png" });
   await writeFile(join("screenshots", `${quality}-1920x1080.png`), Buffer.from(screenshot.data, "base64"));
-  return { ...JSON.parse(result.result.value), phases };
+  await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 960, y: 333 });
+  await delay(1500);
+  const hover = await command("Runtime.evaluate", {
+    expression: "JSON.stringify(window.__loadingPrototype.getMetrics())", returnByValue: true
+  });
+  const hoverMetrics = JSON.parse(hover.result.value);
+  if (hoverMetrics.hoverInfluenced <= 0) throw new Error("Hover did not affect the completed title");
+  const hoverImage = await command("Page.captureScreenshot", { format: "png" });
+  await writeFile(join("screenshots", `${quality}-hover-1920x1080.png`), Buffer.from(hoverImage.data, "base64"));
+  await command("Input.dispatchMouseEvent", { type: "mouseMoved", x: 10, y: 10 });
+  await delay(47000);
+  const stable = await command("Runtime.evaluate", {
+    expression: "JSON.stringify(window.__loadingPrototype.getMetrics())", returnByValue: true
+  });
+  const stableMetrics = JSON.parse(stable.result.value);
+  if (stableMetrics.totalParticles !== phases[0].totalParticles) throw new Error("Particle population changed during stability run");
+  return { ...JSON.parse(result.result.value), phases, hoverMetrics, stableMetrics };
 }
 
 try {
@@ -83,7 +99,9 @@ try {
   await delay(1000);
   const reduced = await command("Page.captureScreenshot", { format: "png" });
   await writeFile(join("screenshots", "reduced-motion-1920x1080.png"), Buffer.from(reduced.data, "base64"));
-  console.log(JSON.stringify({ measuredAt: new Date().toISOString(), balanced, cinematic }, null, 2));
+  const report = JSON.stringify({ measuredAt: new Date().toISOString(), balanced, cinematic }, null, 2);
+  await writeFile(join("screenshots", "performance-results.json"), report + "\n");
+  console.log(report);
 } finally {
   socket.close();
   browser.kill();
