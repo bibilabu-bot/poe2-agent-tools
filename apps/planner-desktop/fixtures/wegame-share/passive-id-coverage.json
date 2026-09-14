@@ -1,0 +1,1306 @@
+{
+  "format": "poe2-agent-tools-wegame-share-coverage",
+  "version": 1,
+  "evidence": {
+    "officialTreeLockId": "shared.ggg.passive-tree",
+    "officialTreeSha256": "b52be9c4f17e4114064255ef1b8c58292e9db0e395d95af235a8d3fef0d44642",
+    "fixture": "public-share.sanitized.json",
+    "fixtureSha256": "3306fcb4ce208f3aac1d9d41ebde3dd6c59abe1f2495df32512acc12cb453d35"
+  },
+  "categories": {
+    "hashes": {
+      "name": "hashes",
+      "count": 102,
+      "uniqueCount": 102,
+      "mapped": 102,
+      "missing": 0,
+      "ambiguous": 0,
+      "classifications": {
+        "normal": 86,
+        "ascendancy": 9,
+        "ordinarySocket": 7,
+        "specialSocket": 0,
+        "missing": 0
+      },
+      "records": [
+        {
+          "numericId": "506",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour9",
+          "classification": "normal"
+        },
+        {
+          "numericId": "1200",
+          "mappingStatus": "mapped",
+          "officialId": "attributes70",
+          "classification": "normal"
+        },
+        {
+          "numericId": "2491",
+          "mappingStatus": "mapped",
+          "officialId": "jewel_slot1974",
+          "classification": "ordinary-socket"
+        },
+        {
+          "numericId": "2847",
+          "mappingStatus": "mapped",
+          "officialId": "strength81",
+          "classification": "normal"
+        },
+        {
+          "numericId": "3084",
+          "mappingStatus": "mapped",
+          "officialId": "AscendancyMercenary3Small7_",
+          "classification": "ascendancy"
+        },
+        {
+          "numericId": "3446",
+          "mappingStatus": "mapped",
+          "officialId": "strength70",
+          "classification": "normal"
+        },
+        {
+          "numericId": "4140",
+          "mappingStatus": "mapped",
+          "officialId": "attributes3",
+          "classification": "normal"
+        },
+        {
+          "numericId": "5728",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour11",
+          "classification": "normal"
+        },
+        {
+          "numericId": "6006",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield9",
+          "classification": "normal"
+        },
+        {
+          "numericId": "6416",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour4",
+          "classification": "normal"
+        },
+        {
+          "numericId": "7716",
+          "mappingStatus": "mapped",
+          "officialId": "armour47",
+          "classification": "normal"
+        },
+        {
+          "numericId": "7960",
+          "mappingStatus": "mapped",
+          "officialId": "jewel_slot1969",
+          "classification": "ordinary-socket"
+        },
+        {
+          "numericId": "8493",
+          "mappingStatus": "mapped",
+          "officialId": "attributes7",
+          "classification": "normal"
+        },
+        {
+          "numericId": "10247",
+          "mappingStatus": "mapped",
+          "officialId": "strength35",
+          "classification": "normal"
+        },
+        {
+          "numericId": "11066",
+          "mappingStatus": "mapped",
+          "officialId": "cooldowns18",
+          "classification": "normal"
+        },
+        {
+          "numericId": "11641",
+          "mappingStatus": "mapped",
+          "officialId": "AscendancyMercenary3Notable1_",
+          "classification": "ascendancy"
+        },
+        {
+          "numericId": "11741",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence74",
+          "classification": "normal"
+        },
+        {
+          "numericId": "11786",
+          "mappingStatus": "mapped",
+          "officialId": "armour46",
+          "classification": "normal"
+        },
+        {
+          "numericId": "14429",
+          "mappingStatus": "mapped",
+          "officialId": "AscendancyMercenary3Notable4",
+          "classification": "ascendancy"
+        },
+        {
+          "numericId": "14439",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour7",
+          "classification": "normal"
+        },
+        {
+          "numericId": "16347",
+          "mappingStatus": "mapped",
+          "officialId": "rage2",
+          "classification": "normal"
+        },
+        {
+          "numericId": "16484",
+          "mappingStatus": "mapped",
+          "officialId": "strength87",
+          "classification": "normal"
+        },
+        {
+          "numericId": "17702",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity75",
+          "classification": "normal"
+        },
+        {
+          "numericId": "18157",
+          "mappingStatus": "mapped",
+          "officialId": "armour49",
+          "classification": "normal"
+        },
+        {
+          "numericId": "18923",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity64",
+          "classification": "normal"
+        },
+        {
+          "numericId": "19236",
+          "mappingStatus": "mapped",
+          "officialId": "armour31",
+          "classification": "normal"
+        },
+        {
+          "numericId": "21213",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour56_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "21387",
+          "mappingStatus": "mapped",
+          "officialId": "strength67",
+          "classification": "normal"
+        },
+        {
+          "numericId": "21755",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity13",
+          "classification": "normal"
+        },
+        {
+          "numericId": "23382",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence41__",
+          "classification": "normal"
+        },
+        {
+          "numericId": "24922",
+          "mappingStatus": "mapped",
+          "officialId": "attributes19",
+          "classification": "normal"
+        },
+        {
+          "numericId": "26196",
+          "mappingStatus": "mapped",
+          "officialId": "jewel_slot1977",
+          "classification": "ordinary-socket"
+        },
+        {
+          "numericId": "26663",
+          "mappingStatus": "mapped",
+          "officialId": "cooldowns19",
+          "classification": "normal"
+        },
+        {
+          "numericId": "26725",
+          "mappingStatus": "mapped",
+          "officialId": "jewel_slot1956",
+          "classification": "ordinary-socket"
+        },
+        {
+          "numericId": "27082",
+          "mappingStatus": "mapped",
+          "officialId": "strength69",
+          "classification": "normal"
+        },
+        {
+          "numericId": "27296",
+          "mappingStatus": "mapped",
+          "officialId": "strength64",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28175",
+          "mappingStatus": "mapped",
+          "officialId": "strength85",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28304",
+          "mappingStatus": "mapped",
+          "officialId": "attributes17_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28370",
+          "mappingStatus": "mapped",
+          "officialId": "strength36",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28510",
+          "mappingStatus": "mapped",
+          "officialId": "strength32",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28982",
+          "mappingStatus": "mapped",
+          "officialId": "strength48",
+          "classification": "normal"
+        },
+        {
+          "numericId": "29447",
+          "mappingStatus": "mapped",
+          "officialId": "armour48",
+          "classification": "normal"
+        },
+        {
+          "numericId": "29611",
+          "mappingStatus": "mapped",
+          "officialId": "strength46",
+          "classification": "normal"
+        },
+        {
+          "numericId": "30996",
+          "mappingStatus": "mapped",
+          "officialId": "AscendancyMercenary3Notable3",
+          "classification": "ascendancy"
+        },
+        {
+          "numericId": "31290",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour52",
+          "classification": "normal"
+        },
+        {
+          "numericId": "31955",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour44",
+          "classification": "normal"
+        },
+        {
+          "numericId": "32474",
+          "mappingStatus": "mapped",
+          "officialId": "attributes4",
+          "classification": "normal"
+        },
+        {
+          "numericId": "32764",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour55_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "33722",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence72",
+          "classification": "normal"
+        },
+        {
+          "numericId": "34201",
+          "mappingStatus": "mapped",
+          "officialId": "attributes20-",
+          "classification": "normal"
+        },
+        {
+          "numericId": "34882",
+          "mappingStatus": "mapped",
+          "officialId": "AscendancyMercenary3Small1",
+          "classification": "ascendancy"
+        },
+        {
+          "numericId": "37276",
+          "mappingStatus": "mapped",
+          "officialId": "rage6",
+          "classification": "normal"
+        },
+        {
+          "numericId": "37397",
+          "mappingStatus": "mapped",
+          "officialId": "AscendancyMercenary3Notable2_3_",
+          "classification": "ascendancy"
+        },
+        {
+          "numericId": "38105",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield22",
+          "classification": "normal"
+        },
+        {
+          "numericId": "39131",
+          "mappingStatus": "mapped",
+          "officialId": "strength44",
+          "classification": "normal"
+        },
+        {
+          "numericId": "39710",
+          "mappingStatus": "mapped",
+          "officialId": "attributes54_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "41384",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour42",
+          "classification": "normal"
+        },
+        {
+          "numericId": "41768",
+          "mappingStatus": "mapped",
+          "officialId": "strength47",
+          "classification": "normal"
+        },
+        {
+          "numericId": "42250",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity65_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "42350",
+          "mappingStatus": "mapped",
+          "officialId": "strength34",
+          "classification": "normal"
+        },
+        {
+          "numericId": "44299",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield36",
+          "classification": "normal"
+        },
+        {
+          "numericId": "44765",
+          "mappingStatus": "mapped",
+          "officialId": "cooldowns13",
+          "classification": "normal"
+        },
+        {
+          "numericId": "45248",
+          "mappingStatus": "mapped",
+          "officialId": "AscendancyMercenary3Small4",
+          "classification": "ascendancy"
+        },
+        {
+          "numericId": "46882",
+          "mappingStatus": "mapped",
+          "officialId": "jewel_slot1970",
+          "classification": "ordinary-socket"
+        },
+        {
+          "numericId": "47168",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence52",
+          "classification": "normal"
+        },
+        {
+          "numericId": "47931",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence8",
+          "classification": "normal"
+        },
+        {
+          "numericId": "48635",
+          "mappingStatus": "mapped",
+          "officialId": "attributes30_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "49256",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour6_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "49657",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity30_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "50062",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour13",
+          "classification": "normal"
+        },
+        {
+          "numericId": "50104",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence51",
+          "classification": "normal"
+        },
+        {
+          "numericId": "51048",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity76",
+          "classification": "normal"
+        },
+        {
+          "numericId": "51561",
+          "mappingStatus": "mapped",
+          "officialId": "strength71",
+          "classification": "normal"
+        },
+        {
+          "numericId": "51672",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour43",
+          "classification": "normal"
+        },
+        {
+          "numericId": "51821",
+          "mappingStatus": "mapped",
+          "officialId": "strength51",
+          "classification": "normal"
+        },
+        {
+          "numericId": "52125",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity79",
+          "classification": "normal"
+        },
+        {
+          "numericId": "52373",
+          "mappingStatus": "mapped",
+          "officialId": "rage1",
+          "classification": "normal"
+        },
+        {
+          "numericId": "52556",
+          "mappingStatus": "mapped",
+          "officialId": "rage3",
+          "classification": "normal"
+        },
+        {
+          "numericId": "53719",
+          "mappingStatus": "mapped",
+          "officialId": "attributes71",
+          "classification": "normal"
+        },
+        {
+          "numericId": "54099",
+          "mappingStatus": "mapped",
+          "officialId": "strength83",
+          "classification": "normal"
+        },
+        {
+          "numericId": "54127",
+          "mappingStatus": "mapped",
+          "officialId": "jewel_slot1975",
+          "classification": "ordinary-socket"
+        },
+        {
+          "numericId": "54282",
+          "mappingStatus": "mapped",
+          "officialId": "strength82",
+          "classification": "normal"
+        },
+        {
+          "numericId": "54937",
+          "mappingStatus": "mapped",
+          "officialId": "rage18",
+          "classification": "normal"
+        },
+        {
+          "numericId": "55190",
+          "mappingStatus": "mapped",
+          "officialId": "jewel_slot1971",
+          "classification": "ordinary-socket"
+        },
+        {
+          "numericId": "55582",
+          "mappingStatus": "mapped",
+          "officialId": "AscendancyMercenary3Small2",
+          "classification": "ascendancy"
+        },
+        {
+          "numericId": "55802",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity77",
+          "classification": "normal"
+        },
+        {
+          "numericId": "55888",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour8",
+          "classification": "normal"
+        },
+        {
+          "numericId": "58814",
+          "mappingStatus": "mapped",
+          "officialId": "attributes8_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "59093",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence71",
+          "classification": "normal"
+        },
+        {
+          "numericId": "59777",
+          "mappingStatus": "mapped",
+          "officialId": "strength65_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "59779",
+          "mappingStatus": "mapped",
+          "officialId": "armour_and_evasion2",
+          "classification": "normal"
+        },
+        {
+          "numericId": "59785",
+          "mappingStatus": "mapped",
+          "officialId": "attributes5",
+          "classification": "normal"
+        },
+        {
+          "numericId": "60287",
+          "mappingStatus": "mapped",
+          "officialId": "AscendancyMercenary3Notable2",
+          "classification": "ascendancy"
+        },
+        {
+          "numericId": "61438",
+          "mappingStatus": "mapped",
+          "officialId": "strength33_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "61976",
+          "mappingStatus": "mapped",
+          "officialId": "attributes43",
+          "classification": "normal"
+        },
+        {
+          "numericId": "62034",
+          "mappingStatus": "mapped",
+          "officialId": "maximum_resistances21",
+          "classification": "normal"
+        },
+        {
+          "numericId": "62498",
+          "mappingStatus": "mapped",
+          "officialId": "attributes6",
+          "classification": "normal"
+        },
+        {
+          "numericId": "63114",
+          "mappingStatus": "mapped",
+          "officialId": "strength68",
+          "classification": "normal"
+        },
+        {
+          "numericId": "63526",
+          "mappingStatus": "mapped",
+          "officialId": "strength37",
+          "classification": "normal"
+        },
+        {
+          "numericId": "64357",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour16_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "64471",
+          "mappingStatus": "mapped",
+          "officialId": "strength84",
+          "classification": "normal"
+        },
+        {
+          "numericId": "65509",
+          "mappingStatus": "mapped",
+          "officialId": "energy_shield_and_armour41",
+          "classification": "normal"
+        }
+      ]
+    },
+    "weaponSet1": {
+      "name": "specialisations.set1",
+      "count": 24,
+      "uniqueCount": 24,
+      "mapped": 24,
+      "missing": 0,
+      "ambiguous": 0,
+      "classifications": {
+        "normal": 24,
+        "ascendancy": 0,
+        "ordinarySocket": 0,
+        "specialSocket": 0,
+        "missing": 0
+      },
+      "records": [
+        {
+          "numericId": "1773",
+          "mappingStatus": "mapped",
+          "officialId": "ailments36",
+          "classification": "normal"
+        },
+        {
+          "numericId": "11275",
+          "mappingStatus": "mapped",
+          "officialId": "fire_penetration21",
+          "classification": "normal"
+        },
+        {
+          "numericId": "11525",
+          "mappingStatus": "mapped",
+          "officialId": "ignite2__",
+          "classification": "normal"
+        },
+        {
+          "numericId": "13856",
+          "mappingStatus": "mapped",
+          "officialId": "slow_attacks6_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "14343",
+          "mappingStatus": "mapped",
+          "officialId": "ailments17",
+          "classification": "normal"
+        },
+        {
+          "numericId": "15522",
+          "mappingStatus": "mapped",
+          "officialId": "fire21_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "17348",
+          "mappingStatus": "mapped",
+          "officialId": "fire17",
+          "classification": "normal"
+        },
+        {
+          "numericId": "18073",
+          "mappingStatus": "mapped",
+          "officialId": "slow_attacks2_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "18496",
+          "mappingStatus": "mapped",
+          "officialId": "slow_attacks11",
+          "classification": "normal"
+        },
+        {
+          "numericId": "24630",
+          "mappingStatus": "mapped",
+          "officialId": "fire40",
+          "classification": "normal"
+        },
+        {
+          "numericId": "27262",
+          "mappingStatus": "mapped",
+          "officialId": "ailments15",
+          "classification": "normal"
+        },
+        {
+          "numericId": "36298",
+          "mappingStatus": "mapped",
+          "officialId": "ailments23",
+          "classification": "normal"
+        },
+        {
+          "numericId": "39884",
+          "mappingStatus": "mapped",
+          "officialId": "fire66",
+          "classification": "normal"
+        },
+        {
+          "numericId": "40918",
+          "mappingStatus": "mapped",
+          "officialId": "ailments35",
+          "classification": "normal"
+        },
+        {
+          "numericId": "44487",
+          "mappingStatus": "mapped",
+          "officialId": "fire64_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "45137",
+          "mappingStatus": "mapped",
+          "officialId": "fire65",
+          "classification": "normal"
+        },
+        {
+          "numericId": "49110",
+          "mappingStatus": "mapped",
+          "officialId": "ailments14",
+          "classification": "normal"
+        },
+        {
+          "numericId": "49952",
+          "mappingStatus": "mapped",
+          "officialId": "slow_attacks4",
+          "classification": "normal"
+        },
+        {
+          "numericId": "51213",
+          "mappingStatus": "mapped",
+          "officialId": "ailments39_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "52669",
+          "mappingStatus": "mapped",
+          "officialId": "fire75",
+          "classification": "normal"
+        },
+        {
+          "numericId": "53030",
+          "mappingStatus": "mapped",
+          "officialId": "ignite5",
+          "classification": "normal"
+        },
+        {
+          "numericId": "53329",
+          "mappingStatus": "mapped",
+          "officialId": "ignite4",
+          "classification": "normal"
+        },
+        {
+          "numericId": "54746",
+          "mappingStatus": "mapped",
+          "officialId": "ailments16",
+          "classification": "normal"
+        },
+        {
+          "numericId": "64724",
+          "mappingStatus": "mapped",
+          "officialId": "ignite3",
+          "classification": "normal"
+        }
+      ]
+    },
+    "weaponSet2": {
+      "name": "specialisations.set2",
+      "count": 24,
+      "uniqueCount": 24,
+      "mapped": 24,
+      "missing": 0,
+      "ambiguous": 0,
+      "classifications": {
+        "normal": 24,
+        "ascendancy": 0,
+        "ordinarySocket": 0,
+        "specialSocket": 0,
+        "missing": 0
+      },
+      "records": [
+        {
+          "numericId": "354",
+          "mappingStatus": "mapped",
+          "officialId": "grenades6",
+          "classification": "normal"
+        },
+        {
+          "numericId": "3109",
+          "mappingStatus": "mapped",
+          "officialId": "grenades3",
+          "classification": "normal"
+        },
+        {
+          "numericId": "9352",
+          "mappingStatus": "mapped",
+          "officialId": "area_attacks1",
+          "classification": "normal"
+        },
+        {
+          "numericId": "9472",
+          "mappingStatus": "mapped",
+          "officialId": "ranged36",
+          "classification": "normal"
+        },
+        {
+          "numericId": "9737",
+          "mappingStatus": "mapped",
+          "officialId": "area_attacks11",
+          "classification": "normal"
+        },
+        {
+          "numericId": "11037",
+          "mappingStatus": "mapped",
+          "officialId": "cooldowns20",
+          "classification": "normal"
+        },
+        {
+          "numericId": "14045",
+          "mappingStatus": "mapped",
+          "officialId": "ranged12",
+          "classification": "normal"
+        },
+        {
+          "numericId": "14572",
+          "mappingStatus": "mapped",
+          "officialId": "cooldowns2",
+          "classification": "normal"
+        },
+        {
+          "numericId": "17026",
+          "mappingStatus": "mapped",
+          "officialId": "grenades25",
+          "classification": "normal"
+        },
+        {
+          "numericId": "17303",
+          "mappingStatus": "mapped",
+          "officialId": "grenades27",
+          "classification": "normal"
+        },
+        {
+          "numericId": "20397",
+          "mappingStatus": "mapped",
+          "officialId": "area_attacks30",
+          "classification": "normal"
+        },
+        {
+          "numericId": "21077",
+          "mappingStatus": "mapped",
+          "officialId": "grenades2",
+          "classification": "normal"
+        },
+        {
+          "numericId": "23373",
+          "mappingStatus": "mapped",
+          "officialId": "grenades19",
+          "classification": "normal"
+        },
+        {
+          "numericId": "24813",
+          "mappingStatus": "mapped",
+          "officialId": "area_attacks19",
+          "classification": "normal"
+        },
+        {
+          "numericId": "29514",
+          "mappingStatus": "mapped",
+          "officialId": "grenades11",
+          "classification": "normal"
+        },
+        {
+          "numericId": "31295",
+          "mappingStatus": "mapped",
+          "officialId": "area_attacks2",
+          "classification": "normal"
+        },
+        {
+          "numericId": "31991",
+          "mappingStatus": "mapped",
+          "officialId": "ranged14",
+          "classification": "normal"
+        },
+        {
+          "numericId": "32071",
+          "mappingStatus": "mapped",
+          "officialId": "area_attacks26",
+          "classification": "normal"
+        },
+        {
+          "numericId": "36070",
+          "mappingStatus": "mapped",
+          "officialId": "ranged16",
+          "classification": "normal"
+        },
+        {
+          "numericId": "36169",
+          "mappingStatus": "mapped",
+          "officialId": "grenades5",
+          "classification": "normal"
+        },
+        {
+          "numericId": "36522",
+          "mappingStatus": "mapped",
+          "officialId": "area_attacks15",
+          "classification": "normal"
+        },
+        {
+          "numericId": "48429",
+          "mappingStatus": "mapped",
+          "officialId": "grenades7",
+          "classification": "normal"
+        },
+        {
+          "numericId": "52274",
+          "mappingStatus": "mapped",
+          "officialId": "grenades8",
+          "classification": "normal"
+        },
+        {
+          "numericId": "65176",
+          "mappingStatus": "mapped",
+          "officialId": "ranged15",
+          "classification": "normal"
+        }
+      ]
+    },
+    "skillOverrides": {
+      "name": "skill_overrides keys",
+      "count": 53,
+      "uniqueCount": 53,
+      "mapped": 53,
+      "missing": 0,
+      "ambiguous": 0,
+      "classifications": {
+        "normal": 53,
+        "ascendancy": 0,
+        "ordinarySocket": 0,
+        "specialSocket": 0,
+        "missing": 0
+      },
+      "records": [
+        {
+          "numericId": "1200",
+          "mappingStatus": "mapped",
+          "officialId": "attributes70",
+          "classification": "normal"
+        },
+        {
+          "numericId": "2847",
+          "mappingStatus": "mapped",
+          "officialId": "strength81",
+          "classification": "normal"
+        },
+        {
+          "numericId": "3446",
+          "mappingStatus": "mapped",
+          "officialId": "strength70",
+          "classification": "normal"
+        },
+        {
+          "numericId": "4140",
+          "mappingStatus": "mapped",
+          "officialId": "attributes3",
+          "classification": "normal"
+        },
+        {
+          "numericId": "8493",
+          "mappingStatus": "mapped",
+          "officialId": "attributes7",
+          "classification": "normal"
+        },
+        {
+          "numericId": "10247",
+          "mappingStatus": "mapped",
+          "officialId": "strength35",
+          "classification": "normal"
+        },
+        {
+          "numericId": "11741",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence74",
+          "classification": "normal"
+        },
+        {
+          "numericId": "16484",
+          "mappingStatus": "mapped",
+          "officialId": "strength87",
+          "classification": "normal"
+        },
+        {
+          "numericId": "17702",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity75",
+          "classification": "normal"
+        },
+        {
+          "numericId": "18923",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity64",
+          "classification": "normal"
+        },
+        {
+          "numericId": "21387",
+          "mappingStatus": "mapped",
+          "officialId": "strength67",
+          "classification": "normal"
+        },
+        {
+          "numericId": "21755",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity13",
+          "classification": "normal"
+        },
+        {
+          "numericId": "23382",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence41__",
+          "classification": "normal"
+        },
+        {
+          "numericId": "24922",
+          "mappingStatus": "mapped",
+          "officialId": "attributes19",
+          "classification": "normal"
+        },
+        {
+          "numericId": "27082",
+          "mappingStatus": "mapped",
+          "officialId": "strength69",
+          "classification": "normal"
+        },
+        {
+          "numericId": "27296",
+          "mappingStatus": "mapped",
+          "officialId": "strength64",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28175",
+          "mappingStatus": "mapped",
+          "officialId": "strength85",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28304",
+          "mappingStatus": "mapped",
+          "officialId": "attributes17_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28370",
+          "mappingStatus": "mapped",
+          "officialId": "strength36",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28510",
+          "mappingStatus": "mapped",
+          "officialId": "strength32",
+          "classification": "normal"
+        },
+        {
+          "numericId": "28982",
+          "mappingStatus": "mapped",
+          "officialId": "strength48",
+          "classification": "normal"
+        },
+        {
+          "numericId": "29611",
+          "mappingStatus": "mapped",
+          "officialId": "strength46",
+          "classification": "normal"
+        },
+        {
+          "numericId": "32474",
+          "mappingStatus": "mapped",
+          "officialId": "attributes4",
+          "classification": "normal"
+        },
+        {
+          "numericId": "33722",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence72",
+          "classification": "normal"
+        },
+        {
+          "numericId": "34201",
+          "mappingStatus": "mapped",
+          "officialId": "attributes20-",
+          "classification": "normal"
+        },
+        {
+          "numericId": "39131",
+          "mappingStatus": "mapped",
+          "officialId": "strength44",
+          "classification": "normal"
+        },
+        {
+          "numericId": "39710",
+          "mappingStatus": "mapped",
+          "officialId": "attributes54_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "41768",
+          "mappingStatus": "mapped",
+          "officialId": "strength47",
+          "classification": "normal"
+        },
+        {
+          "numericId": "42250",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity65_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "42350",
+          "mappingStatus": "mapped",
+          "officialId": "strength34",
+          "classification": "normal"
+        },
+        {
+          "numericId": "47168",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence52",
+          "classification": "normal"
+        },
+        {
+          "numericId": "47931",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence8",
+          "classification": "normal"
+        },
+        {
+          "numericId": "48635",
+          "mappingStatus": "mapped",
+          "officialId": "attributes30_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "49657",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity30_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "50104",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence51",
+          "classification": "normal"
+        },
+        {
+          "numericId": "51048",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity76",
+          "classification": "normal"
+        },
+        {
+          "numericId": "51561",
+          "mappingStatus": "mapped",
+          "officialId": "strength71",
+          "classification": "normal"
+        },
+        {
+          "numericId": "51821",
+          "mappingStatus": "mapped",
+          "officialId": "strength51",
+          "classification": "normal"
+        },
+        {
+          "numericId": "52125",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity79",
+          "classification": "normal"
+        },
+        {
+          "numericId": "53719",
+          "mappingStatus": "mapped",
+          "officialId": "attributes71",
+          "classification": "normal"
+        },
+        {
+          "numericId": "54099",
+          "mappingStatus": "mapped",
+          "officialId": "strength83",
+          "classification": "normal"
+        },
+        {
+          "numericId": "54282",
+          "mappingStatus": "mapped",
+          "officialId": "strength82",
+          "classification": "normal"
+        },
+        {
+          "numericId": "55802",
+          "mappingStatus": "mapped",
+          "officialId": "dexterity77",
+          "classification": "normal"
+        },
+        {
+          "numericId": "58814",
+          "mappingStatus": "mapped",
+          "officialId": "attributes8_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "59093",
+          "mappingStatus": "mapped",
+          "officialId": "intelligence71",
+          "classification": "normal"
+        },
+        {
+          "numericId": "59777",
+          "mappingStatus": "mapped",
+          "officialId": "strength65_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "59785",
+          "mappingStatus": "mapped",
+          "officialId": "attributes5",
+          "classification": "normal"
+        },
+        {
+          "numericId": "61438",
+          "mappingStatus": "mapped",
+          "officialId": "strength33_",
+          "classification": "normal"
+        },
+        {
+          "numericId": "61976",
+          "mappingStatus": "mapped",
+          "officialId": "attributes43",
+          "classification": "normal"
+        },
+        {
+          "numericId": "62498",
+          "mappingStatus": "mapped",
+          "officialId": "attributes6",
+          "classification": "normal"
+        },
+        {
+          "numericId": "63114",
+          "mappingStatus": "mapped",
+          "officialId": "strength68",
+          "classification": "normal"
+        },
+        {
+          "numericId": "63526",
+          "mappingStatus": "mapped",
+          "officialId": "strength37",
+          "classification": "normal"
+        },
+        {
+          "numericId": "64471",
+          "mappingStatus": "mapped",
+          "officialId": "strength84",
+          "classification": "normal"
+        }
+      ]
+    }
+  },
+  "relations": {
+    "allAllocationCount": 150,
+    "allAllocationUniqueCount": 150,
+    "set1Set2Overlap": [],
+    "hashesSet1Overlap": [],
+    "hashesSet2Overlap": [],
+    "skillOverridesNotInHashes": []
+  }
+}
