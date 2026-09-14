@@ -590,6 +590,30 @@ Non-goals:
 - claiming game or website compatibility from structural validation alone;
 - adding private fields to game-bound fixtures.
 
+### P2AT-021A — Research WeGame public-share Build contract
+
+- Status: `REVIEW`
+- Priority: P1
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-013
+- Type: bounded public-share research and offline fixtures
+
+Goal: establish evidence for the complete Build-bearing contract exposed by one supplied
+WeGame PoE2 public share without implementing a production network importer.
+
+Delivery: `docs/WEGAME_SHARE_IMPORT_RESEARCH.md`, one sanitized fixture bundle, exact
+request/schema inventory, lock-verified passive-ID coverage, and offline validation tools.
+
+The research must not claim endpoint stability, redistribution permission, weapon-set
+numbering, lossless native import, or game compatibility from this single capture. Status
+remains `REVIEW`; only the controller may accept it.
+
+Suggested follow-ups:
+
+- P2AT-021B — approve the WeGame import and schema-extension contract;
+- P2AT-021C — implement a pure bounded offline adapter;
+- P2AT-021D — add UI/network integration and real-machine acceptance.
+
 ### P2AT-020A — Prototype a particle-driven loading experience
 
 - Status: `READY`

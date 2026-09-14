@@ -1,0 +1,54 @@
+{
+  "format": "poe2-agent-tools-wegame-share-fixture-manifest",
+  "version": 1,
+  "accessedAt": "2026-09-14",
+  "source": "https://www.wegame.com.cn/helper/poe2/#/share/<share-token-redacted>",
+  "shareTokenSha256": "07ff5a14aa3a22314958c07336c7969aa37cfa6046d6445eb28c300075bdcb09",
+  "frontendAsset": "https://wegame.gtimg.com/g.2002052-r.4de9d/helper/poe2/assets/index-DhVLk-Xd.js",
+  "fixture": {
+    "file": "public-share.sanitized.json",
+    "sha256": "3306fcb4ce208f3aac1d9d41ebde3dd6c59abe1f2495df32512acc12cb453d35",
+    "bytes": 286033,
+    "redistribution": "UNVERIFIED"
+  },
+  "requestTemplate": {
+    "method": "POST",
+    "origin": "https://www.wegame.com.cn",
+    "pathPrefix": "/api/v1/wegame.pallas.poe2.Profile/",
+    "contentType": "application/json",
+    "body": {
+      "area": 0,
+      "openid": "<redacted-or-null>",
+      "role_id": "<redacted-or-null>",
+      "share_code": "<share-token-redacted>",
+      "from_src": "poe2_helper"
+    },
+    "authenticationObserved": "none",
+    "cookiesSent": false
+  },
+  "schemaFingerprintAlgorithm": "sha256 over sorted newline-delimited JSON paths and value types; arrays use []",
+  "schemaPathsFile": "schema-paths.json",
+  "responses": [
+    { "endpoint": "GetRoleInfo", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 541, "schemaFingerprint": "1b31135de8b6d5f3793cb568b4c571c49af78e2766b6be0b29c2404f3a5d22d8", "topLevelKeys": ["nick_name", "result", "role", "share_code"], "fixtureMember": "roleInfo" },
+    { "endpoint": "GetRoleProfile", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 291, "schemaFingerprint": "1fd18e1bb938d039cfd9c40f3755e8449bb777f80669fc139ef58d8f37b1ec9f", "topLevelKeys": ["assigned_talent_count", "result", "skills", "total_talent_count"], "fixtureMember": "roleProfile" },
+    { "endpoint": "GetRolePlaySummary", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 166, "schemaFingerprint": "019bd96e56832302812b7003f40ca078ce0d74135fcdb7eddb8715cfc259efc0", "topLevelKeys": ["finished_level", "finished_level_count", "killed_boss_count", "result", "total_boss_count", "total_level_count"] },
+    { "endpoint": "GetSeasonCurrencySummary", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 174, "schemaFingerprint": "be4c2030e4923c0d4d3e3323848b42d14732a2e7b0fec9f6e1f348f316336bda", "topLevelKeys": ["result", "total_divine_count", "total_exalted_count", "yesterday_divine_count", "yesterday_exalted_count"] },
+    { "endpoint": "GetRoleKeyData", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 698, "schemaFingerprint": "12d45b31d95e4bc112d989a20898e8152b9a730a28ae59e5d5d7fbd95a384082", "topLevelKeys": ["data", "result"] },
+    { "endpoint": "GetDimensionEvaluation", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 114, "schemaFingerprint": "06bf1dba1edd448d6a9281999b7f6a222913d692160a45f60fd3718fc9488348", "topLevelKeys": ["beat", "clear", "result", "score", "survival", "treasure"] },
+    { "endpoint": "GetRoleSummary", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 107, "schemaFingerprint": "054e9e256182fbee756524d6c94c52bcea98456d3606c7c79257b989f6dce286", "topLevelKeys": ["result", "summary_content", "summary_title", "time_bd"] },
+    { "endpoint": "GetEquipments", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 43777, "schemaFingerprint": "9f8eb779631d127a12314ca74807b22c5f9f95060b8511a6281bb600d4fee4b5", "topLevelKeys": ["equipments", "result"], "fixtureMember": "equipments" },
+    { "endpoint": "GetPanelAttr", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 518, "schemaFingerprint": "ec14998f54278d9938040138a50858376272b24680a4071e6859667ab990d528", "topLevelKeys": ["armour", "block_chance", "chaos_resistance", "cold_resistance", "dexterity", "energy_shield", "estimated_evasion_chance", "estimated_physical_damage_reduction", "evasion_rating", "fire_resistance", "intelligence", "life", "lightning_resistance", "mana", "maximum_endurance_charges", "maximum_frenzy_charges", "maximum_power_charges", "movement_velocity", "result", "spirit", "strength"], "fixtureMember": "panelAttributes" },
+    { "endpoint": "GetSkills", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 102849, "schemaFingerprint": "ea6ea578855eaa31a926c56396d024b31190ba1c728629f412c2c523660f0d80", "topLevelKeys": ["result", "skills"], "fixtureMember": "skills" },
+    { "endpoint": "GetSkillsDps", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 369, "schemaFingerprint": "cf3f7a55c25e3f3150a789ee7eaf1dbbfac80ab9d3282dba26a7f63e11043442", "topLevelKeys": ["result", "skills_dps"], "fixtureMember": "skillsDps" },
+    { "endpoint": "GetTalentTree", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 11145, "schemaFingerprint": "a0b0bb9399ce08cb2d95528fdd9971a00f6811755264c86209f52627d66380ba", "topLevelKeys": ["result", "talent_tree"], "fixtureMember": "talentTree" },
+    { "endpoint": "GetJewels", "status": 200, "contentType": "application/json; charset=utf-8", "bytes": 70, "schemaFingerprint": "55328ecc9c701248658f9ef2751eb79d9f09f28b3d1995710dba658b5b641797", "topLevelKeys": ["jewel_data", "result"], "fixtureMember": "jewels" }
+  ],
+  "responseHeadersObserved": {
+    "cacheControl": null,
+    "etag": null,
+    "lastModified": null,
+    "accessControlAllowOrigin": "https://www.wegame.com.cn",
+    "xContentTypeOptions": "nosniff",
+    "transientTraceIdCommitted": false
+  }
+}
