@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-10
+Last updated: 2026-09-14
 
 ## Product objective
 
@@ -20,9 +20,10 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | Build save/open | Implemented | Desktop Save/Open controls, schema-v1 codec, safe file IPC and transactional state restoration accepted; Windows runtime round trip verified |
 | Build JSON contract | Schema v2 specified | Schema v1 remains implemented; P2AT-008D adds the accepted v2 jewel-instance/placement contract, migration and preservation policy for later codec/UI work |
 | Official `.build` interoperability | Foundation accepted | ADR-010 selects a lossless native `.build` plus separate strict GGG export; P2AT-013 adds 18 byte-stable documented/derived fixtures and a lock-verified passive-ID mapping oracle, without codec or compatibility claims |
+| WeGame Build import | Research accepted | P2AT-021A records one sanitized 13-response public-share fixture; all 150 observed passive allocation IDs map against locked data, while endpoint stability, weapon-set numbering and lossless item/skill conversion remain unverified |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Contract ready | Only twelve verified ordinary sockets are eligible for the first slice; implementation, special sockets and radius effects remain deferred |
-| Automated tests | 70 desktop tests | Node test harness covers stat utilities, Build persistence, runtime resources, passive graph behavior, official `.build` fixture integrity and lock-verified passive-ID coverage; broader allocation-state coverage remains pending |
+| Automated tests | 75 desktop tests | Node test harness covers stat utilities, Build persistence, runtime resources, passive graph behavior, official `.build` fixtures and sanitized WeGame-share evidence; broader allocation-state coverage remains pending |
 | Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
 | Packaging/release | Not started | No installer or release workflow |
 | Upstream data governance | Runtime integrated | ADR-007 and the validated 26-file canonical source lock govern Planner runtime identity and integrity; jewel compiler migration remains pending |
@@ -48,6 +49,7 @@ At migration time:
 - P2AT-005B migrated the Planner's eight core resources and eight class portraits to lock-derived immutable URLs with pre-use and pre-write integrity checks; compiler acquisition remains unchanged.
 - P2AT-006A characterized existing category-specific path behavior and moved graph construction, adjacency and deterministic shortest eligible paths into an accepted browser/Node pure module; all 64 desktop tests and Windows Electron smoke checks passed.
 - P2AT-013 established 18 documented/derived official `.build` fixtures, cross-checkout canonical byte hashing and a lock-verified numeric/raw passive-ID mapping oracle; all 70 desktop tests passed, while game and website compatibility remain explicitly unverified.
+- P2AT-021A captured and sanitized one public WeGame share across 13 response shapes; all 150 observed allocation IDs mapped against the locked official tree, with no production network importer or endpoint-stability claim.
 
 Electron was not launched during the initial migration because its binary download was interrupted by a network reset. P2AT-004C later completed a successful Windows Electron runtime acceptance for Build persistence.
 

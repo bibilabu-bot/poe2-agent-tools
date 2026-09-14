@@ -592,7 +592,7 @@ Non-goals:
 
 ### P2AT-021A — Research WeGame public-share Build contract
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P1
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-013
