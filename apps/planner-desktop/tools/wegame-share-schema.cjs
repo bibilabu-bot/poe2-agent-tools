@@ -10,6 +10,12 @@ const FORBIDDEN_KEY_FRAGMENTS = [
 const OPAQUE_HEX_ID = /^[a-f0-9]{64}$/i;
 const SHARE_TOKEN_LIKE = /^[A-Za-z0-9_-]{40,}$/;
 
+function canonicalFixtureBytes(bytes) {
+  const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const text = buffer.toString("utf8");
+  return Buffer.from(text.replace(/\r\n/g, "\n"), "utf8");
+}
+
 function collectSchemaPaths(value, currentPath = "$", output = new Set()) {
   if (Array.isArray(value)) {
     output.add(`${currentPath}:array`);
@@ -48,4 +54,4 @@ function assertSanitized(value, currentPath = "$") {
   }
 }
 
-module.exports = { assertSanitized, collectSchemaPaths, schemaFingerprint };
+module.exports = { assertSanitized, canonicalFixtureBytes, collectSchemaPaths, schemaFingerprint };

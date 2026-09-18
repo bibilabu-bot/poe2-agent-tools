@@ -99,6 +99,7 @@ function createRuntimeResourceStore(dependencies = {}) {
   };
   const fetchResource = dependencies.fetchResource;
   const randomId = dependencies.randomId || (() => crypto.randomUUID());
+  const throwIfAborted = signal => signal?.throwIfAborted();
 
   function verifyBytes(bytes, descriptor) {
     const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
@@ -139,7 +140,9 @@ function createRuntimeResourceStore(dependencies = {}) {
     }
   }
 
-  async function writeVerifiedCache(cachePath, descriptor, bytes) {
+  async function writeVerifiedCache(cachePath, descriptor, bytes, options = {}) {
+    const signal = options.signal;
+    throwIfAborted(signal);
     const verified = verifyBytes(bytes, descriptor);
     const temporaryPath = path.join(
       path.dirname(cachePath),
@@ -148,13 +151,18 @@ function createRuntimeResourceStore(dependencies = {}) {
     let handle;
     let temporaryCreated = false;
     try {
+      throwIfAborted(signal);
       await operations.mkdir(path.dirname(cachePath), { recursive: true });
+      throwIfAborted(signal);
       handle = await operations.open(temporaryPath, "wx", 0o600);
       temporaryCreated = true;
       await handle.writeFile(verified);
+      throwIfAborted(signal);
       await handle.sync();
+      throwIfAborted(signal);
       await handle.close();
       handle = null;
+      throwIfAborted(signal);
       await operations.rename(temporaryPath, cachePath);
       temporaryCreated = false;
       return verified;
@@ -172,12 +180,15 @@ function createRuntimeResourceStore(dependencies = {}) {
     }
   }
 
-  async function readDownloadedBytes(response, descriptor) {
+  async function readDownloadedBytes(response, descriptor, options = {}) {
+    const signal = options.signal;
+    throwIfAborted(signal);
     if (!response?.ok) {
       throw new RuntimeResourceError(RESOURCE_ERROR_CODES.NETWORK_UNAVAILABLE, "Pinned resource is unavailable from its transport.");
     }
     try {
       const bytes = Buffer.from(await response.arrayBuffer());
+      throwIfAborted(signal);
       return verifyBytes(bytes, descriptor);
     } catch (error) {
       if (error instanceof RuntimeResourceError) throw error;
@@ -185,18 +196,21 @@ function createRuntimeResourceStore(dependencies = {}) {
     }
   }
 
-  async function downloadAndCache(descriptor, cachePath) {
+  async function downloadAndCache(descriptor, cachePath, fetchOptions = {}) {
     if (typeof fetchResource !== "function") {
       throw new RuntimeResourceError(RESOURCE_ERROR_CODES.NETWORK_UNAVAILABLE, "Pinned resource transport is unavailable.");
     }
     let response;
     try {
-      response = await fetchResource(descriptor.url);
+      throwIfAborted(fetchOptions.signal);
+      response = await fetchResource(descriptor.url, fetchOptions);
+      throwIfAborted(fetchOptions.signal);
     } catch (error) {
       throw new RuntimeResourceError(RESOURCE_ERROR_CODES.NETWORK_UNAVAILABLE, "Pinned resource download could not be started.", { cause: error });
     }
-    const bytes = await readDownloadedBytes(response, descriptor);
-    return writeVerifiedCache(cachePath, descriptor, bytes);
+    const bytes = await readDownloadedBytes(response, descriptor, fetchOptions);
+    throwIfAborted(fetchOptions.signal);
+    return writeVerifiedCache(cachePath, descriptor, bytes, fetchOptions);
   }
 
   return Object.freeze({ downloadAndCache, readVerifiedFile, resolveVerifiedLocal, verifyBytes, writeVerifiedCache });

@@ -2,18 +2,19 @@
 
 const crypto = require("node:crypto");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { buildReport } = require("../tools/report-wegame-share-coverage.cjs");
-const { assertSanitized, schemaFingerprint } = require("../tools/wegame-share-schema.cjs");
+const { assertSanitized, canonicalFixtureBytes, schemaFingerprint } = require("../tools/wegame-share-schema.cjs");
 
 const directory = path.join(__dirname, "..", "fixtures", "wegame-share");
 const fixturePath = path.join(directory, "public-share.sanitized.json");
 const manifest = JSON.parse(fs.readFileSync(path.join(directory, "manifest.json"), "utf8"));
 const rawFixtureBytes = fs.readFileSync(fixturePath);
 // The manifest pins repository LF bytes; normalize transparent Windows checkout conversion.
-const fixtureBytes = Buffer.from(rawFixtureBytes.toString("utf8").replace(/\r\n/g, "\n"), "utf8");
+const fixtureBytes = canonicalFixtureBytes(rawFixtureBytes);
 const fixture = JSON.parse(fixtureBytes);
 const coverage = JSON.parse(fs.readFileSync(path.join(directory, "passive-id-coverage.json"), "utf8"));
 const schemaPaths = JSON.parse(fs.readFileSync(path.join(directory, "schema-paths.json"), "utf8"));
@@ -91,4 +92,30 @@ test("locked-tree coverage can be reproduced when an official tree path is suppl
   if (!officialTreePath) return t.skip("P2AT_OFFICIAL_TREE not supplied");
   const lockPath = path.join(__dirname, "..", "..", "..", "data", "upstream-sources.lock.json");
   assert.deepEqual(buildReport(fixturePath, officialTreePath, lockPath), coverage);
+});
+
+test("coverage reporting pins canonical LF fixture bytes across checkout line endings", t => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "p2at-wegame-newline-"));
+  t.after(() => fs.rmSync(temporary, { recursive: true, force: true }));
+  const lfFixture = JSON.stringify({ talentTree: { talent_tree: { hashes: [1], specialisations: { set1: [], set2: [] }, skill_overrides: {} } } }, null, 2) + "\n";
+  const treeBytes = Buffer.from(JSON.stringify({ nodes: { "1": { id: "one" } }, jewelSlots: [] }), "utf8");
+  const lock = { sources: [{ id: "shared.ggg.passive-tree", integrity: { bytes: treeBytes.length, sha256: crypto.createHash("sha256").update(treeBytes).digest("hex") } }] };
+  const lfPath = path.join(temporary, "lf.json"), crlfPath = path.join(temporary, "crlf.json"), treePath = path.join(temporary, "tree.json"), lockPath = path.join(temporary, "lock.json");
+  fs.writeFileSync(lfPath, lfFixture); fs.writeFileSync(crlfPath, lfFixture.replace(/\n/g, "\r\n")); fs.writeFileSync(treePath, treeBytes); fs.writeFileSync(lockPath, JSON.stringify(lock));
+  const lfReport = buildReport(lfPath, treePath, lockPath), crlfReport = buildReport(crlfPath, treePath, lockPath);
+  assert.equal(lfReport.evidence.fixtureSha256, crypto.createHash("sha256").update(lfFixture).digest("hex"));
+  assert.equal(crlfReport.evidence.fixtureSha256, lfReport.evidence.fixtureSha256);
+  assert.deepEqual({ ...crlfReport.evidence, fixture: lfReport.evidence.fixture }, lfReport.evidence);
+  const bomHash = crypto.createHash("sha256").update(canonicalFixtureBytes(Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(lfFixture)]))).digest("hex");
+  assert.notEqual(bomHash, lfReport.evidence.fixtureSha256);
+});
+
+test("official tree verification rejects absent and noncanonical cache paths", t => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "p2at-wegame-invalid-tree-"));
+  t.after(() => fs.rmSync(temporary, { recursive: true, force: true }));
+  const lockPath = path.join(temporary, "lock.json"), wrongTreePath = path.join(temporary, "wrong.json");
+  fs.writeFileSync(lockPath, JSON.stringify({ sources: [{ id: "shared.ggg.passive-tree", integrity: { bytes: 2, sha256: crypto.createHash("sha256").update("{}").digest("hex") } }] }));
+  fs.writeFileSync(wrongTreePath, "[]");
+  assert.throws(() => buildReport(fixturePath, path.join(temporary, "missing.json"), lockPath), /ENOENT/);
+  assert.throws(() => buildReport(fixturePath, wrongTreePath, lockPath), /does not match the canonical lock/);
 });

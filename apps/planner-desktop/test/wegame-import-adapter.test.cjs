@@ -13,7 +13,7 @@ function evidenceTree() {
   return { nodes, jewelSlots };
 }
 test("fixture creates active passive candidates and preserves inactive semantics without mutation", () => {
-  const input = { roleInfo: fixture.roleInfo, talentTree: fixture.talentTree }, before = JSON.stringify(input);
+  const input = structuredClone({ roleInfo: fixture.roleInfo, talentTree: fixture.talentTree }); input.roleInfo.role.openid = "role-open"; input.roleInfo.role.role_id = "role-id"; input.roleInfo.share_code = "share-secret"; const before = JSON.stringify(input);
   const result = adaptWeGamePassiveImport(input, evidenceTree());
   assert.equal(JSON.stringify(input), before); assert.equal(result.version, 1); assert.equal(result.candidate.transactional, true);
   assert.deepEqual([result.candidate.active.normal.length, result.candidate.active.ascendancy.length, result.candidate.active.ordinarySockets.length], [86, 9, 7]);
@@ -22,13 +22,38 @@ test("fixture creates active passive candidates and preserves inactive semantics
   assert.ok(result.candidate.inactive.sourceSpecialisations.every(set => set.requiresDecision && set.targetWeaponSet === null && set.status === "inactive"));
   assert.equal(result.candidate.inactive.skillOverrides.length, 53); assert.ok(result.candidate.inactive.skillOverrides.every(item => item.status === "inactive"));
   assert.ok(result.diagnostics.details.some(item => item.code === "SKILL_OVERRIDES_SEMANTIC_LOSS"));
+  assert.deepEqual(result.candidate.inactive.uninterpretedTalent.quest_stats, fixture.talentTree.talent_tree.quest_stats);
+  assert.equal(result.rawPreservation.scope, "memory-only-not-native-schema"); assert.deepEqual(result.rawPreservation.roleMetadata, { level: 94 }); assert.equal(Object.hasOwn(result.rawPreservation, "roleFields"), false);
+  assert.doesNotMatch(JSON.stringify(result), /openid|role_id|role-open|role-id|share_code/i);
   assert.equal(result.rawPreservation.equipmentFetched, false); assert.equal(result.rawPreservation.skillsFetched, false);
 });
 test("unknown and duplicate IDs are bounded, preserved and diagnosed", () => {
   const input = structuredClone({ roleInfo: fixture.roleInfo, talentTree: fixture.talentTree }); input.talentTree.talent_tree.hashes = [506, 506, 999999, -1];
   const result = adaptWeGamePassiveImport(input, evidenceTree());
-  assert.equal(result.candidate.active.normal.length, 1); assert.equal(result.candidate.unresolved.length, 2);
+  assert.equal(result.candidate.active.normal.length, 1); assert.equal(result.candidate.unresolved.length, 2); assert.equal(result.candidate.unresolved[1].sourceValue, -1);
   assert.ok(result.diagnostics.details.some(item => item.code === "DUPLICATE_PASSIVE_ID")); assert.ok(result.diagnostics.details.some(item => item.code === "UNKNOWN_PASSIVE_ID"));
+});
+test("oversized object keys are rejected before preservation", () => {
+  const input = structuredClone({ roleInfo: fixture.roleInfo, talentTree: fixture.talentTree }); input.talentTree.talent_tree["x".repeat(257)] = true;
+  assert.throws(() => adaptWeGamePassiveImport(input, evidenceTree()), error => error.code === "WEGAME_SCHEMA_LIMIT");
+});
+test("identity-bearing unknown talent fields are recursively excluded", () => {
+  const input = structuredClone({ roleInfo: fixture.roleInfo, talentTree: fixture.talentTree });
+  input.talentTree.talent_tree.openid = "top-secret"; input.talentTree.talent_tree.future = { safe: "kept", nested: { role_id: "nested-secret", share_code: "share-secret" } };
+  const result = adaptWeGamePassiveImport(input, evidenceTree()), serialized = JSON.stringify(result);
+  assert.equal(result.candidate.inactive.uninterpretedTalent.future.safe, "kept"); assert.deepEqual(result.candidate.inactive.uninterpretedTalent.future.nested, {});
+  assert.doesNotMatch(serialized, /top-secret|nested-secret|share-secret|openid|role_id|share_code/i);
+  assert.ok(result.diagnostics.details.some(item => item.code === "SENSITIVE_TALENT_FIELD_REDACTED"));
+});
+test("all inactive preservation paths recursively exclude identity-bearing keys", () => {
+  const input = structuredClone({ roleInfo: fixture.roleInfo, talentTree: fixture.talentTree }), tree = input.talentTree.talent_tree;
+  tree.hashes = [{ safe: "allocation-kept", token: "allocation-secret" }];
+  tree.skill_overrides.bad = { safe: "override-kept", nested: { openid: "override-secret" } };
+  tree.jewel_data.future = { safe: "jewel-kept", share_code: "jewel-secret" };
+  const result = adaptWeGamePassiveImport(input, evidenceTree()), serialized = JSON.stringify(result);
+  assert.equal(result.candidate.unresolved[0].sourceValue.safe, "allocation-kept"); assert.equal(result.candidate.inactive.skillOverrides.find(item => item.sourceKey === "bad").value.safe, "override-kept"); assert.equal(result.candidate.inactive.jewelData.future.safe, "jewel-kept");
+  assert.doesNotMatch(serialized, /allocation-secret|override-secret|jewel-secret|openid|share_code|"token"/i);
+  assert.ok(result.diagnostics.details.filter(item => item.code === "SENSITIVE_TALENT_FIELD_REDACTED").length >= 3);
 });
 test("business errors, schema drift and collection limits fail closed", () => {
   assert.throws(() => adaptWeGamePassiveImport({ roleInfo: { result: { error_code: 7 } }, talentTree: fixture.talentTree }, evidenceTree()), error => error.code === "WEGAME_BUSINESS_ERROR");

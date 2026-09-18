@@ -1,6 +1,6 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
-const { createWeGameImportService, parseShareUrl } = require("../electron/wegame-import-service.cjs");
+const { createTrustedPlannerSenderPredicate, createWeGameImportService, createWeGameIpcHandler, parseShareUrl } = require("../electron/wegame-import-service.cjs");
 const validUrl = "https://www.wegame.com.cn/helper/poe2/#/share/Abc_def-123";
 const ok = value => new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } });
 const tree = { nodes: { "1": { id: "one" } }, jewelSlots: [] };
@@ -28,4 +28,28 @@ test("timeout remains active while the response body is stalled", async () => {
   const fetch = async (_url, { signal }) => new Response(new ReadableStream({ start(controller) { signal.addEventListener("abort", () => controller.error(Object.assign(new Error("aborted"), { name: "AbortError" }))); } }), { status: 200, headers: { "content-type": "application/json" } });
   const result = await createWeGameImportService({ fetch, loadOfficialTree: async () => tree, timeoutMs: 10 }).importFromUrl(validUrl);
   assert.equal(result.error.code, "WEGAME_TIMEOUT");
+});
+test("responses without a bounded stream reader are rejected before arrayBuffer", async () => {
+  let arrayBufferCalled = false;
+  const fetch = async () => ({ ok: true, status: 200, headers: new Headers({ "content-type": "application/json" }), body: null, arrayBuffer: async () => { arrayBufferCalled = true; return new ArrayBuffer(1024 * 1024); } });
+  const result = await createWeGameImportService({ fetch, loadOfficialTree: async () => tree }).importFromUrl(validUrl);
+  assert.equal(result.error.code, "WEGAME_STREAM_UNAVAILABLE"); assert.equal(arrayBufferCalled, false);
+});
+test("the whole import times out during tree loading, releases BUSY and supports retry", async () => {
+  let stallTree = true, loadSignal;
+  const fetch = (() => { let count = 0; return async () => (++count % 2 === 1 ? ok({ result: { error_code: 0 }, role: { area: 0, openid: "role-open", role_id: "role-id", class_name: "Unknown" } }) : ok({ result: { error_code: 0 }, talent_tree: { hashes: [1], specialisations: {}, skill_overrides: {} } })); })();
+  const service = createWeGameImportService({ fetch, timeoutMs: 20, loadOfficialTree: ({ signal }) => { loadSignal = signal; return stallTree ? new Promise(() => {}) : Promise.resolve(tree); } });
+  const first = await service.importFromUrl(validUrl); assert.equal(first.error.code, "WEGAME_TIMEOUT"); assert.equal(loadSignal.aborted, true);
+  stallTree = false; const retry = await service.importFromUrl(validUrl); assert.equal(retry.ok, true);
+});
+test("IPC handler rejects untrusted frames without invoking the service", async () => {
+  let calls = 0; const mainFrame = { url: "file:///planner/index.html" }, webContents = { mainFrame, isDestroyed: () => false };
+  const trustedEvent = { sender: webContents, senderFrame: mainFrame };
+  const predicate = createTrustedPlannerSenderPredicate(() => webContents, mainFrame.url);
+  const handler = createWeGameIpcHandler({ importFromUrl: async request => { calls += 1; return { ok: true, request }; } }, predicate);
+  for (const rejectedEvent of [{ sender: {}, senderFrame: mainFrame }, { sender: webContents, senderFrame: { url: mainFrame.url } }, { sender: webContents, senderFrame: { url: "file:///other.html" } }]) {
+    const rejected = await handler(rejectedEvent, { url: validUrl }); assert.equal(rejected.error.code, "WEGAME_UNTRUSTED_CALLER");
+  }
+  assert.equal(calls, 0);
+  const accepted = await handler(trustedEvent, { url: validUrl }); assert.equal(accepted.ok, true); assert.equal(calls, 1);
 });

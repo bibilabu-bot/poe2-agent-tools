@@ -5,9 +5,11 @@
 })(typeof globalThis === "object" ? globalThis : this, function weGameImportAdapterFactory(passiveIdApi) {
   "use strict";
 
-  const LIMITS = Object.freeze({ depth: 32, array: 20000, objectKeys: 20000, diagnostics: 100, string: 4096 });
+  const LIMITS = Object.freeze({ depth: 32, array: 20000, objectKeys: 20000, diagnostics: 100, string: 4096, key: 256 });
   const ordinarySockets = new Set(["2491", "7960", "21984", "26196", "26725", "32763", "46882", "54127", "55190", "60735", "61419", "61834"]);
+  const sensitiveKeyFragments = Object.freeze(["openid", "roleid", "sharecode", "rolename", "charactername", "nickname", "accountid", "userid", "token", "authorization", "cookie", "credential", "password", "secret"]);
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
+  const isSensitiveKey = key => sensitiveKeyFragments.some(fragment => key.toLowerCase().replace(/[^a-z0-9]/g, "").includes(fragment));
   const compareIds = (a, b) => Number(a) - Number(b);
 
   class WeGameAdapterError extends Error {
@@ -22,6 +24,7 @@
     seen.add(value);
     const keys = Object.keys(value);
     if (keys.length > (Array.isArray(value) ? LIMITS.array : LIMITS.objectKeys)) throw new WeGameAdapterError("WEGAME_SCHEMA_LIMIT", "WeGame response collection is too large.");
+    if (keys.some(key => key.length > LIMITS.key)) throw new WeGameAdapterError("WEGAME_SCHEMA_LIMIT", "WeGame response contains an oversized object key.");
     for (const key of keys) inspect(value[key], depth + 1, seen);
     seen.delete(value);
   }
@@ -43,6 +46,20 @@
       add(code, severity, path, message) { total += 1; if (details.length < LIMITS.diagnostics) details.push(Object.freeze({ code, severity, path, message })); },
       result() { return Object.freeze({ total, truncated: total > details.length, details: Object.freeze(details) }); },
     };
+  }
+
+  function preserveInert(value, path, diagnostics) {
+    if (Array.isArray(value)) return value.map((item, index) => preserveInert(item, `${path}[${index}]`, diagnostics));
+    if (!value || typeof value !== "object") return value;
+    const output = {};
+    for (const key of Object.keys(value).sort()) {
+      if (isSensitiveKey(key)) {
+        diagnostics.add("SENSITIVE_TALENT_FIELD_REDACTED", "warning", `${path}.[redacted]`, "Identity-bearing talent evidence was excluded from the candidate.");
+        continue;
+      }
+      output[key] = preserveInert(value[key], `${path}.${key}`, diagnostics);
+    }
+    return output;
   }
 
   function adaptWeGamePassiveImport(input, officialTree) {
@@ -75,7 +92,7 @@
       const seen = new Set();
       for (let index = 0; index < values.length; index += 1) {
         const numericId = validNumeric(values[index]);
-        if (!numericId) { unresolved.push({ source: path, index, valueType: Array.isArray(values[index]) ? "array" : typeof values[index], reason: "invalid-id" }); diagnostics.add("INVALID_PASSIVE_ID", "warning", `${path}[${index}]`, "Passive ID is not a non-negative safe integer."); continue; }
+        if (!numericId) { unresolved.push({ source: path, index, sourceValue: preserveInert(values[index], `${path}[${index}]`, diagnostics), reason: "invalid-id", status: "inactive" }); diagnostics.add("INVALID_PASSIVE_ID", "warning", `${path}[${index}]`, "Passive ID is not a non-negative safe integer."); continue; }
         if (seen.has(numericId)) { diagnostics.add("DUPLICATE_PASSIVE_ID", "warning", path, `Duplicate passive ${numericId} was preserved once.`); continue; }
         seen.add(numericId);
         const identity = mapper.numericToOfficial(numericId); const classification = mapper.classifyNumeric(numericId);
@@ -113,7 +130,7 @@
         const identity = mapper.numericToOfficial(numericId);
         if (identity.status !== "mapped") diagnostics.add("UNKNOWN_OVERRIDE_PASSIVE", "warning", `talent_tree.skill_overrides.${key}`, "Override passive is unknown to the locked tree.");
       }
-      preservedOverrides.push(Object.freeze({ numericId: numericId || null, sourceKey: key, status: "inactive", value: clone(value) }));
+      preservedOverrides.push(Object.freeze({ numericId: numericId || null, sourceKey: key, status: "inactive", value: preserveInert(value, `talent_tree.skill_overrides.${key}`, diagnostics) }));
     }
     if (preservedOverrides.length) diagnostics.add("SKILL_OVERRIDES_SEMANTIC_LOSS", "warning", "talent_tree.skill_overrides", `${preservedOverrides.length} attribute-choice overrides are preserved but cannot currently be applied by Planner schema v2.`);
 
@@ -123,6 +140,13 @@
       ? { sourceDisplayName: roleClassName, base: null, ascendancyId: ascendancies[0], status: "requires-confirmation" }
       : { sourceDisplayName: roleClassName, base: null, ascendancyId: null, status: "unresolved" };
     diagnostics.add("CLASS_CONFIRMATION_REQUIRED", "warning", "role.class_name", "Base class is not a durable WeGame field and must be confirmed before transactional application.");
+    const interpretedTalentFields = new Set(["hashes", "specialisations", "skill_overrides", "jewel_data"]);
+    const uninterpretedTalent = {};
+    for (const key of Object.keys(tree).sort()) {
+      if (interpretedTalentFields.has(key)) continue;
+      if (isSensitiveKey(key)) diagnostics.add("SENSITIVE_TALENT_FIELD_REDACTED", "warning", "talent_tree.[redacted]", "Identity-bearing talent evidence was excluded from the candidate.");
+      else uninterpretedTalent[key] = preserveInert(tree[key], `talent_tree.${key}`, diagnostics);
+    }
 
     return Object.freeze({
       format: "poe2-agent-tools-wegame-passive-import", version: 1,
@@ -130,11 +154,11 @@
         transactional: true,
         class: Object.freeze(classResolution),
         active: Object.freeze({ normal: Object.freeze(active.normal), ascendancy: Object.freeze(active.ascendancy), ordinarySockets: Object.freeze(active.sockets) }),
-        inactive: Object.freeze({ sourceSpecialisations: Object.freeze(sourceSets), skillOverrides: Object.freeze(preservedOverrides), jewelData: tree.jewel_data === undefined ? null : clone(tree.jewel_data) }),
+        inactive: Object.freeze({ sourceSpecialisations: Object.freeze(sourceSets), skillOverrides: Object.freeze(preservedOverrides), jewelData: tree.jewel_data === undefined ? null : preserveInert(tree.jewel_data, "talent_tree.jewel_data", diagnostics), uninterpretedTalent: Object.freeze(uninterpretedTalent) }),
         unresolved: Object.freeze(unresolved),
       }),
       diagnostics: diagnostics.result(),
-      rawPreservation: Object.freeze({ roleFields: Object.freeze(Object.keys(roleInfo.role).sort()), talentTreeFields: Object.freeze(Object.keys(tree).sort()), skillOverrideCount: preservedOverrides.length, jewelDataPreserved: own(tree, "jewel_data"), equipmentFetched: false, skillsFetched: false }),
+      rawPreservation: Object.freeze({ roleMetadata: Object.freeze({ level: Number.isSafeInteger(roleInfo.role.level) ? roleInfo.role.level : null }), talentTreeFields: Object.freeze(Object.keys(tree).filter(key => !isSensitiveKey(key)).sort()), skillOverrideCount: preservedOverrides.length, jewelDataPreserved: own(tree, "jewel_data"), scope: "memory-only-not-native-schema", equipmentFetched: false, skillsFetched: false }),
     });
   }
   return Object.freeze({ LIMITS, WeGameAdapterError, adaptWeGamePassiveImport });

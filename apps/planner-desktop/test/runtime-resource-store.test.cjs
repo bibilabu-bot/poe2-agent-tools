@@ -200,3 +200,19 @@ test("verified downloads replace cache through a unique sibling file", async (t)
   assert.deepEqual(await fs.readFile(target), approved);
   assert.deepEqual(await fs.readdir(directory), ["resource.json"]);
 });
+
+test("an aborted download cannot publish cache and a later retry succeeds", async (t) => {
+  const directory = await temporaryDirectory(t), target = path.join(directory, "resource.json"), approved = Buffer.from("new approved bytes");
+  const controller = new AbortController(); let releaseBody, observedSignal;
+  const store = createRuntimeResourceStore({
+    fetchResource: async (_url, options) => { observedSignal = options.signal; return { ok: true, arrayBuffer: () => new Promise(resolve => { releaseBody = () => resolve(approved); }) }; },
+    randomId: () => "aborted-download",
+  });
+  const pending = store.downloadAndCache(descriptorFor(approved), target, { signal: controller.signal });
+  while (!releaseBody) await new Promise(resolve => setImmediate(resolve));
+  controller.abort(); releaseBody();
+  await assert.rejects(pending); assert.equal(observedSignal, controller.signal); await assert.rejects(fs.stat(target), error => error.code === "ENOENT"); assert.deepEqual(await fs.readdir(directory), []);
+
+  const retry = createRuntimeResourceStore({ fetchResource: async () => ({ ok: true, arrayBuffer: async () => approved }), randomId: () => "retry" });
+  assert.deepEqual(await retry.downloadAndCache(descriptorFor(approved), target), approved); assert.deepEqual(await fs.readFile(target), approved);
+});
