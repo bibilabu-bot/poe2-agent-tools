@@ -668,6 +668,18 @@ Non-goals:
 - adding a UI framework, new product features or decorative effects;
 - modifying or merging `main`.
 
+### P2AT-022B — Repair whole-line passive-tree localization
+
+- Status: `REVIEW`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-022A research evidence `1f4cf3a` (REVIEW), P2AT-023A layout baseline `4006c74` (REVIEW)
+- Scope: desktop passive names/stats display and search, fixed WeGame localization candidate cache, offline reports/tests and Windows Electron evidence
+
+Goal: remove mixed Chinese/English output caused by partial term replacement and use only source-labelled whole-name/whole-stat translations that pass identity, numeric, markup and semantic conflict gates.
+
+Acceptance evidence is recorded in `docs/LOCALIZATION_REPAIR.md`. The task does not upgrade canonical tree data, promote the candidate or dependencies to ACCEPTED, commit the upstream dataset, or extend localization to equipment and skills.
+
 ### P2AT-020A — Prototype a particle-driven loading experience
 
 - Status: `READY`

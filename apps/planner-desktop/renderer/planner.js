@@ -3,6 +3,7 @@ const SKILLS_URL = "poe2://data/atlas-skills.webp";
 const FRAMES_URL = "poe2://data/atlas-frame.webp";
 const TREE_JUMP_URL = "poe2://data/tree-jump.json";
 const CN_TRANSLATION_URL = "poe2://data/ChineseTranslation.lua";
+const WEGAME_LOCALIZATION_URL = "poe2://localization/wegame-passive-tree-zh-cn.js";
 const MASTERY_EFFECT_ATLAS_JSON_URL = "poe2://data/mastery-effect-active.json";
 const MASTERY_EFFECT_ATLAS_IMG_URL = "poe2://data/mastery-effect-active.webp";
 const OFFICIAL_TREE_URL = "poe2://data/official-data.json";
@@ -11,6 +12,9 @@ const plannerStatUtils = typeof module === "object" && module.exports
   ? require("./stat-utils.js")
   : window.plannerStatUtils;
 const { cleanStatDisplay, normalizeStatKey, compileStatTemplate } = plannerStatUtils;
+const localizationEngine = typeof module === "object" && module.exports
+  ? require("./localization-engine.js")
+  : window.plannerLocalizationEngine;
 const buildCodec = typeof module === "object" && module.exports
   ? require("./build-codec.js")
   : window.plannerBuildCodec;
@@ -473,7 +477,7 @@ let searchMatchIds = new Set();
 let searchMatchIndex = -1;
 let searchTypeFilter = "all";
 let searchHighlightActive = false;
-let lastCoverage = {names:0,totalNames:0,stats:0,totalStats:0,fallbackStats:0};
+let lastCoverage = {names:0,totalNames:0,stats:0,totalStats:0,weGameNames:0,weGameStats:0,englishNames:0,englishStats:0};
 
 let undoStack = [];
 let redoStack = [];
@@ -499,6 +503,9 @@ const i18n = {
   statExactZh: new Map(), // Exact English stat line -> Simplified Chinese
   statIndex: new Map(),   // normalized English template -> compiled candidates
   statCache: new Map(),
+  nodeNames: new Map(),
+  nodeStats: new Map(),
+  diagnostics: null,
   passiveCount: 0,
   statTemplateCount: 0
 };
@@ -1095,89 +1102,31 @@ function parseChineseTranslationLua(text) {
 }
 
 
-const ZH_STAT_FALLBACK_RULES = [
-  [/\bincreased\b/gi,"提高"],[/\breduced\b/gi,"降低"],[/\bmore\b/gi,"更多"],[/\bless\b/gi,"更少"],
-  [/\bAttack Speed\b/gi,"攻击速度"],[/\bCast Speed\b/gi,"施法速度"],[/\bMovement Speed\b/gi,"移动速度"],
-  [/\bCritical Hit Chance\b/gi,"暴击几率"],[/\bCritical Damage Bonus\b/gi,"暴击伤害加成"],
-  [/\bProjectile Damage\b/gi,"投射物伤害"],[/\bAttack Damage\b/gi,"攻击伤害"],[/\bSpell Damage\b/gi,"法术伤害"],
-  [/\bFire Damage\b/gi,"火焰伤害"],[/\bCold Damage\b/gi,"冰霜伤害"],[/\bLightning Damage\b/gi,"闪电伤害"],
-  [/\bChaos Damage\b/gi,"混沌伤害"],[/\bPhysical Damage\b/gi,"物理伤害"],[/\bDamage\b/gi,"伤害"],
-  [/\bMaximum Life\b/gi,"最大生命"],[/\bMaximum Mana\b/gi,"最大魔力"],[/\bEnergy Shield\b/gi,"能量护盾"],
-  [/\bArmour\b/gi,"护甲"],[/\bEvasion Rating\b/gi,"闪避值"],[/\bStrength\b/gi,"力量"],[/\bDexterity\b/gi,"敏捷"],
-  [/\bIntelligence\b/gi,"智慧"],[/\ball Attributes\b/gi,"所有属性"],[/\bElemental Resistances\b/gi,"元素抗性"],
-  [/\bFire Resistance\b/gi,"火焰抗性"],[/\bCold Resistance\b/gi,"冰霜抗性"],[/\bLightning Resistance\b/gi,"闪电抗性"],
-  [/\bChaos Resistance\b/gi,"混沌抗性"],[/\bArea of Effect\b/gi,"效果区域"],[/\bSkill Effect Duration\b/gi,"技能效果持续时间"],
-  [/\bMinions\b/gi,"召唤生物"],[/\bSpirit\b/gi,"精神"],[/\bRage\b/gi,"怒火"],[/\bShock\b/gi,"感电"],
-  [/\bIgnite\b/gi,"点燃"],[/\bFreeze\b/gi,"冻结"],[/\bPoison\b/gi,"中毒"],[/\bBleeding\b/gi,"流血"],
-  [/\bFlasks?\b/gi,"药剂"],[/\bSkills?\b/gi,"技能"],[/\bEnemies\b/gi,"敌人"]
-];
-function genericZhStatFallback(en){
-  let out=cleanStatDisplay(en),changed=false;
-  for(const [re,z] of ZH_STAT_FALLBACK_RULES){const n=out.replace(re,z); if(n!==out)changed=true; out=n;}
-  return changed?out.replace(/\s+/g," ").trim():"";
+function translateStatResult(rawStat, node = null) {
+  const english=cleanStatDisplay(rawStat);
+  if(!english || !i18n.ready) return localizationEngine.englishResult(english,"not-ready");
+  const nodeResult=node ? i18n.nodeStats.get(idOf(node))?.get(english) : null;
+  if(nodeResult) return nodeResult;
+  const parts=String(rawStat ?? "").split(/\n/).map(line=>localizationEngine.translatePobStat(line,i18n));
+  if(parts.length && parts.every(result=>result.translated)) {
+    return Object.freeze({value:parts.map(result=>result.value).join("\n"),source:"pob2",quality:parts.every(result=>result.quality==="pob-exact")?"pob-exact":"pob-template",translated:true});
+  }
+  return localizationEngine.englishResult(english);
 }
 
-function translateStatLine(rawLine) {
-  const raw=String(rawLine ?? "");
-  const en=cleanStatDisplay(raw);
-  if(!en) return "";
-
-  if(!i18n.ready) return en;
-
-  const cacheKey="line:"+en;
-  if(i18n.statCache.has(cacheKey)) return i18n.statCache.get(cacheKey);
-
-  const exact=i18n.statExactZh.get(en);
-  if(exact) {
-    i18n.statCache.set(cacheKey,exact);
-    return exact;
-  }
-
-  const key=normalizeStatKey(en);
-  const candidates=i18n.statIndex.get(key)||[];
-
-  for(const rec of candidates) {
-    const m=rec.regex.exec(en);
-    if(!m) continue;
-
-    const values=new Map();
-    rec.indices.forEach((idx,i)=>{
-      if(!values.has(idx)) values.set(idx,m[i+1]);
-    });
-
-    const zh=rec.zh.replace(/\{(\d+)\}/g,(whole,rawIdx,offset,full)=>{
-      let value=values.get(Number(rawIdx));
-      if(value==null) return whole;
-      if(offset>0 && full[offset-1]==="+" && String(value).startsWith("+")) {
-        value=String(value).slice(1);
-      }
-      return value;
-    });
-
-    i18n.statCache.set(cacheKey,zh);
-    return zh;
-  }
-
-  const fallback=genericZhStatFallback(en);
-  const shown=fallback||en;
-  i18n.statCache.set(cacheKey,shown);
-  return shown;
-}
-
-function translateStatRaw(en) {
-  const raw=String(en ?? "");
-  if(!raw) return "";
-  return raw
-    .split(/\n/)
-    .map(translateStatLine)
-    .join("\n");
+function translateStatRaw(stat, node = null) {
+  return translateStatResult(stat,node).value;
 }
 
 
 
 function zhNameOf(n) {
   const en = String(n?.name || "");
-  return i18n.ready ? (i18n.passiveZh.get(en) || "") : "";
+  if(!i18n.ready) return "";
+  const result=i18n.nodeNames.get(idOf(n));
+  if(result?.translated) return result.value;
+  const fallback=i18n.passiveZh.get(en);
+  return fallback && fallback!==en ? fallback : "";
 }
 
 function displayNodeName(n, mode = languageMode) {
@@ -1185,7 +1134,7 @@ function displayNodeName(n, mode = languageMode) {
   const zh = zhNameOf(n);
   if (mode === "en") return en;
   if (mode === "bi") return zh && zh !== en ? `${zh} / ${en}` : en;
-  return zh || en;
+  return zh || `${en}（暂无可靠中文）`;
 }
 
 function canvasNodeName(n) {
@@ -1193,12 +1142,13 @@ function canvasNodeName(n) {
   return zhNameOf(n) || String(n?.name || idOf(n));
 }
 
-function displayStat(stat, mode = languageMode) {
-  const en = String(stat || "");
-  const zh = translateStatRaw(en);
+function displayStat(stat, mode = languageMode, node = null) {
+  const en = cleanStatDisplay(stat);
+  const result = translateStatResult(stat,node);
+  const zh = result.value;
   if (mode === "en") return en;
-  if (mode === "bi") return zh && zh !== en ? `${zh}\n${en}` : en;
-  return zh || en;
+  if (mode === "bi") return result.translated ? `${zh}\n${en}` : en;
+  return result.translated ? zh : `${en}（暂无可靠中文）`;
 }
 
 function displayClassName(en) {
@@ -1206,6 +1156,13 @@ function displayClassName(en) {
   if (languageMode === "en") return en;
   if (languageMode === "bi") return zh && zh !== en ? `${zh} / ${en}` : en;
   return zh || en;
+}
+
+function nodeTypeLabel(n) {
+  if(isInstillExclusiveNode(n)) return "树外隐藏天赋";
+  if(isHiddenConditional(n)) return "条件显现天赋";
+  if(isAsc(n)) return "升华天赋";
+  return {keystone:"关键天赋",notable:"核心天赋",jewel:"珠宝插槽",classstart:"职业起点",ascstart:"升华起点",small:"普通天赋"}[kind(n)] || "被动天赋";
 }
 
 
@@ -1254,7 +1211,7 @@ function nodeSearchText(n) {
   const enName = String(n.name || "");
   const zhName = zhNameOf(n);
   const enStats = n.stats || [];
-  const zhStats = i18n.ready ? enStats.map(translateStatRaw) : [];
+  const zhStats = i18n.ready ? enStats.map(stat=>translateStatRaw(stat,n)) : [];
   return [idOf(n), enName, zhName, ...enStats, ...zhStats]
     .filter(Boolean)
     .join(" ")
@@ -1271,12 +1228,12 @@ function parseNumericStatLine(raw){
 function aggregateStatsFromIds(ids){
   const numeric=new Map(),exact=new Map();
   for(const id of ids){const n=byId.get(String(id)); if(!n)continue; for(const stat of n.stats||[]){
-    const p=parseNumericStatLine(stat); if(p){const r=numeric.get(p.template)||{sum:0};r.sum+=p.value;numeric.set(p.template,r);}
-    else {const k=cleanStatDisplay(stat);exact.set(k,(exact.get(k)||0)+1);}
+    const p=parseNumericStatLine(stat); if(p){const r=numeric.get(p.template)||{sum:0,rows:[]};r.sum+=p.value;r.rows.push({node:n,stat});numeric.set(p.template,r);}
+    else {const k=cleanStatDisplay(stat),r=exact.get(k)||{count:0,node:n};r.count+=1;exact.set(k,r);}
   }}
   const rows=[];
-  for(const [tpl,r] of numeric){const num=Number.isInteger(r.sum)?String(r.sum):String(Math.round(r.sum*100)/100);rows.push({text:displayStat(tpl.replace("#",num)),sort:Math.abs(r.sum)});}
-  for(const [k,c] of exact) rows.push({text:displayStat(k)+(c>1?` ×${c}`:""),sort:0});
+  for(const [tpl,r] of numeric){const num=Number.isInteger(r.sum)?String(r.sum):String(Math.round(r.sum*100)/100),single=r.rows.length===1?r.rows[0]:null;rows.push({text:single?displayStat(single.stat,languageMode,single.node):displayStat(tpl.replace("#",num)),sort:Math.abs(r.sum)});}
+  for(const [k,r] of exact) rows.push({text:displayStat(k,languageMode,r.node)+(r.count>1?` ×${r.count}`:""),sort:0});
   return rows.sort((a,b)=>b.sort-a.sort||a.text.localeCompare(b.text));
 }
 function idsForBuildView(mode){const out=new Set(allocated);if(mode==="ws1")for(const id of weaponSet1Allocated)out.add(id);if(mode==="ws2")for(const id of weaponSet2Allocated)out.add(id);return out;}
@@ -1291,7 +1248,7 @@ function treeAffectingAscendancyInfo(){
   const out=[];for(const id of ascAllocated){const n=byId.get(id);if(!n)continue;const t=[n.name,...(n.stats||[])].join(" ").toLowerCase();if(/passive|jewel|radius|allocate|tree|path/.test(t))out.push(n);}return out;
 }
 function updateAscTreeEffectsPanel(){const el=$("#ascTreeEffects");if(!el)return;const items=treeAffectingAscendancyInfo();if(!selectedAscendancyId){el.textContent="选择升华后检查其是否改变被动树规则。";return;}if(!items.length){el.textContent="当前已点升华中未检测到直接改变被动树、节点分配或珠宝半径的描述。";return;}el.innerHTML=items.map(n=>`<div class="asc-tree-effect"><b>${escapeHtml(displayNodeName(n))}</b><br>${(n.stats||[]).map(s=>escapeHtml(displayStat(s))).join("<br>")}</div>`).join("");}
-function updateCoveragePanel(){const el=$("#coveragePanel");if(!el)return;const np=lastCoverage.totalNames?Math.round(lastCoverage.names/lastCoverage.totalNames*100):0,sp=lastCoverage.totalStats?Math.round(lastCoverage.stats/lastCoverage.totalStats*100):0;el.innerHTML=`<div>节点名称：<b>${lastCoverage.names}/${lastCoverage.totalNames}</b> (${np}%)</div><div>属性内容：<b>${lastCoverage.stats}/${lastCoverage.totalStats}</b> (${sp}%)</div><div>补充词典兜底：<b>${lastCoverage.fallbackStats}</b> 条</div>`;}
+function updateCoveragePanel(){const el=$("#coveragePanel");if(!el)return;const np=lastCoverage.totalNames?Math.round(lastCoverage.names/lastCoverage.totalNames*100):0,sp=lastCoverage.totalStats?Math.round(lastCoverage.stats/lastCoverage.totalStats*100):0;el.innerHTML=`<div>节点名称实例：<b>${lastCoverage.names}/${lastCoverage.totalNames}</b> (${np}%)</div><div>属性实例：<b>${lastCoverage.stats}/${lastCoverage.totalStats}</b> (${sp}%)</div><div>WeGame + PoB2 共识/显式复核：名称 <b>${lastCoverage.weGameNames}</b>，整条属性 <b>${lastCoverage.weGameStats}</b></div><div>英文保留：名称 <b>${lastCoverage.englishNames}</b>，属性 <b>${lastCoverage.englishStats}</b></div>`;}
 
 function zhInstillName(en) {
   if(i18n.ready) {
@@ -1394,10 +1351,11 @@ function showInstillOverlayTip(ev,rec) {
     line.style.marginTop="4px";
     line.style.whiteSpace="pre-line";
 
-    const zh=translateStatRaw(stat);
+    const result=translateStatResult(stat);
+    const zh=result.value;
     if(languageMode==="en") {
       line.textContent=cleanStatDisplay(stat);
-    } else if(languageMode==="bi" && zh!==cleanStatDisplay(stat)) {
+    } else if(languageMode==="bi" && result.translated) {
       const z=document.createElement("div");
       z.textContent=zh;
       line.append(z);
@@ -1406,7 +1364,7 @@ function showInstillOverlayTip(ev,rec) {
       e.textContent=cleanStatDisplay(stat);
       line.append(e);
     } else {
-      line.textContent=zh||cleanStatDisplay(stat);
+      line.textContent=result.translated?zh:`${cleanStatDisplay(stat)}\n〔暂无可靠中文〕`;
     }
     tip.append(line);
   }
@@ -1482,10 +1440,11 @@ function renderInstillCatalog() {
       const line=document.createElement("div");
       line.className="instill-stat";
 
-      const zh=translateStatRaw(stat);
+      const result=translateStatResult(stat);
+      const zh=result.value;
       if(languageMode==="en") {
         line.textContent=cleanStatDisplay(stat);
-      } else if(languageMode==="bi" && zh!==cleanStatDisplay(stat)) {
+      } else if(languageMode==="bi" && result.translated) {
         const z=document.createElement("div");
         z.textContent=zh;
         line.append(z);
@@ -1494,7 +1453,7 @@ function renderInstillCatalog() {
         e.textContent=cleanStatDisplay(stat);
         line.append(e);
       } else {
-        line.textContent=zh||cleanStatDisplay(stat);
+        line.textContent=result.translated?zh:`${cleanStatDisplay(stat)}\n〔暂无可靠中文〕`;
       }
       card.append(line);
     }
@@ -1551,38 +1510,75 @@ async function loadChineseI18n(force = false) {
   const status = $("#i18nStatus");
   if (status) {
     status.className = "note i18n-loading";
-    status.textContent = "正在加载国服 WeGame 简中词典（约 3.25 MB）…";
+    status.textContent = "正在加载并核验 WeGame 天赋整句与 PoB2 备用词典…";
   }
 
   try {
-    const res = await fetch(CN_TRANSLATION_URL, { cache: force ? "reload" : "default" });
-    if (!res.ok) throw new Error(`ChineseTranslation.lua HTTP ${res.status}`);
-    const text = await res.text();
-    const parsed = parseChineseTranslationLua(text);
+    const cacheMode=force ? "reload" : "default";
+    const [pobResponse,officialOutcome,weGameOutcome] = await Promise.all([
+      fetch(CN_TRANSLATION_URL,{cache:cacheMode}),
+      fetch(OFFICIAL_TREE_URL,{cache:cacheMode})
+        .then(async response=>{
+          if(!response.ok) throw new Error(`official-data.json HTTP ${response.status}`);
+          return {ok:true,value:await response.json()};
+        })
+        .catch(error=>({ok:false,error})),
+      fetch(WEGAME_LOCALIZATION_URL,{cache:cacheMode})
+        .then(async response=>{
+          if(!response.ok) throw new Error(`WeGame localization HTTP ${response.status}`);
+          return {ok:true,text:await response.text()};
+        })
+        .catch(error=>({ok:false,error}))
+    ]);
+    if (!pobResponse.ok) throw new Error(`ChineseTranslation.lua HTTP ${pobResponse.status}`);
+    const parsed = localizationEngine.parsePobTranslation(await pobResponse.text());
+    const officialTree=officialOutcome.ok ? officialOutcome.value : {nodes:{}};
+    let weGame={nodes:{},classes:[],skillOverrides:{}};
+    if(officialOutcome.ok && weGameOutcome.ok) {
+      try { weGame=localizationEngine.parseWeGameModule(weGameOutcome.text); }
+      catch(error) { console.warn("[i18n] WeGame candidate parse rejected; using PoB2 only",error); }
+    }
+    const overlay=localizationEngine.buildLocalization({officialTree,weGame,pob:parsed});
 
     i18n.passiveZh = parsed.passiveZh;
     i18n.classZh = parsed.classZh;
     i18n.statExactZh = parsed.statExactZh;
     i18n.statIndex = parsed.statIndex;
+    i18n.nodeNames = overlay.names;
+    i18n.nodeStats = overlay.stats;
+    i18n.diagnostics = overlay.diagnostics;
     i18n.statTemplateCount = parsed.statTemplateCount;
     i18n.statCache = new Map();
     i18n.passiveCount = parsed.passiveZh.size;
     i18n.ready = true;
 
-    const named = nodes.filter(n => n.name && i18n.passiveZh.has(n.name)).length;
-    const uniqueStats=[...new Set(nodes.flatMap(n=>n.stats||[]))].filter(Boolean);
-    let statCovered=0,statFallback=0;
-    for(const stat of uniqueStats){
-      const cleaned=cleanStatDisplay(stat), tr=translateStatRaw(stat);
-      if(tr!==cleaned) statCovered++;
-      if(!i18n.statExactZh.has(cleaned) && tr!==cleaned) statFallback++;
-    }
-    lastCoverage={names:named,totalNames:nodes.filter(n=>n.name).length,stats:statCovered,totalStats:uniqueStats.length,fallbackStats:statFallback};
+    const namedNodes=nodes.filter(n=>n.name);
+    const nameResults=namedNodes.map(n=>{
+      const result=i18n.nodeNames.get(idOf(n));
+      if(result?.translated) return result;
+      const fallback=i18n.passiveZh.get(String(n.name||""));
+      return fallback&&fallback!==n.name
+        ? {value:fallback,source:"pob2",quality:"pob-exact",translated:true}
+        : localizationEngine.englishResult(n.name);
+    });
+    const statRows=nodes.flatMap(n=>(n.stats||[]).map(stat=>translateStatResult(stat,n)));
+    const named=nameResults.filter(result=>result.translated).length;
+    const statCovered=statRows.filter(result=>result.translated).length;
+    lastCoverage={
+      names:named,totalNames:namedNodes.length,stats:statCovered,totalStats:statRows.length,
+      weGameNames:nameResults.filter(result=>result.source==="wegame").length,
+      weGameStats:statRows.filter(result=>result.source==="wegame").length,
+      englishNames:nameResults.filter(result=>!result.translated).length,
+      englishStats:statRows.filter(result=>!result.translated).length
+    };
     const allAsc=jump?.ascendancies||[];
     const ascTranslated=allAsc.filter(a=>Boolean(zhAscendancyName(a.name))).length;
     if(status){
       status.className="note i18n-ok";
-      status.textContent=`中文层：名称 ${named}/${lastCoverage.totalNames}；属性 ${statCovered}/${uniqueStats.length}；升华 ${ascTranslated}/${allAsc.length}。`;
+      const candidateStatus=officialOutcome.ok && weGameOutcome.ok && overlay.diagnostics.acceptedWeGameNames
+        ? "WeGame 固定快照已核验"
+        : "WeGame 身份证据不可用，已安全回退 PoB2/英文";
+      status.textContent=`${candidateStatus}；节点名称 ${named}/${lastCoverage.totalNames}，属性实例 ${statCovered}/${lastCoverage.totalStats}，升华 ${ascTranslated}/${allAsc.length}。`;
     }
     updateCoveragePanel();
     refreshLocalizedUI();
@@ -3306,24 +3302,12 @@ function showNodeInfo(n) {
 
   const title=document.createElement("div");
   title.className="node-game-title";
-  title.textContent=languageMode==="en" ? enName : (zhName||enName);
+  title.textContent=languageMode==="en" ? enName : (zhName||`${enName}（暂无可靠中文）`);
   head.append(title);
 
   const badge=document.createElement("span");
   badge.className="node-type-badge";
-  badge.textContent=isInstillExclusiveNode(n)
-    ? "树外隐藏"
-    : isHiddenConditional(n)
-      ? "条件显现"
-      : isAsc(n)
-        ? "升华"
-        : kind(n)==="keystone"
-          ? "关键天赋"
-          : kind(n)==="notable"
-            ? "核心天赋"
-            : kind(n)==="jewel"
-              ? "珠宝插槽"
-              : "被动";
+  badge.textContent=nodeTypeLabel(n);
   head.append(badge);
   card.append(head);
 
@@ -3377,16 +3361,17 @@ function showNodeInfo(n) {
   const stats=document.createElement("div");
   stats.className="node-game-stats";
   for(const stat of (n.stats||[]).slice(0,12)) {
-    const zh=translateStatRaw(stat);
+    const result=translateStatResult(stat,n);
+    const zh=result.value;
     const line=document.createElement("div");
     line.className="node-stat-line";
     if(languageMode==="en") {
       line.textContent=cleanStatDisplay(stat);
-    } else if(languageMode==="bi" && zh!==cleanStatDisplay(stat)) {
+    } else if(languageMode==="bi" && result.translated) {
       const z=document.createElement("div"); z.textContent=zh; line.append(z);
       const e=document.createElement("div"); e.className="bi-en"; e.textContent=cleanStatDisplay(stat); line.append(e);
     } else {
-      line.textContent=zh||cleanStatDisplay(stat);
+      line.textContent=result.translated ? zh : `${cleanStatDisplay(stat)}\n〔暂无可靠中文〕`;
     }
     stats.append(line);
   }
@@ -3429,7 +3414,7 @@ function showTip(ev,n) {
   const enName=String(n.name||"(unnamed)");
   const zhName=zhNameOf(n);
   const b=document.createElement("b");
-  b.textContent=languageMode==="en" ? enName : (zhName||enName);
+  b.textContent=languageMode==="en" ? enName : (zhName||`${enName}（暂无可靠中文）`);
   tip.append(b);
 
   if(languageMode==="bi" && zhName && zhName!==enName) {
@@ -3443,20 +3428,21 @@ function showTip(ev,n) {
   const id=idOf(n);
   d.textContent=isInstillExclusiveNode(n)
     ? `树外隐藏天赋 · ID ${id} · ${instillAllocated.has(n.name)?"已获得":"未获得"}`
-    : `${kind(n)} · ID ${id} · ${nodeWeaponState(id)==="general"?"通用":nodeWeaponState(id)==="ws1"?"武器I":nodeWeaponState(id)==="ws2"?"武器II":nodeWeaponState(id)==="both"?"武器I+II":nodeAllocated(n)?"已分配":"未分配"}${isHiddenConditional(n)?(constraintSatisfied(n)?" · 条件已显现":" · 条件隐藏"):""}`;
+    : `${nodeTypeLabel(n)} · ID ${id} · ${nodeWeaponState(id)==="general"?"通用":nodeWeaponState(id)==="ws1"?"武器I":nodeWeaponState(id)==="ws2"?"武器II":nodeWeaponState(id)==="both"?"武器I+II":nodeAllocated(n)?"已分配":"未分配"}${isHiddenConditional(n)?(constraintSatisfied(n)?" · 条件已显现":" · 条件隐藏"):""}`;
   tip.append(d);
 
   if(n.stats?.[0]) {
     const stat=n.stats[0];
-    const zh=translateStatRaw(stat);
+    const result=translateStatResult(stat,n);
+    const zh=result.value;
     const s=document.createElement("div");
     if(languageMode==="en") {
       s.textContent=stat;
-    } else if(languageMode==="bi" && zh!==stat) {
+    } else if(languageMode==="bi" && result.translated) {
       const z=document.createElement("div"); z.textContent=zh; s.append(z);
       const e=document.createElement("div"); e.className="bi-en"; e.textContent=stat; s.append(e);
     } else {
-      s.textContent=zh||stat;
+      s.textContent=result.translated ? zh : `${cleanStatDisplay(stat)}\n〔暂无可靠中文〕`;
     }
     tip.append(s);
   }

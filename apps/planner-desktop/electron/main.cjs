@@ -10,6 +10,8 @@ const {
 } = require("./runtime-resource-store.cjs");
 const upstreamLock = require("../../../data/upstream-sources.lock.json");
 const cacheManifest = require("../data/cache/manifest.json");
+const localizationCandidates = require("../data/localization-candidates.json");
+const { createBoundedCandidateFetch, createLocalizationCandidateCatalog } = require("./localization-candidate.cjs");
 const { createTrustedPlannerSenderPredicate, createWeGameImportService, createWeGameIpcHandler } = require("./wegame-import-service.cjs");
 
 protocol.registerSchemesAsPrivileged([{
@@ -24,14 +26,21 @@ protocol.registerSchemesAsPrivileged([{
 }]);
 
 const runtimeCatalog = createRuntimeResourceCatalog(upstreamLock, cacheManifest);
+const localizationCatalog = createLocalizationCandidateCatalog(localizationCandidates);
+
+const fetchRuntimeResource=createBoundedCandidateFetch(
+  (url,options={})=>net.fetch(url,{cache:"no-store",...options}),
+  localizationCatalog,
+);
 const runtimeStore = createRuntimeResourceStore({
-  fetchResource: (url, options = {}) => net.fetch(url, { cache: "no-store", ...options }),
+  fetchResource: fetchRuntimeResource,
 });
 
 const MIME = {
   ".json": "application/json; charset=utf-8",
   ".webp": "image/webp",
-  ".lua": "text/plain; charset=utf-8"
+  ".lua": "text/plain; charset=utf-8",
+  ".js": "text/plain; charset=utf-8"
 };
 
 function mimeFor(file) { return MIME[path.extname(file).toLowerCase()] || "application/octet-stream"; }
@@ -40,7 +49,11 @@ function userCacheRoot() { return path.join(app.getPath("userData"), "game-data"
 
 function resourcePaths(kind, name) {
   const safeName = path.basename(name);
-  const rel = kind === "portrait" ? path.join("portraits", safeName) : path.join("core", safeName);
+  const rel = kind === "portrait"
+    ? path.join("portraits", safeName)
+    : kind === "localization"
+      ? path.join("localization-candidates", safeName)
+      : path.join("core", safeName);
   return {
     bundled: path.join(bundledRoot(), rel),
     cached: path.join(userCacheRoot(), rel),
@@ -48,7 +61,7 @@ function resourcePaths(kind, name) {
 }
 
 async function localResourceResponse(kind, name) {
-  const descriptor = runtimeCatalog.resolve(kind, name);
+  const descriptor = kind === "localization" ? localizationCatalog.resolve(name) : runtimeCatalog.resolve(kind, name);
   if (!descriptor) return new Response("Not found", { status: 404 });
   const locations = resourcePaths(kind, name);
   const local = await runtimeStore.resolveVerifiedLocal(descriptor, locations.bundled, locations.cached);
@@ -60,7 +73,8 @@ async function localResourceResponse(kind, name) {
   }
 
   try {
-    const bytes = await runtimeStore.downloadAndCache(descriptor, locations.cached);
+    const signal=kind==="localization" ? AbortSignal.timeout(15000) : undefined;
+    const bytes = await runtimeStore.downloadAndCache(descriptor, locations.cached,{signal});
     return new Response(bytes, { status: 200, headers: { "content-type": mimeFor(name), "x-poe2-cache": "miss" } });
   } catch (error) {
     const failure = publicRuntimeResourceFailure(error);
@@ -76,7 +90,7 @@ async function registerLocalDataProtocol() {
     const u = new URL(request.url);
     const kind = u.hostname;
     const name = decodeURIComponent(u.pathname.replace(/^\//, ""));
-    if (kind !== "data" && kind !== "portrait") return new Response("Not found", { status: 404 });
+    if (kind !== "data" && kind !== "portrait" && kind !== "localization") return new Response("Not found", { status: 404 });
     return localResourceResponse(kind, name);
   });
 }
