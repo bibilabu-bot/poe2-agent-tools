@@ -114,5 +114,13 @@
       state.weaponSet1Allocated.size || state.weaponSet2Allocated.size || state.instillAllocated.size);
   }
 
-  return Object.freeze({ summarize, createPlannerCandidate, isNonEmptyBuild });
+  function summarizeApplicationBudget(candidate) {
+    const general=Math.max(0,candidate.allocated.size-(candidate.classStartId ? 1 : 0));
+    const weaponSet1=candidate.weaponSet1Allocated.size;
+    const weaponSet2=candidate.weaponSet2Allocated.size;
+    const ascendancy=Math.max(0,candidate.ascAllocated.size-(candidate.ascStartId ? 1 : 0));
+    return Object.freeze({general,weaponSet1,weaponSet2,ascendancy,effectivePassive:general+Math.max(weaponSet1,weaponSet2)});
+  }
+
+  return Object.freeze({ summarize, createPlannerCandidate, isNonEmptyBuild, summarizeApplicationBudget });
 });

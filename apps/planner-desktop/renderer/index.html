@@ -301,7 +301,9 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
       <label>确认升华职业<select id="weGameAscendancy"></select></label>
       <div id="weGameInactiveWarning" class="wegame-warning"></div>
       <div id="weGameBudgetWarning" class="wegame-warning" hidden></div>
+      <details id="weGameOmissions" class="wegame-warning" hidden><summary id="weGameOmissionSummary"></summary><ol id="weGameOmissionList"></ol></details>
       <label class="wegame-confirm"><input id="weGamePartialAck" type="checkbox"><span>我确认这是实验性部分导入：set1/set2 暂按武器组 I/II 激活并保存；全部属性选择覆盖、珠宝内容和未解析数据不会激活，只在本次预览中保留，保存 Build 也不会保存这些未支持内容。</span></label>
+      <label id="weGameOmissionAckRow" class="wegame-confirm" hidden><input id="weGameOmissionAck" type="checkbox"><span>我已查看上方省略明细，确认在缺失节点不进入 Build 的情况下继续。</span></label>
       <label id="weGameReplaceRow" class="wegame-confirm" hidden><input id="weGameReplaceAck" type="checkbox"><span>我确认用该导入结果覆盖当前非空 Build，并清除旧的撤销/预览历史。</span></label>
       <details id="weGameDiagnostics" class="note"><summary>诊断详情（最多 100 条）</summary><ol id="weGameDiagnosticList"></ol></details>
     </div>

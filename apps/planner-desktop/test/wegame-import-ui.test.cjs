@@ -81,3 +81,14 @@ test("mapped weapon sets survive the existing native save and reopen path", () =
   assert.deepEqual([...reopened.weaponSet1Allocated], ["4"]);
   assert.deepEqual([...reopened.weaponSet2Allocated], ["5"]);
 });
+test("missing Planner weapon nodes are bounded explicit omissions", () => {
+  const value=fixture();
+  value.candidate.inactive.sourceSpecialisations[0].passives.push({numericId:"52669",officialId:"fire75"});
+  const result=ui.createPlannerCandidate(value,{baseClassName:"Mercenary",ascendancyId:"Mercenary3",partialImportAcknowledged:true},current(),catalog());
+  assert.deepEqual(result.weaponSetOmissions,[{sourceLabel:"set1",numericId:"52669",reason:"missing-from-planner"}]);
+  assert.equal(result.counts.weaponSet1,2); assert.equal(result.counts.weaponSet1Applied,1); assert.equal(result.counts.weaponSetOmitted,1);
+});
+test("budget summary uses general plus max weapon set and excludes free starts", () => {
+  const result=ui.createPlannerCandidate(fixture(),{baseClassName:"Mercenary",ascendancyId:"Mercenary3",partialImportAcknowledged:true},current(),catalog());
+  assert.deepEqual(ui.summarizeApplicationBudget(result),{general:2,weaponSet1:1,weaponSet2:1,ascendancy:1,effectivePassive:3});
+});

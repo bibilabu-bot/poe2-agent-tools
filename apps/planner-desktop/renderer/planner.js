@@ -3719,6 +3719,7 @@ function resetWeGameDialog() {
   $("#weGameRead").disabled=false;
   $("#weGameRead").textContent="读取预览";
   $("#weGamePartialAck").checked=false;
+  $("#weGameOmissionAck").checked=false;
   $("#weGameReplaceAck").checked=false;
   setWeGameStatus("输入链接后读取预览；读取和取消都不会修改当前 Build。");
 }
@@ -3762,8 +3763,42 @@ function populateWeGameConfirmation(value) {
     }
     ascSelect.value=importedAsc;
   };
-  classSelect.onchange=updateAsc;
+  classSelect.onchange=()=>{ updateAsc(); $("#weGameOmissionAck").checked=false; renderWeGameApplicationAnalysis(value); };
   updateAsc();
+}
+
+function renderWeGameApplicationAnalysis(value) {
+  const omissionBox=$("#weGameOmissions"), omissionList=$("#weGameOmissionList"), omissionAckRow=$("#weGameOmissionAckRow");
+  omissionList.replaceChildren();
+  let candidate;
+  try {
+    candidate=weGameImportUI.createPlannerCandidate(value,{
+      baseClassName:$("#weGameClass").value,
+      ascendancyId:$("#weGameAscendancy").value||null,
+      partialImportAcknowledged:true
+    },currentBuildRuntimeState(),weGamePlannerCatalog());
+  } catch(error) {
+    omissionBox.hidden=true; omissionAckRow.hidden=true;
+    setWeGameStatus(`预览不能应用：${error.message}`,true);
+    return;
+  }
+  for(const omission of candidate.weaponSetOmissions.slice(0,100)) {
+    const item=document.createElement("li");
+    const reason=omission.reason==="missing-from-planner" ? "当前 Planner 目录缺失" : "不符合武器专精资格";
+    item.textContent=`${omission.sourceLabel} · 节点 ${omission.numericId} · ${reason}`;
+    omissionList.append(item);
+  }
+  const omitted=candidate.weaponSetOmissions.length;
+  omissionBox.hidden=omitted===0; omissionAckRow.hidden=omitted===0;
+  $("#weGameOmissionSummary").textContent=`将省略 ${omitted} 个节点（明细最多 100 条）；实际应用：武器组 I ${candidate.counts.weaponSet1Applied}/${candidate.counts.weaponSet1}，武器组 II ${candidate.counts.weaponSet2Applied}/${candidate.counts.weaponSet2}`;
+  const usage=weGameImportUI.summarizeApplicationBudget(candidate);
+  const overTotal=Math.max(0,usage.effectivePassive-maxPoints);
+  const overWeapon1=Math.max(0,usage.weaponSet1-maxWeaponPoints);
+  const overWeapon2=Math.max(0,usage.weaponSet2-maxWeaponPoints);
+  const overAsc=Math.max(0,usage.ascendancy-maxAscPoints);
+  const budget=$("#weGameBudgetWarning");
+  budget.hidden=false;
+  budget.textContent=`保留当前预算。导入计费：通用 ${usage.general} + max(I ${usage.weaponSet1}, II ${usage.weaponSet2}) = 总天赋 ${usage.effectivePassive}/${maxPoints}；武器组容量 I ${usage.weaponSet1}/${maxWeaponPoints}、II ${usage.weaponSet2}/${maxWeaponPoints}；升华 ${usage.ascendancy}/${maxAscPoints}（免费起点不计）。${overTotal||overWeapon1||overWeapon2||overAsc ? `超限：总天赋 +${overTotal}、I +${overWeapon1}、II +${overWeapon2}、升华 +${overAsc}。` : "没有超限。"}`;
 }
 
 function renderWeGamePreview(value) {
@@ -3775,12 +3810,7 @@ function renderWeGamePreview(value) {
   $("#weGameSourceClass").textContent=`来源显示职业：${value.candidate.class.sourceDisplayName||"未提供"}；必须在下方确认实际基础职业和升华。`;
   populateWeGameConfirmation(value);
   $("#weGameInactiveWarning").textContent=`实验映射（请验证）：尝试将 set1 → 武器组 I（来源 ${counts.weaponSet1}），set2 → 武器组 II（来源 ${counts.weaponSet2}）。当前 Planner 缺失或不允许武器专精的节点会明确计数后省略。仍不会激活或保存：属性选择覆盖 ${counts.skillOverrides} 项、珠宝内容 ${counts.jewelData?"有":"无"}、未解析项 ${counts.unresolved}。`;
-  const importedNormal=counts.normal+counts.ordinarySockets;
-  const overNormal=Math.max(0,importedNormal-maxPoints);
-  const overAsc=Math.max(0,counts.ascendancy-maxAscPoints);
-  const budget=$("#weGameBudgetWarning");
-  budget.hidden=!(overNormal||overAsc);
-  budget.textContent=overNormal||overAsc ? `保留当前预算：普通 ${maxPoints}、升华 ${maxAscPoints}。导入后将超限：普通 +${overNormal}，升华 +${overAsc}。` : `保留当前预算：普通 ${maxPoints}、升华 ${maxAscPoints}。`;
+  renderWeGameApplicationAnalysis(value);
   const replace=weGameImportUI.isNonEmptyBuild(currentBuildRuntimeState());
   $("#weGameReplaceRow").hidden=!replace;
   const list=$("#weGameDiagnosticList"); list.replaceChildren();
@@ -3849,6 +3879,9 @@ function applyWeGamePreview() {
       partialImportAcknowledged:$("#weGamePartialAck").checked
     },previous,weGamePlannerCatalog());
   } catch(error) { setWeGameStatus(`不能应用：${error.message}`,true); return; }
+  if(candidate.weaponSetOmissions.length && !$("#weGameOmissionAck").checked) {
+    setWeGameStatus("存在将被省略的武器组节点，请展开查看明细并明确确认。",true); return;
+  }
   const applied=buildStateAdapter.applyBuildCandidateTransaction(candidate,{
     snapshot:captureBuildTransactionState,
     commit:next=>applyPlannerBuildState(next,true),
@@ -3866,7 +3899,11 @@ function applyWeGamePreview() {
   buildStateUnsafe=false; setBuildControlsReady(plannerDataReady);
   const counts=candidate.counts;
   closeWeGameDialog();
-  showBuildFeedback(`WeGame 天赋已导入：普通 ${counts.normal}、升华 ${counts.ascendancy}、普通插槽 ${counts.ordinarySockets}、武器组 I ${counts.weaponSet1Applied}/${counts.weaponSet1}、武器组 II ${counts.weaponSet2Applied}/${counts.weaponSet2}；明确省略 ${counts.weaponSetOmitted} 个当前 Planner 缺失或不符合武器专精资格的来源节点。未支持内容未写入 Build。`,null,false);
+  const omissionDiagnostics=candidate.weaponSetOmissions.length ? {
+    fatalCount:0,warningCount:candidate.weaponSetOmissions.length,fatals:[],
+    warnings:candidate.weaponSetOmissions.slice(0,100).map(item=>({path:`${item.sourceLabel}.${item.numericId}`,message:item.reason}))
+  } : null;
+  showBuildFeedback(`WeGame 天赋已导入：普通 ${counts.normal}、升华 ${counts.ascendancy}、普通插槽 ${counts.ordinarySockets}、武器组 I ${counts.weaponSet1Applied}/${counts.weaponSet1}、武器组 II ${counts.weaponSet2Applied}/${counts.weaponSet2}；明确省略 ${counts.weaponSetOmitted} 个当前 Planner 缺失或不符合武器专精资格的来源节点。未支持内容未写入 Build。`,omissionDiagnostics,false);
 }
 
 async function saveCurrentBuild() {
