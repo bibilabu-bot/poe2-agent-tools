@@ -640,6 +640,34 @@ Acceptance: visible URL entry, bounded preview, explicit class/ascendancy confir
 
 Owner-approved validation decision (2026-09-18): the P2AT-021B candidate continues to preserve source specialisations inertly, while the P2AT-021C UI may, only after explicit review and confirmation, map exact `set1` to Weapon Set I and exact `set2` to Weapon Set II. The UI must show actual applicable counts, bounded omission details and real budget accounting before replacement. The observed public sample applied `16/17` and `17/17`; node `52669` was explicitly omitted because the current Planner catalog lacks it. This is a validated experimental mapping for the current product, not a general Tencent numbering guarantee. Task remains `REVIEW` until controller acceptance.
 
+### P2AT-023A — Reclaim the Planner canvas with a collapsible tool layout
+
+- Status: `REVIEW`
+- Priority: P1
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-021C review baseline `5c162b9e23ed65ac74e35bd2de0a6fad11951563`
+- Scope: desktop Planner HTML/CSS, an isolated layout-state helper, focused tests and Windows Electron visual/interaction evidence
+
+Goal: give the passive tree most of the window while preserving every existing Planner function behind a compact top toolbar and a single collapsible tool panel.
+
+Acceptance criteria:
+
+1. Common import, file, history and view actions remain grouped in the top toolbar; destructive reset remains in a low-frequency panel with its existing confirmation.
+2. A compact labelled rail exposes the existing class/ascendancy, allocation, search, display/settings and statistics/details functions without inventing product behavior.
+3. Clicking the active tool collapses it; selecting another tool shows only that panel. Form, search and allocation state survives panel switches.
+4. With panels collapsed, the canvas receives at least 90% of the content width at 1366×768. Narrow windows use an overlay panel rather than permanently squeezing the tree.
+5. Layout changes resize the Canvas backing store and preserve DPR, camera, zoom, Build state and hit testing without reloading data or duplicating listeners.
+6. Tool triggers are keyboard accessible with `aria-expanded`/`aria-controls`, visible focus, guarded Escape close and focus restoration. Motion respects reduced-motion.
+7. Existing WeGame preview/confirmation, native Save/Open, unsafe-save guard and all Planner controls retain their behavior.
+8. Focused layout-state/resize regression checks, the full desktop test/check suite, four 1366×768 and 1920×1080 screenshots, and one Windows Electron interaction pass are supplied.
+9. The implementation stays independently reviewable on `task/P2AT-023A-clean-layout`; P2AT-021C remains a REVIEW dependency and is not represented as accepted.
+
+Non-goals:
+
+- changing WeGame import semantics, schema, localization resources or loading screens;
+- adding a UI framework, new product features or decorative effects;
+- modifying or merging `main`.
+
 ### P2AT-020A — Prototype a particle-driven loading experience
 
 - Status: `READY`

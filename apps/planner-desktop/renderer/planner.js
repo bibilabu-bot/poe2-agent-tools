@@ -4314,8 +4314,32 @@ async function load() {
   }
 }
 
+// Narrow, opt-in probe used only by the committed Electron layout evidence runner.
+// It exposes coordinates, not mutable Planner collections, and is absent in normal use.
+if(new URLSearchParams(location.search).has("layout-evidence")) {
+  window.plannerLayoutEvidence={
+    firstClassName:()=>classOptions[0]?.name||null,
+    allocationCount:()=>effectivePassivePointsUsed(),
+    nextAllocatablePoint:()=>{
+      for(const n of nodes) {
+        if(isAsc(n)||isMasteryVisual(n)||isClassStart(n)||!visibleNode(n)||nodeAllocated(n)) continue;
+        const path=pathFromActiveSet(idOf(n));
+        const cost=path.filter(id=>!allocated.has(id)&&id!==classStartId).length;
+        if(!path.length||cost<1||cost>3) continue;
+        const x=(n.x-camera.x)*camera.scale+W/2;
+        const y=(n.y-camera.y)*camera.scale+H/2;
+        if(x<24||y<24||x>W-24||y>H-24) continue;
+        const rect=canvas.getBoundingClientRect();
+        return {clientX:rect.left+x,clientY:rect.top+y,id:idOf(n),cost};
+      }
+      return null;
+    }
+  };
+}
+
 bindUI();
 bindCanvas();
 new ResizeObserver(resize).observe(wrap);
+window.addEventListener("resize",resize);
 resize();
 load();
