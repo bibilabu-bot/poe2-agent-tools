@@ -17,6 +17,9 @@ const buildCodec = typeof module === "object" && module.exports
 const buildStateAdapter = typeof module === "object" && module.exports
   ? require("./build-state-adapter.js")
   : window.plannerBuildStateAdapter;
+const weGameImportUI = typeof module === "object" && module.exports
+  ? require("./wegame-import-ui.js")
+  : window.plannerWeGameImportUI;
 const passiveGraphCore = typeof module === "object" && module.exports
   ? require("./passive-graph.js")
   : window.plannerPassiveGraph;
@@ -72,6 +75,8 @@ let ascStartId = null;
 let buildPreservation = null;
 let plannerDataReady = false;
 let buildStateUnsafe = false;
+let weGamePreviewValue = null;
+let weGameRequestSerial = 0;
 
 let previewPath = [];                    // ordinary hover path
 let previewIds = new Set();
@@ -3700,6 +3705,170 @@ function ipcErrorMessage(result,fallback) {
   return result?.error?.message || fallback;
 }
 
+function setWeGameStatus(message,isError=false) {
+  const status=$("#weGameStatus");
+  status.textContent=message;
+  status.classList.toggle("wegame-error",isError);
+}
+
+function resetWeGameDialog() {
+  weGamePreviewValue=null;
+  $("#weGamePreview").hidden=true;
+  $("#weGameApply").hidden=true;
+  $("#weGameRead").hidden=false;
+  $("#weGameRead").disabled=false;
+  $("#weGameRead").textContent="读取预览";
+  $("#weGamePartialAck").checked=false;
+  $("#weGameReplaceAck").checked=false;
+  setWeGameStatus("输入链接后读取预览；读取和取消都不会修改当前 Build。");
+}
+
+function openWeGameDialog() {
+  if(!plannerDataReady || !window.desktopAPI?.importWeGamePassives) return;
+  resetWeGameDialog();
+  $("#weGameDialog").showModal();
+  $("#weGameUrl").focus();
+}
+
+function closeWeGameDialog() {
+  weGameRequestSerial+=1;
+  weGamePreviewValue=null;
+  $("#weGameDialog").close();
+}
+
+function populateWeGameConfirmation(value) {
+  const classSelect=$("#weGameClass");
+  classSelect.replaceChildren();
+  for(const entry of classOptions) {
+    const option=document.createElement("option");
+    option.value=entry.name;
+    option.textContent=displayClassName(entry.name);
+    classSelect.append(option);
+  }
+  const importedAsc=value.candidate.class.ascendancyId||"";
+  const compatible=classOptions.find(entry=>ascendanciesForClassName(entry.name).some(a=>a.id===importedAsc));
+  classSelect.value=compatible?.name||classOptions[0]?.name||"";
+  const updateAsc=()=>{
+    const ascSelect=$("#weGameAscendancy");
+    ascSelect.replaceChildren();
+    if(!importedAsc) {
+      const option=document.createElement("option"); option.value=""; option.textContent="— 无升华证据 —"; ascSelect.append(option);
+      return;
+    }
+    for(const entry of ascendanciesForClassName(classSelect.value)) {
+      const option=document.createElement("option");
+      option.value=entry.id; option.textContent=displayAscendancyName(entry.name);
+      ascSelect.append(option);
+    }
+    ascSelect.value=importedAsc;
+  };
+  classSelect.onchange=updateAsc;
+  updateAsc();
+}
+
+function renderWeGamePreview(value) {
+  const counts=weGameImportUI.summarize(value);
+  const countBox=$("#weGameCounts"); countBox.replaceChildren();
+  for(const text of [`普通 ${counts.normal}`,`升华 ${counts.ascendancy}`,`普通插槽 ${counts.ordinarySockets}`]) {
+    const item=document.createElement("span"); item.textContent=text; countBox.append(item);
+  }
+  $("#weGameSourceClass").textContent=`来源显示职业：${value.candidate.class.sourceDisplayName||"未提供"}；必须在下方确认实际基础职业和升华。`;
+  populateWeGameConfirmation(value);
+  $("#weGameInactiveWarning").textContent=`实验映射（请验证）：尝试将 set1 → 武器组 I（来源 ${counts.weaponSet1}），set2 → 武器组 II（来源 ${counts.weaponSet2}）。当前 Planner 缺失或不允许武器专精的节点会明确计数后省略。仍不会激活或保存：属性选择覆盖 ${counts.skillOverrides} 项、珠宝内容 ${counts.jewelData?"有":"无"}、未解析项 ${counts.unresolved}。`;
+  const importedNormal=counts.normal+counts.ordinarySockets;
+  const overNormal=Math.max(0,importedNormal-maxPoints);
+  const overAsc=Math.max(0,counts.ascendancy-maxAscPoints);
+  const budget=$("#weGameBudgetWarning");
+  budget.hidden=!(overNormal||overAsc);
+  budget.textContent=overNormal||overAsc ? `保留当前预算：普通 ${maxPoints}、升华 ${maxAscPoints}。导入后将超限：普通 +${overNormal}，升华 +${overAsc}。` : `保留当前预算：普通 ${maxPoints}、升华 ${maxAscPoints}。`;
+  const replace=weGameImportUI.isNonEmptyBuild(currentBuildRuntimeState());
+  $("#weGameReplaceRow").hidden=!replace;
+  const list=$("#weGameDiagnosticList"); list.replaceChildren();
+  for(const detail of (value.diagnostics?.details||[]).slice(0,100)) {
+    const item=document.createElement("li"); item.textContent=`${detail.code}: ${detail.message}`; list.append(item);
+  }
+  $("#weGameDiagnostics").hidden=list.childElementCount===0;
+  $("#weGamePreview").hidden=false;
+  $("#weGameApply").hidden=false;
+  $("#weGameRead").hidden=true;
+}
+
+async function readWeGamePreview(event) {
+  event.preventDefault();
+  if(!window.desktopAPI?.importWeGamePassives) return;
+  const request=++weGameRequestSerial;
+  const read=$("#weGameRead"); read.disabled=true; read.textContent="读取中…";
+  setWeGameStatus("正在读取公开分享并校验官方天赋目录…");
+  let result;
+  try { result=await window.desktopAPI.importWeGamePassives($("#weGameUrl").value.trim()); }
+  catch(error) { result={ok:false,error:{message:error?.message||"导入调用失败。"}}; }
+  if(request!==weGameRequestSerial || !$("#weGameDialog").open) return;
+  read.disabled=false; read.textContent="重试读取";
+  if(!result?.ok) {
+    setWeGameStatus(`读取失败：${ipcErrorMessage(result,"无法读取 WeGame 分享。")} 当前 Build 未改变。`,true);
+    return;
+  }
+  try {
+    weGamePreviewValue=result.value;
+    renderWeGamePreview(result.value);
+    setWeGameStatus("预览已读取。确认职业、局限和覆盖后才会替换当前 Build。");
+  } catch(error) {
+    weGamePreviewValue=null;
+    setWeGameStatus(`预览无效：${error.message} 当前 Build 未改变。`,true);
+  }
+}
+
+function weGamePlannerCatalog() {
+  const normalIds=new Set(), ordinarySocketIds=new Set(), ascendancyIds=new Map();
+  for(const node of nodes) {
+    const id=idOf(node);
+    if(node.asc) ascendancyIds.set(id,String(node.asc));
+    else if(node.isJewelSocket===true || kind(node)==="jewel") ordinarySocketIds.add(id);
+    else if(!isMasteryVisual(node) && !isInstillExclusiveNode(node) && !isClassStart(node) && !isLegacyStartArtifact(node)) normalIds.add(id);
+  }
+  const catalogs=buildCatalogs();
+  return {
+    ...catalogs,
+    ascendanciesByClass:new Map(classOptions.map(entry=>[entry.name,new Set(ascendanciesForClassName(entry.name).map(a=>a.id))])),
+    nodeIds:new Set(byId.keys()), normalIds, ordinarySocketIds, ascendancyIds,
+    weaponEligibleIds:new Set(nodes.filter(weaponSetEligible).map(idOf))
+  };
+}
+
+function applyWeGamePreview() {
+  if(!weGamePreviewValue) return;
+  const previous=currentBuildRuntimeState();
+  if(weGameImportUI.isNonEmptyBuild(previous) && !$("#weGameReplaceAck").checked) {
+    setWeGameStatus("当前 Build 非空，请明确确认覆盖。",true); return;
+  }
+  let candidate;
+  try {
+    candidate=weGameImportUI.createPlannerCandidate(weGamePreviewValue,{
+      baseClassName:$("#weGameClass").value,
+      ascendancyId:$("#weGameAscendancy").value||null,
+      partialImportAcknowledged:$("#weGamePartialAck").checked
+    },previous,weGamePlannerCatalog());
+  } catch(error) { setWeGameStatus(`不能应用：${error.message}`,true); return; }
+  const applied=buildStateAdapter.applyBuildCandidateTransaction(candidate,{
+    snapshot:captureBuildTransactionState,
+    commit:next=>applyPlannerBuildState(next,true),
+    finalize:()=>refreshBuildDependentState("WeGame 支持的天赋已导入，旧历史已清空。"),
+    rollback:restoreBuildTransactionState
+  });
+  if(!applied.ok) {
+    const failure=buildStateAdapter.classifyBuildApplyResult(applied);
+    if(failure.rollbackFailed) {
+      buildStateUnsafe=true; setBuildControlsReady(plannerDataReady);
+      setWeGameStatus(`应用和回滚均失败，保存已禁用：${applied.rollbackError?.message||"未知错误"}`,true);
+    } else setWeGameStatus(`应用失败，已恢复原 Build：${applied.error?.message||"未知错误"}`,true);
+    return;
+  }
+  buildStateUnsafe=false; setBuildControlsReady(plannerDataReady);
+  const counts=candidate.counts;
+  closeWeGameDialog();
+  showBuildFeedback(`WeGame 天赋已导入：普通 ${counts.normal}、升华 ${counts.ascendancy}、普通插槽 ${counts.ordinarySockets}、武器组 I ${counts.weaponSet1Applied}/${counts.weaponSet1}、武器组 II ${counts.weaponSet2Applied}/${counts.weaponSet2}；明确省略 ${counts.weaponSetOmitted} 个当前 Planner 缺失或不符合武器专精资格的来源节点。未支持内容未写入 Build。`,null,false);
+}
+
 async function saveCurrentBuild() {
   if(!plannerDataReady || !window.desktopAPI?.saveBuildJson) return;
   if(buildStateUnsafe) {
@@ -3804,9 +3973,15 @@ function setBuildControlsReady(ready) {
   const supported=Boolean(window.desktopAPI?.saveBuildJson && window.desktopAPI?.openBuildJson);
   $("#saveBuild").disabled=!(ready&&supported)||buildStateUnsafe;
   $("#openBuild").disabled=!(ready&&supported);
+  $("#importWeGame").disabled=!(ready&&window.desktopAPI?.importWeGamePassives);
 }
 
 function bindUI() {
+  $("#importWeGame").addEventListener("click",openWeGameDialog);
+  $("#weGameForm").addEventListener("submit",readWeGamePreview);
+  $("#weGameCancel").addEventListener("click",closeWeGameDialog);
+  $("#weGameApply").addEventListener("click",applyWeGamePreview);
+  $("#weGameDialog").addEventListener("cancel",event=>{ event.preventDefault(); closeWeGameDialog(); });
   $("#saveBuild").addEventListener("click",saveCurrentBuild);
   $("#openBuild").addEventListener("click",openBuild);
   document.querySelectorAll("[data-style]").forEach(btn=>btn.addEventListener("click",()=>{
