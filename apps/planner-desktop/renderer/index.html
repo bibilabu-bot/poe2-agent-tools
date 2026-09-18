@@ -301,7 +301,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
         <label for="agentApiKey">API Key（仅本次应用运行期间保存在主进程内存）</label>
         <input id="agentApiKey" type="password" autocomplete="off" spellcheck="false">
         <div class="agent-actions">
-          <button id="agentConnect">连接</button>
+          <button id="agentConnect">连接并获取模型</button>
           <button id="agentClearConfig">清除 Key</button>
         </div>
         <div id="agentConnectionStatus" class="agent-status">尚未连接</div>
@@ -310,7 +310,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
           <select id="agentModelSelect" disabled aria-label="可用模型">
             <option value="">先连接并获取模型</option>
           </select>
-          <button id="agentLoadModels" disabled>获取模型</button>
+          <button id="agentLoadModels" disabled>重新获取</button>
         </div>
         <input id="agentModel" type="text" placeholder="模型 ID（可从上方选择或手动填写）" autocomplete="off" spellcheck="false">
         <div id="agentModelStatus" class="agent-status">尚未获取模型；也可以手动填写模型 ID</div>

@@ -78,9 +78,10 @@
     }
     if (!result.ok) { configured = false; setStatus(result.error.message, "error"); updateControls(); return; }
     configured = true; conversationId += 1; byId("agentChatTarget").textContent = `目标服务：${result.targetHost}`; setStatus(`已连接：${result.targetHost}（Key 已进入会话内存）`, "connected"); updateControls();
+    await loadModels();
   });
   byId("agentClearConfig").addEventListener("click", async () => { configRevision += 1; if (api) await api.clearConfig(); configured = false; byId("agentApiKey").value = ""; await newConversation(false); await refreshStatus(); });
-  byId("agentLoadModels").addEventListener("click", async () => {
+  async function loadModels() {
     const button = byId("agentLoadModels");
     button.disabled = true; button.textContent = "获取中…";
     setModelStatus(`正在从 ${targetHost()} 获取模型，请稍候…`);
@@ -96,9 +97,10 @@
     } catch {
       setModelStatus("模型列表请求失败；仍可手动填写模型 ID", "error");
     } finally {
-      button.textContent = "获取模型"; updateControls();
+      button.textContent = "重新获取"; updateControls();
     }
-  });
+  }
+  byId("agentLoadModels").addEventListener("click", loadModels);
   byId("agentModelSelect").addEventListener("change", (event) => {
     if (event.target.value) byId("agentModel").value = event.target.value;
   });
