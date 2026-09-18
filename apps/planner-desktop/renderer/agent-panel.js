@@ -20,6 +20,9 @@
   function setStatus(message, kind = "") {
     const el = byId("agentConnectionStatus"); el.textContent = message; el.className = `agent-status ${kind}`;
   }
+  function setModelStatus(message, kind = "") {
+    const el = byId("agentModelStatus"); el.textContent = message; el.className = `agent-status ${kind}`;
+  }
   function updateControls() {
     byId("agentLoadModels").disabled = !configured || running;
     byId("agentInput").disabled = !configured || running;
@@ -70,12 +73,20 @@
   });
   byId("agentClearConfig").addEventListener("click", async () => { configRevision += 1; if (api) await api.clearConfig(); configured = false; byId("agentApiKey").value = ""; await newConversation(false); await refreshStatus(); });
   byId("agentLoadModels").addEventListener("click", async () => {
-    setStatus(`正在从 ${targetHost()} 获取模型…`);
-    const result = await api.listModels();
-    if (result.stale) return;
-    if (!result.ok) { setStatus(`${result.error.message}；仍可手动填写模型 ID`, "error"); return; }
-    const list = byId("agentModels"); list.replaceChildren(...result.models.map((id) => { const option = document.createElement("option"); option.value = id; return option; }));
-    setStatus(`已获取 ${result.models.length} 个模型；列表不代表支持工具调用`, "connected");
+    const button = byId("agentLoadModels");
+    button.disabled = true; button.textContent = "获取中…";
+    setModelStatus(`正在从 ${targetHost()} 获取模型，请稍候…`);
+    try {
+      const result = await api.listModels();
+      if (result.stale) { setModelStatus("连接已变化，已忽略旧模型列表", "error"); return; }
+      if (!result.ok) { setModelStatus(`${result.error.message}；仍可手动填写模型 ID`, "error"); return; }
+      const list = byId("agentModels"); list.replaceChildren(...result.models.map((id) => { const option = document.createElement("option"); option.value = id; return option; }));
+      setModelStatus(`已获取 ${result.models.length} 个模型；列表不代表支持工具调用`, "connected");
+    } catch {
+      setModelStatus("模型列表请求失败；仍可手动填写模型 ID", "error");
+    } finally {
+      button.textContent = "获取模型"; updateControls();
+    }
   });
   async function newConversation(clearUi = true) {
     conversationId += 1; showTrace([]);
