@@ -6,6 +6,20 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-024A — Add a project-independent agent MVP
+
+- Status: `REVIEW`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: none
+- Scope: reusable agent core, OpenAI-compatible main-process provider, narrow IPC, a separate in-app Agent view, tests and documentation
+
+Goal: provide a runnable general agent foundation, separate from the passive tree, and prove the bounded tool loop with ordinary chat plus one side-effect-free calculator.
+
+Delivered boundaries: `BaseAgent`, `BaseTool`, `ToolRegistry`, injected `ModelProvider`, bounded `AgentRunner`, in-memory API configuration/conversation service, controlled Models/Chat Completions adapter, and an Agent page that preserves the mounted Planner view. The only registered tool is finite-number arithmetic. No Planner mutation, files, shell, search, RAG, durable memory, multi-agent graph or account system is included.
+
+Acceptance evidence is recorded in `docs/AGENT_FRAMEWORK.md`. Real provider acceptance requires a user-entered key in the application; committed tests use mocks and do not imply live-service success. Only the controller may mark this task accepted.
+
 ### P2AT-001 — Establish the automated test harness
 
 - Status: `ACCEPTED`

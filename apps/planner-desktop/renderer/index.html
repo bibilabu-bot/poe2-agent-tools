@@ -99,18 +99,21 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:-1px}
 @media(max-width:880px){body{overflow:auto}.app{height:auto;min-height:100%}.content{grid-template-columns:1fr}.sidebar{max-height:430px;border-right:0;border-bottom:1px solid var(--border)}.stage{height:70vh;min-height:520px}}
 </style>
+<link rel="stylesheet" href="agent-panel.css">
 </head>
 <body>
 <div id="desktopBridgeStatus" style="position:fixed;right:10px;bottom:8px;z-index:99999;
 font:10px/1.2 Consolas,monospace;color:#7f8a93;background:#0d1014cc;border:1px solid #2e3338;
 border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
-<div class="app">
+<div id="plannerView" class="app">
 <header class="top">
   <div>
     <div id="status" class="title">准备 Planner…</div>
     <div id="meta" class="meta">完整 Graph + 官方 sprite + Build allocation</div>
   </div>
   <div class="toolbar">
+    <button class="active" aria-current="page">天赋树</button>
+    <button id="switchToAgent">智能体</button>
     <button id="openBuild" class="build-action" disabled>打开 Build</button>
     <button id="saveBuild" class="build-action" disabled>保存 Build</button>
     <button id="undo" disabled>↶ Undo</button>
@@ -278,11 +281,66 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
 </div>
 </div>
 
+<section id="agentView" class="agent-view" hidden aria-labelledby="agentPageTitle">
+  <header class="agent-top">
+    <div>
+      <h1 id="agentPageTitle">通用智能体</h1>
+      <p>与天赋树独立。消息会发送到你选择的服务。</p>
+    </div>
+    <nav class="agent-nav" aria-label="页面切换">
+      <button id="switchToPlanner">天赋树</button>
+      <button class="active" aria-current="page">智能体</button>
+    </nav>
+  </header>
+  <div class="agent-layout">
+    <details class="agent-settings" open>
+      <summary>连接设置</summary>
+      <div class="agent-settings-body">
+        <label for="agentBaseUrl">API 地址</label>
+        <input id="agentBaseUrl" type="text" value="https://api.openai.com/v1" autocomplete="url" spellcheck="false">
+        <label for="agentApiKey">API Key（仅本次应用运行期间保存在主进程内存）</label>
+        <input id="agentApiKey" type="password" autocomplete="off" spellcheck="false">
+        <div class="agent-actions">
+          <button id="agentConnect">连接</button>
+          <button id="agentClearConfig">清除 Key</button>
+        </div>
+        <div id="agentConnectionStatus" class="agent-status">尚未连接</div>
+        <label for="agentModel">模型</label>
+        <div class="agent-model-row">
+          <input id="agentModel" type="text" list="agentModels" placeholder="可获取或手动填写模型 ID" autocomplete="off" spellcheck="false">
+          <datalist id="agentModels"></datalist>
+          <button id="agentLoadModels" disabled>获取模型</button>
+        </div>
+        <label class="agent-toggle"><input id="agentToolsEnabled" type="checkbox" checked> 启用安全演示工具（计算器）</label>
+        <p class="agent-help">模型列表成功不代表该模型支持工具。若服务不支持，请关闭演示工具后进行普通聊天。</p>
+      </div>
+    </details>
+    <main class="agent-chat">
+      <div class="agent-chat-head">
+        <div><b id="agentChatTarget">未连接服务</b><span id="agentRunState">空闲</span></div>
+        <button id="agentNewChat">新会话</button>
+      </div>
+      <div id="agentMessages" class="agent-messages" role="log" aria-live="polite">
+        <div class="agent-empty">连接服务后即可普通聊天。可询问“123 × 456 等于多少？”验证真实工具闭环。</div>
+      </div>
+      <div id="agentToolLog" class="agent-tool-log" hidden></div>
+      <form id="agentComposer" class="agent-composer">
+        <textarea id="agentInput" maxlength="12000" rows="3" placeholder="输入消息…" disabled></textarea>
+        <div>
+          <button id="agentStop" type="button" disabled>停止</button>
+          <button id="agentSend" type="submit" disabled>发送</button>
+        </div>
+      </form>
+    </main>
+  </div>
+</section>
+
 <script src="stat-utils.js"></script>
 <script src="build-codec.js"></script>
 <script src="build-state-adapter.js"></script>
 <script src="passive-graph.js"></script>
 <script src="planner.js"></script>
+<script src="agent-panel.js"></script>
 
 <script>
 window.addEventListener("DOMContentLoaded", async () => {
