@@ -39,14 +39,18 @@
   }
   async function refreshStatus() {
     if (!api) { setStatus("桌面安全桥不可用", "error"); return; }
-    const status = await api.getStatus(); configured = status.configured;
+    const revision = configRevision;
+    const status = await api.getStatus();
+    if (revision !== configRevision) return;
+    configured = status.configured;
     byId("agentChatTarget").textContent = status.targetHost ? `目标服务：${status.targetHost}` : "未连接服务";
     setStatus(configured ? `已连接：${status.targetHost}（Key 已进入会话内存）` : "尚未连接", configured ? "connected" : ""); updateControls();
   }
   byId("agentBaseUrl").addEventListener("input", async () => {
-    configRevision += 1;
+    const revision = ++configRevision;
     byId("agentChatTarget").textContent = `待连接目标：${targetHost()}`;
     if (api) await api.clearConfig();
+    if (revision !== configRevision) return;
     if (configured) await newConversation(false);
     configured = false; setStatus("API 地址已改变；旧 Key 已清除，请重新连接", "error"); updateControls();
   });
@@ -55,6 +59,7 @@
     const revision = ++configRevision;
     const requestedBaseUrl = byId("agentBaseUrl").value;
     const apiKeyInput = byId("agentApiKey");
+    setStatus(`正在连接：${targetHost()}…`);
     const result = await api.configure({ baseUrl: requestedBaseUrl, apiKey: apiKeyInput.value });
     apiKeyInput.value = "";
     if (revision !== configRevision || requestedBaseUrl !== byId("agentBaseUrl").value) {
