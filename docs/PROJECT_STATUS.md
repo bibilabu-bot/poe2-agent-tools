@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-14
+Last updated: 2026-09-18
 
 ## Product objective
 
@@ -20,10 +20,10 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | Build save/open | Implemented | Desktop Save/Open controls, schema-v1 codec, safe file IPC and transactional state restoration accepted; Windows runtime round trip verified |
 | Build JSON contract | Schema v2 specified | Schema v1 remains implemented; P2AT-008D adds the accepted v2 jewel-instance/placement contract, migration and preservation policy for later codec/UI work |
 | Official `.build` interoperability | Foundation accepted | ADR-010 selects a lossless native `.build` plus separate strict GGG export; P2AT-013 adds 18 byte-stable documented/derived fixtures and a lock-verified passive-ID mapping oracle, without codec or compatibility claims |
-| WeGame Build import | Research accepted | P2AT-021A records one sanitized 13-response public-share fixture; all 150 observed passive allocation IDs map against locked data, while endpoint stability, weapon-set numbering and lossless item/skill conversion remain unverified |
+| WeGame Build import | Core accepted; UI in progress | P2AT-021B controlled transport and bounded candidate adapter accepted at fa82c8d; P2AT-021C is the immediate P0 user-testable milestone. Weapon sets, overrides and jewel contents remain inactive and memory-only; no full-Build compatibility claim |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Contract ready | Only twelve verified ordinary sockets are eligible for the first slice; implementation, special sockets and radius effects remain deferred |
-| Automated tests | 75 desktop tests | Node test harness covers stat utilities, Build persistence, runtime resources, passive graph behavior, official `.build` fixtures and sanitized WeGame-share evidence; broader allocation-state coverage remains pending |
+| Automated tests | 95 desktop tests | Controller verified 95/95 with locked official tree and zero skips at P2AT-021B acceptance; includes controlled WeGame transport, privacy filtering and cancellation boundaries |
 | Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
 | Packaging/release | Not started | No installer or release workflow |
 | Upstream data governance | Runtime integrated | ADR-007 and the validated 26-file canonical source lock govern Planner runtime identity and integrity; jewel compiler migration remains pending |

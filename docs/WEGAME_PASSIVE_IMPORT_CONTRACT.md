@@ -1,6 +1,6 @@
 # WeGame passive import contract
 
-Status: P2AT-021B implementation contract, version 1, **REVIEW**
+Status: P2AT-021B implementation contract, version 1, **ACCEPTED** (controller, 2026-09-18; `fa82c8de2e6bf0633df6782283cad9c7521bb736`).
 
 This contract covers previewing passive allocations from one public WeGame PoE2 share URL. It is not a native Build schema revision and does not publish schema v3.
 

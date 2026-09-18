@@ -615,7 +615,8 @@ Suggested follow-ups:
 
 ### P2AT-021B — Implement WeGame passive-first import core
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
+- Accepted delivery: `fa82c8de2e6bf0633df6782283cad9c7521bb736`; controller verified 95/95 desktop tests with the locked official tree, zero skips, syntax and diff checks.
 - Priority: P1
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-013, P2AT-021A
@@ -627,13 +628,15 @@ Delivery requirements include strict URL/redirect/response controls, only `GetRo
 
 ### P2AT-021C — Connect WeGame passive import UI
 
-- Status: `READY`
-- Priority: P1
+- Status: `IN_PROGRESS`
+- Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-021B acceptance
 - Scope: visible URL import/preview/confirmation flow, transactional Planner application and Windows Electron acceptance
 
 Goal: let a user review the P2AT-021B candidate, confirm unresolved class/ascendancy meaning, see inactive weapon-specialisation and override warnings, and apply only supported passive allocations without partial mutation.
+
+Acceptance: visible URL entry, bounded preview, explicit class/ascendancy confirmation and partial-import acknowledgment; cancel/error leaves the old Build unchanged. Validate every active ID against the live Planner catalog before transactional replacement, rebuild starts and derived state, and retain the existing rollback/unsafe-save safeguards. Never guess set1/set2 numbering or apply overrides, equipment, skills or jewel contents. Inactive candidate data is memory-only and is not saved in native unknown fields; disclose this before application. Keep the existing budget values and warn on over-budget imports. Test replacement of a nonempty Build, cancellation, bad input/network failures, rollback and native save/reopen of supported allocations. Deliver a Windows Electron preview with screenshots, exact launch instructions and a real public-link test when reachable; distinguish live and fixture evidence. No schema revision, visual redesign or unrelated refactoring.
 
 ### P2AT-020A — Prototype a particle-driven loading experience
 
