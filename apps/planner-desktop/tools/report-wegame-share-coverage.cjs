@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { createPassiveIdMap } = require("../src/interop/passive-id-map.js");
+const { canonicalFixtureBytes } = require("./wegame-share-schema.cjs");
 
 const ORDINARY_SOCKETS = new Set(["2491", "7960", "21984", "26196", "26725", "32763", "46882", "54127", "55190", "60735", "61419", "61834"]);
 
@@ -53,7 +54,7 @@ function reportCategory(name, values, tree, mapper) {
 }
 
 function buildReport(fixturePath, officialTreePath, lockPath) {
-  const fixtureBytes = fs.readFileSync(fixturePath);
+  const fixtureBytes = canonicalFixtureBytes(fs.readFileSync(fixturePath));
   const fixture = JSON.parse(fixtureBytes);
   const talent = fixture.talentTree.talent_tree;
   const { tree, source } = readVerifiedOfficialTree(officialTreePath, lockPath);

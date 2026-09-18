@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell } = require("electron");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const fs = require("node:fs/promises");
 const { createBuildFileStore, createBuildIpcHandlers } = require("./build-file-store.cjs");
 const {
@@ -9,6 +10,7 @@ const {
 } = require("./runtime-resource-store.cjs");
 const upstreamLock = require("../../../data/upstream-sources.lock.json");
 const cacheManifest = require("../data/cache/manifest.json");
+const { createTrustedPlannerSenderPredicate, createWeGameImportService, createWeGameIpcHandler } = require("./wegame-import-service.cjs");
 
 protocol.registerSchemesAsPrivileged([{
   scheme: "poe2",
@@ -23,7 +25,7 @@ protocol.registerSchemesAsPrivileged([{
 
 const runtimeCatalog = createRuntimeResourceCatalog(upstreamLock, cacheManifest);
 const runtimeStore = createRuntimeResourceStore({
-  fetchResource: (url) => net.fetch(url, { cache: "no-store" }),
+  fetchResource: (url, options = {}) => net.fetch(url, { cache: "no-store", ...options }),
 });
 
 const MIME = {
@@ -106,6 +108,24 @@ async function syncCoreData() {
   return result;
 }
 
+async function loadOfficialTree({ signal } = {}) {
+  signal?.throwIfAborted();
+  const name = "official-data.json";
+  const descriptor = runtimeCatalog.resolve("data", name);
+  const locations = resourcePaths("data", name);
+  let local = await runtimeStore.resolveVerifiedLocal(descriptor, locations.bundled, locations.cached);
+  signal?.throwIfAborted();
+  if (!local) local = { bytes: await runtimeStore.downloadAndCache(descriptor, locations.cached, { signal }) };
+  signal?.throwIfAborted();
+  return JSON.parse(local.bytes.toString("utf8"));
+}
+
+const weGameImportService = createWeGameImportService({ fetch: (url, options) => net.fetch(url, options), loadOfficialTree });
+let plannerWindow = null;
+const plannerPageUrl = pathToFileURL(path.join(__dirname, "..", "renderer", "index.html")).href;
+
+const isTrustedPlannerSender = createTrustedPlannerSenderPredicate(() => plannerWindow?.webContents || null, plannerPageUrl);
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1500,
@@ -124,6 +144,8 @@ function createWindow() {
   win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
   win.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("file://")) event.preventDefault(); });
+  plannerWindow = win;
+  win.on("closed", () => { if (plannerWindow === win) plannerWindow = null; });
   return win;
 }
 
@@ -144,6 +166,7 @@ ipcMain.handle("data:get-path", async () => ({bundledData:bundledRoot(),userData
 
 ipcMain.handle("build:save-json", buildIpcHandlers.save);
 ipcMain.handle("build:open-json", buildIpcHandlers.open);
+ipcMain.handle("wegame:import-passives", createWeGameIpcHandler(weGameImportService, isTrustedPlannerSender));
 
 app.whenReady().then(async()=>{await registerLocalDataProtocol();createWindow();app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});});
 app.on("window-all-closed",()=>{if(process.platform!=="darwin")app.quit();});

@@ -1,14 +1,15 @@
 "use strict";
 
 const crypto = require("node:crypto");
-
-const FORBIDDEN_KEY_FRAGMENTS = [
-  "openid", "roleid", "sharecode", "accountname", "accountid", "nickname",
-  "deviceid", "userid", "sessionid", "token", "authorization", "cookie",
-  "credential", "password", "secret"
-];
+const { isSensitiveKey } = require("../src/interop/wegame-sensitive-fields.js");
 const OPAQUE_HEX_ID = /^[a-f0-9]{64}$/i;
 const SHARE_TOKEN_LIKE = /^[A-Za-z0-9_-]{40,}$/;
+
+function canonicalFixtureBytes(bytes) {
+  const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const text = buffer.toString("utf8");
+  return Buffer.from(text.replace(/\r\n/g, "\n"), "utf8");
+}
 
 function collectSchemaPaths(value, currentPath = "$", output = new Set()) {
   if (Array.isArray(value)) {
@@ -35,8 +36,7 @@ function assertSanitized(value, currentPath = "$") {
   }
   if (value && typeof value === "object") {
     for (const [key, child] of Object.entries(value)) {
-      const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, "");
-      if (FORBIDDEN_KEY_FRAGMENTS.some(fragment => normalizedKey.includes(fragment))) {
+      if (isSensitiveKey(key)) {
         throw new Error(`forbidden sensitive key at ${currentPath}.${key}`);
       }
       assertSanitized(child, `${currentPath}.${key}`);
@@ -48,4 +48,4 @@ function assertSanitized(value, currentPath = "$") {
   }
 }
 
-module.exports = { assertSanitized, collectSchemaPaths, schemaFingerprint };
+module.exports = { assertSanitized, canonicalFixtureBytes, collectSchemaPaths, schemaFingerprint };

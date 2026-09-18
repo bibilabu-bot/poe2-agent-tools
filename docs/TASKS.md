@@ -610,9 +610,30 @@ remains `REVIEW`; only the controller may accept it.
 
 Suggested follow-ups:
 
-- P2AT-021B — approve the WeGame import and schema-extension contract;
-- P2AT-021C — implement a pure bounded offline adapter;
-- P2AT-021D — add UI/network integration and real-machine acceptance.
+- P2AT-021B — implement the passive-first contract, bounded adapter and controlled Electron transport;
+- P2AT-021C — wire reviewed passive candidates into UI and perform real-machine acceptance.
+
+### P2AT-021B — Implement WeGame passive-first import core
+
+- Status: `REVIEW`
+- Priority: P1
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-013, P2AT-021A
+- Scope: pure versioned import adapter, Electron-only controlled fetch service, narrow preload API, offline tests and contract documentation; no Planner UI
+
+Goal: turn an exact public WeGame share URL into a bounded, transaction-ready preview of normal, ascendancy and ordinary-socket allocations while preserving every unresolved source semantic.
+
+Delivery requirements include strict URL/redirect/response controls, only `GetRoleInfo` and `GetTalentTree`, locked-tree P2AT-013 identity validation, inactive source-labelled specialisations, complete inactive `skill_overrides`, no inferred jewel placements, stable errors and mock-only network tests. Native schema v2 is unchanged.
+
+### P2AT-021C — Connect WeGame passive import UI
+
+- Status: `READY`
+- Priority: P1
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-021B acceptance
+- Scope: visible URL import/preview/confirmation flow, transactional Planner application and Windows Electron acceptance
+
+Goal: let a user review the P2AT-021B candidate, confirm unresolved class/ascendancy meaning, see inactive weapon-specialisation and override warnings, and apply only supported passive allocations without partial mutation.
 
 ### P2AT-020A — Prototype a particle-driven loading experience
 
