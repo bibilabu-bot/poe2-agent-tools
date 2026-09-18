@@ -23,8 +23,14 @@
   function setModelStatus(message, kind = "") {
     const el = byId("agentModelStatus"); el.textContent = message; el.className = `agent-status ${kind}`;
   }
+  function resetModelOptions(message = "先连接并获取模型") {
+    const option = document.createElement("option"); option.value = ""; option.textContent = message;
+    byId("agentModelSelect").replaceChildren(option);
+    byId("agentModel").value = "";
+  }
   function updateControls() {
     byId("agentLoadModels").disabled = !configured || running;
+    byId("agentModelSelect").disabled = !configured || running || byId("agentModelSelect").options.length <= 1;
     byId("agentInput").disabled = !configured || running;
     byId("agentSend").disabled = !configured || running;
     byId("agentStop").disabled = !running;
@@ -54,6 +60,7 @@
     byId("agentChatTarget").textContent = `待连接目标：${targetHost()}`;
     if (api) await api.clearConfig();
     if (revision !== configRevision) return;
+    resetModelOptions(); setModelStatus("尚未获取模型；也可以手动填写模型 ID");
     if (configured) await newConversation(false);
     configured = false; setStatus("API 地址已改变；旧 Key 已清除，请重新连接", "error"); updateControls();
   });
@@ -62,6 +69,7 @@
     const revision = ++configRevision;
     const requestedBaseUrl = byId("agentBaseUrl").value;
     const apiKeyInput = byId("agentApiKey");
+    resetModelOptions("连接后获取模型"); setModelStatus("连接成功后可获取模型列表");
     setStatus(`正在连接：${targetHost()}…`);
     const result = await api.configure({ baseUrl: requestedBaseUrl, apiKey: apiKeyInput.value });
     apiKeyInput.value = "";
@@ -80,13 +88,19 @@
       const result = await api.listModels();
       if (result.stale) { setModelStatus("连接已变化，已忽略旧模型列表", "error"); return; }
       if (!result.ok) { setModelStatus(`${result.error.message}；仍可手动填写模型 ID`, "error"); return; }
-      const list = byId("agentModels"); list.replaceChildren(...result.models.map((id) => { const option = document.createElement("option"); option.value = id; return option; }));
+      const select = byId("agentModelSelect");
+      const placeholder = document.createElement("option"); placeholder.value = ""; placeholder.textContent = result.models.length ? "请选择模型" : "服务未返回模型";
+      select.replaceChildren(placeholder, ...result.models.map((id) => { const option = document.createElement("option"); option.value = id; option.textContent = id; return option; }));
+      if (result.models.length === 1) { select.value = result.models[0]; byId("agentModel").value = result.models[0]; }
       setModelStatus(`已获取 ${result.models.length} 个模型；列表不代表支持工具调用`, "connected");
     } catch {
       setModelStatus("模型列表请求失败；仍可手动填写模型 ID", "error");
     } finally {
       button.textContent = "获取模型"; updateControls();
     }
+  });
+  byId("agentModelSelect").addEventListener("change", (event) => {
+    if (event.target.value) byId("agentModel").value = event.target.value;
   });
   async function newConversation(clearUi = true) {
     conversationId += 1; showTrace([]);

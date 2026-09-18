@@ -306,11 +306,13 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
         </div>
         <div id="agentConnectionStatus" class="agent-status">尚未连接</div>
         <label for="agentModel">模型</label>
-        <div class="agent-model-row">
-          <input id="agentModel" type="text" list="agentModels" placeholder="可获取或手动填写模型 ID" autocomplete="off" spellcheck="false">
-          <datalist id="agentModels"></datalist>
+        <div class="agent-model-fetch-row">
+          <select id="agentModelSelect" disabled aria-label="可用模型">
+            <option value="">先连接并获取模型</option>
+          </select>
           <button id="agentLoadModels" disabled>获取模型</button>
         </div>
+        <input id="agentModel" type="text" placeholder="模型 ID（可从上方选择或手动填写）" autocomplete="off" spellcheck="false">
         <div id="agentModelStatus" class="agent-status">尚未获取模型；也可以手动填写模型 ID</div>
         <label class="agent-toggle"><input id="agentToolsEnabled" type="checkbox" checked> 启用安全演示工具（计算器）</label>
         <p class="agent-help">模型列表成功不代表该模型支持工具。若服务不支持，请关闭演示工具后进行普通聊天。</p>
