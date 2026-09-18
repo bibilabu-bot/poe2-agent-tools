@@ -8,6 +8,7 @@ test("base URL accepts HTTPS and loopback HTTP only", () => {
   assert.equal(normalizeBaseUrl("https://example.com/v1/").href, "https://example.com/v1");
   assert.equal(normalizeBaseUrl("http://127.0.0.1:11434/v1").protocol, "http:");
   for (const url of ["http://example.com/v1", "https://u:p@example.com/v1", "https://example.com/v1?q=key", "https://example.com/v1#x", "https://10.0.0.2/v1", "https://169.254.169.254/v1", "https://[fd00::1]/v1", "https://[::ffff:10.0.0.1]/v1"]) assert.throws(() => normalizeBaseUrl(url));
+  assert.throws(() => normalizeBaseUrl("https://dashscope.aliyuncs.com/apps/anthropic"), { code: "PROTOCOL_MISMATCH" });
 });
 
 test("models and chat use bounded OpenAI-compatible endpoints and tool call IDs", async () => {

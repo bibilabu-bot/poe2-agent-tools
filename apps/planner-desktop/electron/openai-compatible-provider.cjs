@@ -19,6 +19,7 @@ function normalizeBaseUrl(input) {
   if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) throw new ProviderError("INVALID_BASE_URL", "仅允许 HTTPS；本机 loopback 服务可使用 HTTP");
   if (!loopback && isPrivateIpLiteral(url.hostname)) throw new ProviderError("INVALID_BASE_URL", "不允许连接私有或链路本地 IP；本机服务请使用 loopback 地址");
   url.pathname = url.pathname.replace(/\/+$/, "");
+  if (/\/apps\/anthropic(?:\/|$)/i.test(url.pathname)) throw new ProviderError("PROTOCOL_MISMATCH", "当前仅支持 OpenAI-compatible API；此地址是 Anthropic 协议入口，请改用服务商的 OpenAI-compatible Base URL");
   return url;
 }
 

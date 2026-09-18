@@ -312,8 +312,9 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
           </select>
           <button id="agentLoadModels" disabled>重新获取</button>
         </div>
-        <input id="agentModel" type="text" placeholder="模型 ID（可从上方选择或手动填写）" autocomplete="off" spellcheck="false">
-        <div id="agentModelStatus" class="agent-status">尚未获取模型；也可以手动填写模型 ID</div>
+        <label class="agent-manual-label" for="agentModel">模型列表不可用时，在这里直接填写模型 ID</label>
+        <input id="agentModel" class="agent-manual-model" type="text" placeholder="例如 qwen-plus" autocomplete="off" spellcheck="false">
+        <div id="agentModelStatus" class="agent-status agent-model-status">尚未获取模型；也可以手动填写模型 ID</div>
         <label class="agent-toggle"><input id="agentToolsEnabled" type="checkbox" checked> 启用安全演示工具（计算器）</label>
         <p class="agent-help">模型列表成功不代表该模型支持工具。若服务不支持，请关闭演示工具后进行普通聊天。</p>
       </div>
