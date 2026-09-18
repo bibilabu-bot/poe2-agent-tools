@@ -76,7 +76,7 @@ let buildPreservation = null;
 let plannerDataReady = false;
 let buildStateUnsafe = false;
 let weGamePreviewValue = null;
-let weGameRequestSerial = 0;
+const weGameRequestGate=weGameImportUI.createLatestRequestGate();
 
 let previewPath = [];                    // ordinary hover path
 let previewIds = new Set();
@@ -3732,7 +3732,7 @@ function openWeGameDialog() {
 }
 
 function closeWeGameDialog() {
-  weGameRequestSerial+=1;
+  weGameRequestGate.invalidate();
   weGamePreviewValue=null;
   $("#weGameDialog").close();
 }
@@ -3826,13 +3826,13 @@ function renderWeGamePreview(value) {
 async function readWeGamePreview(event) {
   event.preventDefault();
   if(!window.desktopAPI?.importWeGamePassives) return;
-  const request=++weGameRequestSerial;
+  const request=weGameRequestGate.begin();
   const read=$("#weGameRead"); read.disabled=true; read.textContent="读取中…";
   setWeGameStatus("正在读取公开分享并校验官方天赋目录…");
   let result;
   try { result=await window.desktopAPI.importWeGamePassives($("#weGameUrl").value.trim()); }
   catch(error) { result={ok:false,error:{message:error?.message||"导入调用失败。"}}; }
-  if(request!==weGameRequestSerial || !$("#weGameDialog").open) return;
+  if(!weGameRequestGate.isCurrent(request) || !$("#weGameDialog").open) return;
   read.disabled=false; read.textContent="重试读取";
   if(!result?.ok) {
     setWeGameStatus(`读取失败：${ipcErrorMessage(result,"无法读取 WeGame 分享。")} 当前 Build 未改变。`,true);
@@ -3882,15 +3882,14 @@ function applyWeGamePreview() {
   if(candidate.weaponSetOmissions.length && !$("#weGameOmissionAck").checked) {
     setWeGameStatus("存在将被省略的武器组节点，请展开查看明细并明确确认。",true); return;
   }
-  const applied=buildStateAdapter.applyBuildCandidateTransaction(candidate,{
+  const applied=weGameImportUI.applyImportTransaction(candidate,{
     snapshot:captureBuildTransactionState,
     commit:next=>applyPlannerBuildState(next,true),
     finalize:()=>refreshBuildDependentState("WeGame 支持的天赋已导入，旧历史已清空。"),
     rollback:restoreBuildTransactionState
-  });
+  },buildStateAdapter);
   if(!applied.ok) {
-    const failure=buildStateAdapter.classifyBuildApplyResult(applied);
-    if(failure.rollbackFailed) {
+    if(applied.unsafe) {
       buildStateUnsafe=true; setBuildControlsReady(plannerDataReady);
       setWeGameStatus(`应用和回滚均失败，保存已禁用：${applied.rollbackError?.message||"未知错误"}`,true);
     } else setWeGameStatus(`应用失败，已恢复原 Build：${applied.error?.message||"未知错误"}`,true);
@@ -3908,7 +3907,7 @@ function applyWeGamePreview() {
 
 async function saveCurrentBuild() {
   if(!plannerDataReady || !window.desktopAPI?.saveBuildJson) return;
-  if(buildStateUnsafe) {
+  if(!weGameImportUI.canSaveBuild({ready:plannerDataReady,supported:Boolean(window.desktopAPI?.saveBuildJson),unsafe:buildStateUnsafe})) {
     showBuildFeedback("当前 Build 状态可能不一致，保存已禁用。请重启应用或重新打开 Build。",null,true);
     setBuildControlsReady(plannerDataReady);
     return;
@@ -3970,15 +3969,14 @@ async function openBuild() {
     return;
   }
 
-  const applied=buildStateAdapter.applyBuildCandidateTransaction(candidate,{
+  const applied=weGameImportUI.applyImportTransaction(candidate,{
     snapshot:captureBuildTransactionState,
     commit:next=>applyPlannerBuildState(next,true),
     finalize:()=>refreshBuildDependentState("Build 已打开，旧的撤销/重做历史已清空。"),
     rollback:restoreBuildTransactionState
-  });
+  },buildStateAdapter);
   if(!applied.ok) {
-    const failure=buildStateAdapter.classifyBuildApplyResult(applied);
-    if(failure.rollbackFailed) {
+    if(applied.unsafe) {
       buildStateUnsafe=true;
       setBuildControlsReady(plannerDataReady);
       showBuildFeedback(
@@ -4008,7 +4006,7 @@ async function openBuild() {
 function setBuildControlsReady(ready) {
   plannerDataReady=ready;
   const supported=Boolean(window.desktopAPI?.saveBuildJson && window.desktopAPI?.openBuildJson);
-  $("#saveBuild").disabled=!(ready&&supported)||buildStateUnsafe;
+  $("#saveBuild").disabled=!weGameImportUI.canSaveBuild({ready,supported,unsafe:buildStateUnsafe});
   $("#openBuild").disabled=!(ready&&supported);
   $("#importWeGame").disabled=!(ready&&window.desktopAPI?.importWeGamePassives);
 }

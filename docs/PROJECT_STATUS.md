@@ -23,7 +23,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | WeGame Build import | Core accepted; UI in review | P2AT-021B controlled transport and inert candidate accepted at fa82c8d. P2AT-021C adds transactional preview/application; owner-validated experimental `set1`/`set2` mapping saves native weapon sets after explicit confirmation. Overrides, jewel contents and unresolved evidence remain inactive and memory-only; no full-Build compatibility claim |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Contract ready | Only twelve verified ordinary sockets are eligible for the first slice; implementation, special sockets and radius effects remain deferred |
-| Automated tests | 102 desktop tests | P2AT-021C branch passes 102/102 with the locked official tree and zero skips; includes controlled transport, privacy, cancellation, transactional application, weapon omission and native weapon-set persistence boundaries |
+| Automated tests | 104 desktop tests | P2AT-021C branch passes 104/104 with the locked official tree and zero skips; includes controlled transport, privacy, cancellation/late-response, transactional rollback/unsafe-save, weapon omission and native weapon-set persistence boundaries |
 | Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
 | Packaging/release | Not started | No installer or release workflow |
 | Upstream data governance | Runtime integrated | ADR-007 and the validated 26-file canonical source lock govern Planner runtime identity and integrity; jewel compiler migration remains pending |

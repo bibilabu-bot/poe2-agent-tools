@@ -122,5 +122,26 @@
     return Object.freeze({general,weaponSet1,weaponSet2,ascendancy,effectivePassive:general+Math.max(weaponSet1,weaponSet2)});
   }
 
-  return Object.freeze({ summarize, createPlannerCandidate, isNonEmptyBuild, summarizeApplicationBudget });
+  function createLatestRequestGate() {
+    let generation=0;
+    return Object.freeze({
+      begin() { generation+=1; return generation; },
+      invalidate() { generation+=1; },
+      isCurrent(token) { return token===generation; },
+    });
+  }
+
+  function applyImportTransaction(candidate, operations, transactionAdapter) {
+    const result=transactionAdapter.applyBuildCandidateTransaction(candidate,operations);
+    return Object.freeze({...result,unsafe:!result.ok&&Boolean(result.rollbackError)});
+  }
+
+  function canSaveBuild({ready,supported,unsafe}) {
+    return Boolean(ready&&supported&&!unsafe);
+  }
+
+  return Object.freeze({
+    summarize,createPlannerCandidate,isNonEmptyBuild,summarizeApplicationBudget,
+    createLatestRequestGate,applyImportTransaction,canSaveBuild
+  });
 });

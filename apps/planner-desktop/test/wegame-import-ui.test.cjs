@@ -58,10 +58,28 @@ test("fails closed for missing catalog IDs, category conflicts and unconfirmed p
 test("transaction helper restores an existing build after commit failure", () => {
   const adapter = require("../renderer/build-state-adapter.js");
   const old = { marker: "nonempty" }; let live = old;
-  const result = adapter.applyBuildCandidateTransaction({ marker: "new" }, {
+  const result = ui.applyImportTransaction({ marker: "new" }, {
     snapshot: () => live, commit: next => { live = next; throw new Error("render failed"); }, rollback: previous => { live = previous; },
-  });
-  assert.equal(result.ok, false); assert.equal(live, old);
+  },adapter);
+  assert.equal(result.ok, false); assert.equal(result.unsafe,false); assert.equal(live, old);
+});
+test("closing the dialog invalidates a late response before preview publication", async () => {
+  const gate=ui.createLatestRequestGate();
+  const request=gate.begin(); let publishPreview=false;
+  const response=Promise.resolve({ok:true});
+  gate.invalidate();
+  await response;
+  if(gate.isCurrent(request)) publishPreview=true;
+  assert.equal(publishPreview,false);
+});
+test("rollback failure marks UI unsafe and both save entry points reject", () => {
+  const adapter=require("../renderer/build-state-adapter.js");
+  const result=ui.applyImportTransaction({}, {
+    snapshot:()=>({}),commit:()=>{throw new Error("commit");},rollback:()=>{throw new Error("rollback");},
+  },adapter);
+  assert.equal(result.unsafe,true);
+  assert.equal(ui.canSaveBuild({ready:true,supported:true,unsafe:result.unsafe}),false,"save handler guard");
+  assert.equal(!ui.canSaveBuild({ready:true,supported:true,unsafe:result.unsafe}),true,"save button disabled state");
 });
 test("mapped weapon sets survive the existing native save and reopen path", () => {
   const adapter = require("../renderer/build-state-adapter.js");

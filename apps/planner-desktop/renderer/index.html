@@ -288,7 +288,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
 <dialog id="weGameDialog" class="wegame-dialog">
   <form id="weGameForm" novalidate>
     <h2>导入 WeGame 天赋</h2>
-    <div class="note">粘贴公开分享链接。只读取职业身份和天赋树，不读取装备、技能或角色私密资料。</div>
+    <div class="note">粘贴公开分享链接。主进程会临时读取角色身份，仅用于随后请求天赋树；身份不会返回界面或持久化。不会请求装备、技能或 DPS。</div>
     <label>WeGame 分享链接
       <input id="weGameUrl" type="url" required autocomplete="off" spellcheck="false" placeholder="https://www.wegame.com.cn/helper/poe2/#/share/…">
     </label>
