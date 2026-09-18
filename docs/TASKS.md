@@ -614,6 +614,24 @@ Suggested follow-ups:
 - P2AT-021C — implement a pure bounded offline adapter;
 - P2AT-021D — add UI/network integration and real-machine acceptance.
 
+### P2AT-022A — Research WeGame localization resources
+
+- Status: `REVIEW`
+- Priority: P1
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-005B, P2AT-021A
+- Type: bounded public-resource research; does not block or modify P2AT-021B
+
+Goal: determine whether resources actually loaded by the supplied WeGame public share can
+serve as a complete, version-compatible Chinese localization source.
+
+Delivery: `docs/WEGAME_LOCALIZATION_RESEARCH.md`, an offline coverage reporter and an
+ignored local research cache. The result is partial: the tree module is broad and aligns
+with every locked runtime `tree-pre` numeric node, but contains untranslated strings and
+conflicts with locked official raw/numeric identity. It does not establish a full-game
+item/skill translation catalog. Production loader/renderer and upstream locks are unchanged;
+only the controller may accept or authorize source promotion.
+
 ### P2AT-020A — Prototype a particle-driven loading experience
 
 - Status: `READY`
