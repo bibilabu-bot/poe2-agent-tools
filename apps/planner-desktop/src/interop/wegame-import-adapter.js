@@ -1,15 +1,17 @@
 (function initWeGameImportAdapter(root, factory) {
-  const api = factory(typeof require === "function" ? require("./passive-id-map.js") : root.plannerPassiveIdMap);
+  const api = factory(
+    typeof require === "function" ? require("./passive-id-map.js") : root.plannerPassiveIdMap,
+    typeof require === "function" ? require("./wegame-sensitive-fields.js") : root.weGameSensitiveFields,
+  );
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.weGameImportAdapter = api;
-})(typeof globalThis === "object" ? globalThis : this, function weGameImportAdapterFactory(passiveIdApi) {
+})(typeof globalThis === "object" ? globalThis : this, function weGameImportAdapterFactory(passiveIdApi, sensitiveFieldApi) {
   "use strict";
 
   const LIMITS = Object.freeze({ depth: 32, array: 20000, objectKeys: 20000, diagnostics: 100, string: 4096, key: 256 });
   const ordinarySockets = new Set(["2491", "7960", "21984", "26196", "26725", "32763", "46882", "54127", "55190", "60735", "61419", "61834"]);
-  const sensitiveKeyFragments = Object.freeze(["openid", "roleid", "sharecode", "rolename", "charactername", "nickname", "accountid", "userid", "token", "authorization", "cookie", "credential", "password", "secret"]);
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
-  const isSensitiveKey = key => sensitiveKeyFragments.some(fragment => key.toLowerCase().replace(/[^a-z0-9]/g, "").includes(fragment));
+  const isSensitiveKey = sensitiveFieldApi.isSensitiveKey;
   const compareIds = (a, b) => Number(a) - Number(b);
 
   class WeGameAdapterError extends Error {
@@ -41,10 +43,10 @@
   }
 
   function createDiagnosticCollector() {
-    const details = []; let total = 0;
+    const details = [], counts = {}; let total = 0;
     return {
-      add(code, severity, path, message) { total += 1; if (details.length < LIMITS.diagnostics) details.push(Object.freeze({ code, severity, path, message })); },
-      result() { return Object.freeze({ total, truncated: total > details.length, details: Object.freeze(details) }); },
+      add(code, severity, path, message) { total += 1; counts[code] = (counts[code] || 0) + 1; if (details.length < LIMITS.diagnostics) details.push(Object.freeze({ code, severity, path, message })); },
+      result() { return Object.freeze({ total, truncated: total > details.length, counts: Object.freeze({ ...counts }), details: Object.freeze(details) }); },
     };
   }
 
@@ -110,6 +112,7 @@
     const specialisations = tree.specialisations;
     if (specialisations !== undefined && (!specialisations || typeof specialisations !== "object" || Array.isArray(specialisations))) throw new WeGameAdapterError("WEGAME_SCHEMA_DRIFT", "talent_tree.specialisations must be an object.");
     for (const label of Object.keys(specialisations || {}).sort()) {
+      if (isSensitiveKey(label)) { diagnostics.add("SENSITIVE_TALENT_FIELD_REDACTED", "warning", "talent_tree.specialisations.[redacted]", "Identity-bearing specialisation evidence was excluded from the candidate."); continue; }
       const mapped = []; mapList(specialisations[label], `talent_tree.specialisations.${label}`, mapped, false);
       sourceSets.push(Object.freeze({ sourceLabel: label, status: "inactive", requiresDecision: true, targetWeaponSet: null, passives: Object.freeze(mapped) }));
     }
@@ -119,6 +122,7 @@
     if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) throw new WeGameAdapterError("WEGAME_SCHEMA_DRIFT", "talent_tree.skill_overrides must be an object.");
     const preservedOverrides = [];
     for (const key of Object.keys(overrides).sort(compareIds)) {
+      if (isSensitiveKey(key)) { diagnostics.add("SENSITIVE_TALENT_FIELD_REDACTED", "warning", "talent_tree.skill_overrides.[redacted]", "Identity-bearing skill override evidence was excluded from the candidate."); continue; }
       const numericId = validNumeric(key); const value = overrides[key];
       const grantedKeys = ["grantedStrength", "grantedDexterity", "grantedIntelligence"].filter(name => own(value || {}, name));
       const validOverride = numericId && value && typeof value === "object" && !Array.isArray(value)

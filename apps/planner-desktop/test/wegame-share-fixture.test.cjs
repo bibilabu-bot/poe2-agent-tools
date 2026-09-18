@@ -31,7 +31,7 @@ test("WeGame fixture is byte-pinned and omits share/role identity", () => {
   assert.equal(Object.hasOwn(fixture.roleInfo, "nick_name"), false);
   assert.equal(Object.hasOwn(fixture.roleInfo, "share_code"), false);
   assert.doesNotThrow(() => assertSanitized(fixture));
-  for (const key of ["device_id", "deviceId", "roleId", "shareCode", "accessToken", "account_id", "user_id", "authorizationHeader", "cookieValue", "session-id", "clientSecret"]) {
+  for (const key of ["device_id", "deviceId", "roleId", "shareCode", "accessToken", "account_id", "user_id", "authorizationHeader", "cookieValue", "session-id", "clientSecret", "trace_id", "created_time", "last_login_time", "season_game_duration", "total_game_duration", "play_duration"]) {
     assert.throws(() => assertSanitized({ nested: { [key]: "short" } }), /forbidden sensitive key/, key);
   }
   assert.throws(() => assertSanitized({ future: "A".repeat(48) }), /unsanitized opaque identifier/);

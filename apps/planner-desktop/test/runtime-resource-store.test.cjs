@@ -216,3 +216,17 @@ test("an aborted download cannot publish cache and a later retry succeeds", asyn
   const retry = createRuntimeResourceStore({ fetchResource: async () => ({ ok: true, arrayBuffer: async () => approved }), randomId: () => "retry" });
   assert.deepEqual(await retry.downloadAndCache(descriptorFor(approved), target), approved); assert.deepEqual(await fs.readFile(target), approved);
 });
+
+test("abort after atomic rename starts may still publish only verified immutable bytes", async (t) => {
+  const directory = await temporaryDirectory(t), target = path.join(directory, "resource.json"), approved = Buffer.from("new approved bytes"), controller = new AbortController();
+  let signalRenameStarted, releaseRename;
+  const renameStarted = new Promise(resolve => { signalRenameStarted = resolve; }), renameRelease = new Promise(resolve => { releaseRename = resolve; });
+  const store = createRuntimeResourceStore({
+    fetchResource: async () => ({ ok: true, arrayBuffer: async () => approved }),
+    operations: { rename: async (from, to) => { signalRenameStarted(); await renameRelease; return fs.rename(from, to); } },
+    randomId: () => "rename-in-flight",
+  });
+  const pending = store.downloadAndCache(descriptorFor(approved), target, { signal: controller.signal });
+  await renameStarted; controller.abort(); releaseRename();
+  assert.deepEqual(await pending, approved); assert.deepEqual(await fs.readFile(target), approved); assert.deepEqual(await fs.readdir(directory), ["resource.json"]);
+});

@@ -12,6 +12,8 @@ The URL must use HTTPS, host `www.wegame.com.cn`, no userinfo, no explicit port 
 
 The whole import, including locked official-tree resolution, has an 8-second timeout and propagated abort signal. Responses require a bounded stream reader, enforce a 512 KiB limit while reading, require HTTP success and JSON content type, reject all redirects, decode strict UTF-8, and validate the WeGame business envelope. Only one import may run concurrently.
 
+Cancellation is checked before cache publication and throughout temporary-file writing. Once the operating-system atomic rename has already started it cannot be recalled; in that narrow case only lock-verified immutable official-tree bytes may finish replacing the cache. A timed-out import still cannot apply Planner state or return success, and the verified cache is safe for a later retry. The implementation does not delete a valid cache after publication.
+
 ## Version-1 value
 
 `value.format` is `poe2-agent-tools-wegame-passive-import` and `value.version` is `1`.

@@ -55,6 +55,14 @@ test("all inactive preservation paths recursively exclude identity-bearing keys"
   assert.doesNotMatch(serialized, /allocation-secret|override-secret|jewel-secret|openid|share_code|"token"/i);
   assert.ok(result.diagnostics.details.filter(item => item.code === "SENSITIVE_TALENT_FIELD_REDACTED").length >= 3);
 });
+test("sensitive specialisation labels and override keys never become source labels or paths", () => {
+  const input = structuredClone({ roleInfo: fixture.roleInfo, talentTree: fixture.talentTree }), tree = input.talentTree.talent_tree;
+  tree.specialisations.share_code_SECRET123 = []; tree.skill_overrides.openid_SECRET456 = { safe: true };
+  const result = adaptWeGamePassiveImport(input, evidenceTree()), serialized = JSON.stringify(result);
+  assert.doesNotMatch(serialized, /SECRET123|SECRET456|share_code_SECRET123|openid_SECRET456/);
+  assert.equal(result.diagnostics.counts.SENSITIVE_TALENT_FIELD_REDACTED, 2);
+  assert.ok(result.diagnostics.details.filter(item => item.code === "SENSITIVE_TALENT_FIELD_REDACTED").every(item => item.path.endsWith(".[redacted]")));
+});
 test("business errors, schema drift and collection limits fail closed", () => {
   assert.throws(() => adaptWeGamePassiveImport({ roleInfo: { result: { error_code: 7 } }, talentTree: fixture.talentTree }, evidenceTree()), error => error.code === "WEGAME_BUSINESS_ERROR");
   assert.throws(() => adaptWeGamePassiveImport({ roleInfo: fixture.roleInfo, talentTree: { result: { error_code: 0 } } }, evidenceTree()), error => error.code === "WEGAME_SCHEMA_DRIFT");
