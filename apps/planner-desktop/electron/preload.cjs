@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld("desktopAPI", {
   getCacheStatus: () => ipcRenderer.invoke("data:cache-status"),
   syncCoreData: () => ipcRenderer.invoke("data:sync-core"),
   saveBuildJson: (request) => ipcRenderer.invoke("build:save-json", request),
-  openBuildJson: () => ipcRenderer.invoke("build:open-json")
+  openBuildJson: () => ipcRenderer.invoke("build:open-json"),
+  importWeGamePassives: (url) => ipcRenderer.invoke("wegame:import-passives", { url })
 });

@@ -11,7 +11,9 @@ const { assertSanitized, schemaFingerprint } = require("../tools/wegame-share-sc
 const directory = path.join(__dirname, "..", "fixtures", "wegame-share");
 const fixturePath = path.join(directory, "public-share.sanitized.json");
 const manifest = JSON.parse(fs.readFileSync(path.join(directory, "manifest.json"), "utf8"));
-const fixtureBytes = fs.readFileSync(fixturePath);
+const rawFixtureBytes = fs.readFileSync(fixturePath);
+// The manifest pins repository LF bytes; normalize transparent Windows checkout conversion.
+const fixtureBytes = Buffer.from(rawFixtureBytes.toString("utf8").replace(/\r\n/g, "\n"), "utf8");
 const fixture = JSON.parse(fixtureBytes);
 const coverage = JSON.parse(fs.readFileSync(path.join(directory, "passive-id-coverage.json"), "utf8"));
 const schemaPaths = JSON.parse(fs.readFileSync(path.join(directory, "schema-paths.json"), "utf8"));

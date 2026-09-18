@@ -9,6 +9,7 @@ const {
 } = require("./runtime-resource-store.cjs");
 const upstreamLock = require("../../../data/upstream-sources.lock.json");
 const cacheManifest = require("../data/cache/manifest.json");
+const { createWeGameImportService } = require("./wegame-import-service.cjs");
 
 protocol.registerSchemesAsPrivileged([{
   scheme: "poe2",
@@ -106,6 +107,17 @@ async function syncCoreData() {
   return result;
 }
 
+async function loadOfficialTree() {
+  const name = "official-data.json";
+  const descriptor = runtimeCatalog.resolve("data", name);
+  const locations = resourcePaths("data", name);
+  let local = await runtimeStore.resolveVerifiedLocal(descriptor, locations.bundled, locations.cached);
+  if (!local) local = { bytes: await runtimeStore.downloadAndCache(descriptor, locations.cached) };
+  return JSON.parse(local.bytes.toString("utf8"));
+}
+
+const weGameImportService = createWeGameImportService({ fetch: (url, options) => net.fetch(url, options), loadOfficialTree });
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1500,
@@ -144,6 +156,7 @@ ipcMain.handle("data:get-path", async () => ({bundledData:bundledRoot(),userData
 
 ipcMain.handle("build:save-json", buildIpcHandlers.save);
 ipcMain.handle("build:open-json", buildIpcHandlers.open);
+ipcMain.handle("wegame:import-passives", (_event, request) => weGameImportService.importFromUrl(request));
 
 app.whenReady().then(async()=>{await registerLocalDataProtocol();createWindow();app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});});
 app.on("window-all-closed",()=>{if(process.platform!=="darwin")app.quit();});
