@@ -1551,14 +1551,7 @@ async function loadChineseI18n(force = false) {
     i18n.ready = true;
 
     const namedNodes=nodes.filter(n=>n.name);
-    const nameResults=namedNodes.map(n=>{
-      const result=i18n.nodeNames.get(idOf(n));
-      if(result?.translated) return result;
-      const fallback=i18n.passiveZh.get(String(n.name||""));
-      return fallback&&fallback!==n.name
-        ? {value:fallback,source:"pob2",quality:"pob-exact",translated:true}
-        : localizationEngine.englishResult(n.name);
-    });
+    const nameResults=namedNodes.map(n=>localizationEngine.resolveNodeName({id:idOf(n),name:n.name},i18n.nodeNames,i18n.passiveZh));
     const statRows=nodes.flatMap(n=>(n.stats||[]).map(stat=>translateStatResult(stat,n)));
     const named=nameResults.filter(result=>result.translated).length;
     const statCovered=statRows.filter(result=>result.translated).length;
