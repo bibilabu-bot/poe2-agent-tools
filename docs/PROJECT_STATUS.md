@@ -8,23 +8,25 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+Controller integration accepted on 2026-09-19: P2AT-021C, 022A, 022B, 023A and 024A, including integration corrections at `9b08b1036eae49704e2736be708a2f8f1692f739`. The latest integrated desktop suite is **152/152, zero skips with locked official-tree evidence**. Native Windows page switching and panel operation passed. See `docs/PRODUCT_INTEGRATION.md` for exact included commits and deferred work. Earlier per-branch counts below are historical delivery evidence, superseded by this integration result.
+
 | Area | State | Evidence / notes |
 | --- | --- | --- |
 | Repository migration | Complete | ChatGPT export reorganized and committed to `main` |
 | Desktop shell | Prototype | Electron 0.2; isolated preload and local resource protocol |
-| General agent MVP | Review | Project-independent bounded core, OS-encrypted local API credential cache, ordinary chat and calculator tool loop added by P2AT-024A; live provider and tool-loop acceptance completed with a user-authorized limited key |
+| General agent MVP | Accepted MVP | Project-independent bounded core, OS-encrypted local API credential cache, ordinary chat and calculator tool loop; still deliberately disconnected from Planner state |
 | Passive tree renderer | Graph core accepted | Canvas2D rendering remains in Planner; pure graph construction, queries and deterministic eligible paths passed controller acceptance |
 | Allocation | Prototype | Normal, ascendancy and weapon-set allocation present |
 | Conditional/hidden nodes | Prototype | Conditional reveal and external hidden-node sidecar present |
-| Chinese localization | Whole-line repair in review | P2AT-022B layers a fixed REVIEW WeGame passive-tree candidate over complete PoB2 translations, removes partial term substitution and keeps unsupported lines as disclosed English; canonical tree identity and game state remain unchanged |
+| Chinese localization | Whole-line repair accepted | Fixed WeGame candidate with guarded identity/semantic use, complete PoB2 fallback and disclosed English; runtime name gate added during integration, canonical game-data lock unchanged |
 | Local resource cache | Lock-integrated | Bundled and user-cache bytes are verified against ADR-007 before use; cache misses download immutable locked URLs |
 | Build save/open | Implemented | Desktop Save/Open controls, schema-v1 codec, safe file IPC and transactional state restoration accepted; Windows runtime round trip verified |
 | Build JSON contract | Schema v2 specified | Schema v1 remains implemented; P2AT-008D adds the accepted v2 jewel-instance/placement contract, migration and preservation policy for later codec/UI work |
 | Official `.build` interoperability | Foundation accepted | ADR-010 selects a lossless native `.build` plus separate strict GGG export; P2AT-013 adds 18 byte-stable documented/derived fixtures and a lock-verified passive-ID mapping oracle, without codec or compatibility claims |
-| WeGame Build import | Core accepted; UI in review | P2AT-021B controlled transport and inert candidate accepted at fa82c8d. P2AT-021C adds transactional preview/application; owner-validated experimental `set1`/`set2` mapping saves native weapon sets after explicit confirmation. Overrides, jewel contents and unresolved evidence remain inactive and memory-only; no full-Build compatibility claim |
+| WeGame Build import | Accepted partial import | Transactional preview/application; owner-validated experimental `set1`/`set2` mapping saves native weapon sets after explicit confirmation. Overrides, jewel contents and unresolved evidence remain inactive and memory-only; no full-Build compatibility claim |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Contract ready | Only twelve verified ordinary sockets are eligible for the first slice; implementation, special sockets and radius effects remain deferred |
-| Automated tests | 104 desktop tests | P2AT-021C branch passes 104/104 with the locked official tree and zero skips; includes controlled transport, privacy, cancellation/late-response, transactional rollback/unsafe-save, weapon omission and native weapon-set persistence boundaries |
+| Automated tests | 152 desktop tests | Integrated suite passes with locked official-tree evidence and zero skips; includes agent, layout, localization and WeGame import regressions |
 | Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
 | Packaging/release | Not started | No installer or release workflow |
 | Upstream data governance | Runtime integrated | ADR-007 and the validated 26-file canonical source lock govern Planner runtime identity and integrity; jewel compiler migration remains pending |

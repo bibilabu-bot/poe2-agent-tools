@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-024A — Add a project-independent agent MVP
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: none
@@ -16,7 +16,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 Goal: provide a runnable general agent foundation, separate from the passive tree, and prove the bounded tool loop with ordinary chat plus one side-effect-free calculator.
 
-Delivered boundaries: `BaseAgent`, `BaseTool`, `ToolRegistry`, injected `ModelProvider`, bounded `AgentRunner`, in-memory API configuration/conversation service, controlled Models/Chat Completions adapter, and an Agent page that preserves the mounted Planner view. The only registered tool is finite-number arithmetic. No Planner mutation, files, shell, search, RAG, durable memory, multi-agent graph or account system is included.
+Delivered boundaries: `BaseAgent`, `BaseTool`, `ToolRegistry`, injected `ModelProvider`, bounded `AgentRunner`, memory-only conversation with user-approved OS-encrypted credential persistence, Models/Chat Completions/Responses JSON adapters, and an Agent page preserving the mounted Planner view. Only Chat Completions SSE is supported. The only registered tool is finite-number arithmetic. No Planner mutation, files, shell, search, RAG, durable conversational memory, multi-agent graph or account system is included.
 
 Acceptance evidence is recorded in `docs/AGENT_FRAMEWORK.md`. Real provider acceptance requires a user-entered key in the application; committed tests use mocks and do not imply live-service success. Only the controller may mark this task accepted.
 
@@ -642,7 +642,7 @@ Delivery requirements include strict URL/redirect/response controls, only `GetRo
 
 ### P2AT-021C — Connect WeGame passive import UI
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-021B acceptance
@@ -656,7 +656,8 @@ Owner-approved validation decision (2026-09-18): the P2AT-021B candidate continu
 
 ### P2AT-023A — Reclaim the Planner canvas with a collapsible tool layout
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
+- Acceptance scope: transitional functional layout only; owner considers visual design unfinished.
 - Priority: P1
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-021C review baseline `5c162b9e23ed65ac74e35bd2de0a6fad11951563`
@@ -684,7 +685,7 @@ Non-goals:
 
 ### P2AT-022A — Research WeGame localization resources
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P1
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-005B, P2AT-021A
@@ -701,7 +702,8 @@ item/skill translation catalog. Production loader/renderer and upstream locks ar
 only the controller may accept or authorize source promotion.
 ### P2AT-022B — Repair whole-line passive-tree localization
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
+- Acceptance includes P2AT-025A runtime-name identity correction; source-candidate classification and redistribution boundaries remain unchanged.
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-022A research evidence `1f4cf3a` (REVIEW), P2AT-023A layout baseline `4006c74` (REVIEW)

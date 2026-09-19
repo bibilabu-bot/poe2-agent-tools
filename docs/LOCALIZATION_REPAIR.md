@@ -1,6 +1,6 @@
 # P2AT-022B 天赋树中文修复
 
-Status: **REVIEW**  
+Status: **ACCEPTED** with P2AT-025A runtime-name identity correction (2026-09-19).
 Baseline: `4006c749a250b72b8c688cf29099760c25b10bb9`（P2AT-023A 布局 REVIEW）  
 Research evidence: `1f4cf3aa419e9f89fdeaa2ca8e21bb9ead77b3ad`（P2AT-022A REVIEW）
 
@@ -17,6 +17,8 @@ Research evidence: `1f4cf3aa419e9f89fdeaa2ca8e21bb9ead77b3ad`（P2AT-022A REVIEW
 候选资源仅下载到用户缓存，不提交或打包完整上游数据，不执行远程 ESM。解析器只接受 `classes`、`nodes`、`skillOverrides` 的静态字面量；候选条目保持 `REVIEW`，不会跟随新的 moving chunk。现有 canonical lock 未修改。
 
 ## 全树生产链报告
+
+以下表格保留 P2AT-022B 原交付基线统计；整合后的名称一致性校验可能改变来源分类计数，当前精确数值应使用共享 resolver 的报告工具重新计算。
 
 报告命令直接调用 `renderer/localization-engine.js`，因此统计与 UI 使用同一生产翻译函数，而不是仅分析资源中是否含汉字。输入均先核对固定 bytes/SHA-256。
 

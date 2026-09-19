@@ -1,6 +1,6 @@
 # P2AT-025A — Product integration handoff
 
-Date: 2026-09-19. Status: REVIEW; controller acceptance is separate.
+Date: 2026-09-19. Status: ACCEPTED by controller at integration code commit `9b08b1036eae49704e2736be708a2f8f1692f739`.
 
 ## Included histories
 
@@ -10,7 +10,7 @@ Date: 2026-09-19. Status: REVIEW; controller acceptance is separate.
 - P2AT-022B `dc535450c417e945ae847517a36be77c2bcc30f8`: governed whole-line translations, no partial term replacement.
 - P2AT-024A `f112fc6d6b8144df480c15a04c48dfcf6becbbe5`: separate general agent page, reusable core, provider adapter and user-approved OS-encrypted credential storage.
 
-All were merged preserving original histories. Toolbar conflicts retain compact Planner actions and add the Agent switch. Both the WeGame dialog and Agent page survive. Syntax-check lists are combined; task records remain REVIEW pending controller decisions.
+All were merged preserving original histories. Toolbar conflicts retain compact Planner actions and add the Agent switch. Both the WeGame dialog and Agent page survive. Syntax-check lists are combined. The controller accepted these five tasks with the integration corrections; the compact layout is accepted as a usable transition, not a final visual design. Two independent final reviews closed the translation and navigation HIGH findings.
 
 ## Integration correction
 

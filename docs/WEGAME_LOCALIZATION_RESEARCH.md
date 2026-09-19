@@ -7,7 +7,7 @@ ES 模块，且它与当前锁定 `tree-pre.json` 的 5,102 个 numeric node ID 
 缺失节点、238 个 numeric ID 对应不同 raw ID 的明确版本冲突。该模块没有 stat key 或数值
 占位符模板，技能/物品也只观察到当前角色响应和按 ID 查询接口，没有完整目录证据。
 
-Status: P2AT-022A research evidence, **REVIEW**
+Status: P2AT-022A research evidence, **ACCEPTED** (controller, 2026-09-19; evidence acceptance does not grant upstream redistribution rights).
 访问日期：2026-09-18（Asia/Shanghai）
 
 本调查只沿用户提供的一个公开分享页实际加载的 HTML、版本化 chunks 和其代码明确引用的
