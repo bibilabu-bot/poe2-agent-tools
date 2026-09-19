@@ -35,6 +35,15 @@ class AgentService:
         self.history = []
         return {"ok": True}
 
+    def restore(self, history: Any) -> dict[str, Any]:
+        if not isinstance(history, list) or not all(isinstance(message, dict) for message in history):
+            raise AgentError("INVALID_HISTORY", "Conversation checkpoint is invalid")
+        allowed_roles = {"user", "assistant", "tool"}
+        if any(message.get("role") not in allowed_roles for message in history):
+            raise AgentError("INVALID_HISTORY", "Conversation checkpoint contains an invalid role")
+        self.history = _trim_history(history)
+        return {"messages": len(self.history)}
+
     def status(self) -> dict[str, Any]:
         return {
             "configured": self.provider is not None,
@@ -54,7 +63,7 @@ class AgentService:
         runner = AgentRunner(self._provider(), ToolRegistry([CalculatorTool()]))
         result = await runner.run(agent=ChatAgent(), history=candidate, model=model, tools_enabled=tools_enabled)
         self.history = _trim_history([message for message in result.messages if message.get("role") != "system"])
-        return {"text": result.text, "trace": result.trace, "rounds": result.rounds, "toolCalls": result.tool_calls}
+        return {"text": result.text, "trace": result.trace, "rounds": result.rounds, "toolCalls": result.tool_calls, "history": self.history}
 
     def _provider(self) -> OpenAICompatibleProvider:
         if self.provider is None:

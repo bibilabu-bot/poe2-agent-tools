@@ -161,20 +161,35 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def _parse_chat_event_stream(text: str) -> dict[str, Any]:
-    payloads = [
-        line[5:].strip()
-        for line in text.splitlines()
-        if line.startswith("data:") and line[5:].strip() not in {"", "[DONE]"}
-    ]
-    if not payloads:
+    records: list[tuple[str | None, str]] = []
+    event_name: str | None = None
+    for line in text.splitlines():
+        if not line:
+            event_name = None
+        elif line.startswith("event:"):
+            event_name = line[6:].strip()
+        elif line.startswith("data:"):
+            payload = line[5:].strip()
+            if payload not in {"", "[DONE]"}:
+                records.append((event_name, payload))
+    if not records:
         raise AgentError("INVALID_RESPONSE", "Service returned invalid JSON")
     try:
-        events = [json.loads(payload) for payload in payloads]
+        events = [(event_name, json.loads(payload)) for event_name, payload in records]
     except json.JSONDecodeError as error:
         raise AgentError("INVALID_RESPONSE", "Service returned invalid event data") from error
+    if any(
+        event_name == "error"
+        or (
+            isinstance(event, dict)
+            and (event.get("error") or event.get("type") in {"error", "response.failed"})
+        )
+        for event_name, event in events
+    ):
+        raise AgentError("PROVIDER_STREAM_ERROR", "Service reported an error during streaming")
     content: list[str] = []
     calls: dict[int, dict[str, Any]] = {}
-    for event in events:
+    for _, event in events:
         choices = event.get("choices", []) if isinstance(event, dict) else []
         if not choices:
             continue

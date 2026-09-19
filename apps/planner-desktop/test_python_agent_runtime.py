@@ -111,6 +111,15 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(call["id"], "call-1")
         self.assertEqual(call["function"]["arguments"], '{"a":1}')
 
+    async def test_chat_sse_error_rejects_preceding_partial_output(self):
+        with self.assertRaisesRegex(AgentError, "during streaming"):
+            _parse_chat_event_stream(
+                'data: {"choices":[{"delta":{"content":"partial"}}]}\n'
+                '\nevent: error\n'
+                'data: {"message":"upstream failed"}\n'
+                'data: [DONE]\n'
+            )
+
 
 class PythonProviderTests(unittest.IsolatedAsyncioTestCase):
     @classmethod

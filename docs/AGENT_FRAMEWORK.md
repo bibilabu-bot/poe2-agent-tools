@@ -2,7 +2,11 @@
 
 P2AT-026A moves the active agent implementation to Python 3.11+. The Renderer UI and Electron security boundary remain JavaScript; agent behavior, tools, bounded model/tool iteration, conversation history and OpenAI-compatible protocol handling live under `apps/planner-desktop/python_agent/`.
 
-Electron starts the Python runtime as a hidden child process and uses newline-delimited JSON requests with unique numeric IDs. The API key is still persisted only through Electron `safeStorage`; plaintext is passed to Python only in a private stdin message and is never placed in process arguments, environment variables, output or logs. Cancelling an active request terminates the child process. A later request starts a clean process and restores the current in-memory configuration.
+Electron starts the Python runtime as a hidden child process and uses newline-delimited JSON requests with unique numeric IDs. The process is launched in Python isolated mode with UTF-8 mode explicitly enabled; Node encodes stdin and decodes stdout/stderr as UTF-8, while Python strictly decodes stdin and reconfigures stdout/stderr as UTF-8. Chinese and emoji round trips are covered through the real child process.
+
+The API key is still persisted only through Electron `safeStorage`; plaintext is passed to Python only in a private stdin message and is never placed in process arguments, environment variables, output or logs. Electron retains a bounded, memory-only checkpoint of conversation turns only after Python reports a fully completed run. Cancelling, timing out or restarting the child restores that checkpoint into the new runtime, so completed conversation remains available while the interrupted user turn, tool work and partial model output are discarded. New session, configuration change and clear-key operations erase the checkpoint.
+
+Chat SSE parsing treats explicit `event: error`, top-level `error`, `type: error` and `response.failed` events as failed runs even if text deltas arrived first. No partial text from such a response is returned as success or committed to conversation history.
 
 Python entry points:
 
@@ -13,7 +17,7 @@ Python entry points:
 - `python_agent/rpc_server.py`: narrow JSON-lines process protocol.
 - `electron/python-agent-client.cjs`: Electron subprocess lifecycle and request correlation only.
 
-The earlier JavaScript core remains temporarily as parity-test/reference code but is no longer instantiated by the application runtime.
+The earlier JavaScript core remains temporarily as parity-test/reference code but is no longer instantiated by the application runtime. This delivery is a development-environment migration and requires Python 3.11+ on the machine. Building and signing a bundled Python executable for release packages is not implemented by P2AT-026A.
 
 P2AT-024A adds a project-independent agent foundation to the desktop application. It does not import Planner state, game data, DOM or Electron from its reusable core.
 

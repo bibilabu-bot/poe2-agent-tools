@@ -31,11 +31,13 @@ class PythonAgentClient {
   #ensureProcess() {
     if (this.child && !this.child.killed) return;
     const bootstrap = "import runpy,sys;sys.path.insert(0,sys.argv[1]);runpy.run_module('python_agent.rpc_server',run_name='__main__')";
-    const child = spawn(this.executable, ["-I", "-c", bootstrap, this.cwd], {
+    const child = spawn(this.executable, ["-X", "utf8", "-I", "-c", bootstrap, this.cwd], {
       cwd: this.cwd, stdio: ["pipe", "pipe", "pipe"], windowsHide: true,
-      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+      env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
     });
     this.child = child;
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
     readline.createInterface({ input: child.stdout }).on("line", (line) => this.#handleLine(child, line));
     child.stderr.on("data", () => {});
     child.once("error", () => {

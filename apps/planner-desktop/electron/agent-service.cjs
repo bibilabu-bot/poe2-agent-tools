@@ -9,8 +9,8 @@ function safeError(error) {
 }
 
 class AgentService {
-  constructor({ client = new PythonAgentClient() } = {}) {
-    this.client = client; this.config = null; this.active = null; this.generation = 0; this.credentialStored = false;
+  constructor({ client = new PythonAgentClient(), runTimeoutMs = RUN_TIMEOUT_MS } = {}) {
+    this.client = client; this.runTimeoutMs = runTimeoutMs; this.config = null; this.history = []; this.active = null; this.generation = 0; this.credentialStored = false;
   }
   status() {
     return { configured: Boolean(this.config), baseUrl: this.config?.baseUrl || null, targetHost: this.config ? new URL(this.config.baseUrl).host : null, running: Boolean(this.active), credentialStored: this.credentialStored };
@@ -19,18 +19,19 @@ class AgentService {
   async configure({ baseUrl, apiKey }) {
     await this.clearConfig();
     const result = await this.client.request("configure", { baseUrl, apiKey });
-    this.config = { baseUrl: result.baseUrl, apiKey }; this.generation += 1;
+    this.config = { baseUrl: result.baseUrl, apiKey }; this.history = []; this.generation += 1;
     return this.status();
   }
   async clearConfig() {
     this.cancel();
     if (this.config) await this.client.request("clear").catch(() => {});
     if (this.config) this.config.apiKey = "";
-    this.config = null; this.credentialStored = false; this.generation += 1;
+    this.config = null; this.history = []; this.credentialStored = false; this.generation += 1;
     return this.status();
   }
   async reset() {
     this.cancel();
+    this.history = [];
     if (this.config) { await this.#ensureConfigured(); await this.client.request("reset"); }
     this.generation += 1; return { ok: true };
   }
@@ -48,11 +49,12 @@ class AgentService {
   async send(value) {
     if (this.active) return { ok: false, error: { code: "RUN_IN_PROGRESS", message: "当前会话已有回复正在运行" } };
     const generation = this.generation; const runToken = {}; this.active = runToken;
-    const timeout = setTimeout(() => this.client.terminate(new PythonAgentError("RUN_TIMEOUT", "智能体运行超过 120 秒，已停止")), RUN_TIMEOUT_MS);
+    const timeout = setTimeout(() => this.client.terminate(new PythonAgentError("RUN_TIMEOUT", "智能体运行超时，已停止")), this.runTimeoutMs);
     try {
       await this.#ensureConfigured();
       const result = await this.client.request("send", value || {});
       if (generation !== this.generation) return { ok: false, stale: true, error: { code: "STALE_RUN", message: "会话已变化，已忽略迟到响应" } };
+      this.history = Array.isArray(result.history) ? structuredClone(result.history) : this.history;
       return { ok: true, text: result.text, trace: result.trace, stopReason: null };
     } catch (error) { return { ok: false, error: safeError(error) }; }
     finally { clearTimeout(timeout); if (this.active === runToken) this.active = null; }
@@ -61,6 +63,7 @@ class AgentService {
     if (!this.config) throw new PythonAgentError("NOT_CONFIGURED", "请先连接 API 服务");
     try { const status = await this.client.request("status"); if (status.configured) return; } catch (error) { if (error.code !== "PYTHON_RUNTIME_EXITED") throw error; }
     await this.client.request("configure", this.config);
+    if (this.history.length) await this.client.request("restore", { history: this.history });
   }
 }
 

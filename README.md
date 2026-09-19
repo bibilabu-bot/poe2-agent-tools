@@ -17,7 +17,7 @@
 
 ## 快速开始
 
-需要 Node.js 20 或更高版本，以及 Python 3.11 或更高版本。Python 仅用于独立的智能体运行时；Planner 与桌面界面仍由 Electron 运行。
+需要 Node.js 20 或更高版本，以及 Python 3.11 或更高版本。Python 仅用于独立的智能体运行时；Planner 与桌面界面仍由 Electron 运行。当前属于开发环境迁移，发行安装包尚未内置 Python runtime。
 
 ```bash
 cd apps/planner-desktop

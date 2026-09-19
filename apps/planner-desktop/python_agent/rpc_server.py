@@ -20,6 +20,8 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any]) -
         return service.clear()
     if method == "reset":
         return service.reset()
+    if method == "restore":
+        return service.restore(params.get("history"))
     if method == "models":
         return {"models": await service.list_models()}
     if method == "send":
@@ -28,11 +30,13 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any]) -
 
 
 async def main() -> None:
+    sys.stdout.reconfigure(encoding="utf-8", errors="strict", newline="\n")
+    sys.stderr.reconfigure(encoding="utf-8", errors="strict", newline="\n")
     service = AgentService()
     while line := await asyncio.to_thread(sys.stdin.buffer.readline):
         request_id: Any = None
         try:
-            request = json.loads(line)
+            request = json.loads(line.decode("utf-8", errors="strict"))
             request_id = request.get("id")
             result = await dispatch(service, request.get("method", ""), request.get("params") or {})
             response = {"id": request_id, "ok": True, "result": result}

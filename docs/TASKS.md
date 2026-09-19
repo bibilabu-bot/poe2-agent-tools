@@ -16,7 +16,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 Goal: keep the existing Electron UI and encrypted credential lifecycle while moving actual agent behavior, tool execution, conversation ownership and model protocol handling into a project-independent Python runtime.
 
-Delivered boundaries: Electron remains the trusted renderer/credential/process boundary. It launches a hidden isolated Python process and communicates through request-ID-correlated JSON lines. Cancellation terminates the runtime process so blocked standard-library HTTP work cannot survive in the background; the next request restores the in-memory connection configuration. No real credential or paid request is used by tests. Packaging a bundled Python executable remains follow-up work.
+Delivered boundaries: Electron remains the trusted renderer/credential/process boundary. It launches a hidden isolated Python process with explicit UTF-8 stdin/stdout handling and communicates through request-ID-correlated JSON lines. Cancellation terminates the runtime process so blocked standard-library HTTP work cannot survive in the background; the next request restores the in-memory connection configuration and only the last fully completed bounded conversation checkpoint. Interrupted turns and partial SSE output are never committed. Explicit SSE error events fail the run. No real credential or paid request is used by tests. This remains a development-environment migration: packaging a bundled Python executable for release remains follow-up work, and the task stays `REVIEW`.
 
 ### P2AT-024A — Add a project-independent agent MVP
 
