@@ -194,6 +194,16 @@
     return englishResult(en);
   }
 
+  function resolveNodeName(node, names, passiveZh) {
+    const english = String(node?.name || "");
+    const candidate = names.get(String(node?.id ?? node?.skill ?? ""));
+    if (candidate?.translated && candidate.canonicalEnglish === english) return candidate;
+    const fallback = passiveZh.get(english);
+    return fallback && fallback !== english
+      ? translatedResult(fallback, "pob2", QUALITY.POB_EXACT)
+      : englishResult(english, "runtime-name-unmatched");
+  }
+
   function buildLocalization({ officialTree, weGame, pob }) {
     const names = new Map();
     const stats = new Map();
@@ -218,6 +228,7 @@
           : englishResult(englishName, identityMatch ? "untranslated" : "identity-unavailable"));
       }
 
+      names.set(numericId, Object.freeze({ ...names.get(numericId), canonicalEnglish: englishName }));
       const officialStats = Array.isArray(official.stats) ? official.stats : [];
       const wgStats = identityMatch && Array.isArray(wg.stats) ? wg.stats : [];
       const buckets = new Map();
@@ -250,5 +261,5 @@
     return Object.freeze({ names, stats, diagnostics: Object.freeze(diagnostics) });
   }
 
-  return Object.freeze({ QUALITY, buildLocalization, englishResult, markupSignature, numericSignature, parsePobTranslation, parseWeGameModule, statSignature, translatePobStat });
+  return Object.freeze({ QUALITY, buildLocalization, resolveNodeName, englishResult, markupSignature, numericSignature, parsePobTranslation, parseWeGameModule, statSignature, translatePobStat });
 });

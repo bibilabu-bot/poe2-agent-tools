@@ -1123,10 +1123,8 @@ function translateStatRaw(stat, node = null) {
 function zhNameOf(n) {
   const en = String(n?.name || "");
   if(!i18n.ready) return "";
-  const result=i18n.nodeNames.get(idOf(n));
-  if(result?.translated) return result.value;
-  const fallback=i18n.passiveZh.get(en);
-  return fallback && fallback!==en ? fallback : "";
+  const result=globalThis.plannerLocalizationEngine.resolveNodeName({id:idOf(n),name:en},i18n.nodeNames,i18n.passiveZh);
+  return result.translated ? result.value : "";
 }
 
 function displayNodeName(n, mode = languageMode) {

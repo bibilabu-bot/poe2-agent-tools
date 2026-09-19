@@ -4,6 +4,25 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const engine = require("../renderer/localization-engine.js");
 
+test("runtime names reject numeric-ID name drift for all four observed infusion nodes", () => {
+  const pob = engine.parsePobTranslation('d.passives = {\n["灌注法术伤害"]="Infused Spell Damage",\n["灌注消耗几率"]="Infusion Consumption Chance",\n}');
+  const nodes = {};
+  for (const id of ["3091", "24060", "18793", "33639"]) {
+    nodes[id] = { id:`raw-${id}`, name:["3091", "24060"].includes(id) ? "Infused Spell Damage" : "Infusion Consumption Chance" };
+  }
+  for (const weGame of [{nodes:{}}, {nodes:Object.fromEntries(Object.entries(nodes).map(([id,n])=>[id,{...n,skill:Number(id),name:pob.passiveZh.get(n.name)}]))}]) {
+    const overlay = engine.buildLocalization({officialTree:{nodes},weGame,pob});
+    for (const [id, official] of Object.entries(nodes)) {
+      const name = official.name === "Infused Spell Damage" ? "Infusion Consumption Chance" : "Infused Spell Damage";
+      const result = engine.resolveNodeName({id,name},overlay.names,pob.passiveZh);
+      assert.equal(result.value,pob.passiveZh.get(name));
+      assert.equal(result.source,"pob2");
+      assert.equal(overlay.names.get(id).canonicalEnglish,official.name);
+      assert.equal(engine.resolveNodeName({id,name:"Unknown Runtime Name"},overlay.names,pob.passiveZh).value,"Unknown Runtime Name");
+    }
+  }
+});
+
 const POB = `d.passives = {
   ["狂热者誓言"]="Zealot's Oath",
   ["灌注法术伤害"]="Infused Spell Damage",

@@ -64,9 +64,7 @@ function main() {
     if(node.name) {
       namedInstances+=1;
       increment(before.names,pob.passiveZh.get(node.name)&&pob.passiveZh.get(node.name)!==node.name?"pobExact":"english");
-      const fallbackName=pob.passiveZh.get(node.name);
-      let result=overlay.names.get(id);
-      if(!result?.translated) result=fallbackName&&fallbackName!==node.name?{translated:true,source:"pob2"}:{translated:false,source:"canonical-english"};
+      const result=engine.resolveNodeName({id,name:node.name},overlay.names,pob.passiveZh);
       increment(after.names,result.translated ? (result.source==="wegame"?"wegameConsensusOrReviewed":"pobExact") : "english");
       const nameCategory=result.translated ? (result.source==="wegame"?"wegameConsensusOrReviewed":"pobExact") : "english";
       if(!uniqueNames.has(node.name)) uniqueNames.set(node.name,new Set());
