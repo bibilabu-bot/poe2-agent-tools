@@ -137,7 +137,7 @@ async function loadOfficialTree({ signal } = {}) {
 }
 
 const weGameImportService = createWeGameImportService({ fetch: (url, options) => net.fetch(url, options), loadOfficialTree });
-const agentService = new AgentService({ fetch: (url, options) => net.fetch(url, options) });
+const agentService = new AgentService();
 let agentCredentialStore = null;
 let plannerWindow = null;
 const plannerPageUrl = pathToFileURL(path.join(__dirname, "..", "renderer", "index.html")).href;
@@ -163,7 +163,7 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
   win.webContents.on("will-navigate", (event, url) => { if (url !== plannerPageUrl) event.preventDefault(); });
   plannerWindow = win;
-  win.on("closed", () => { if (plannerWindow === win) { agentService.clearConfig(); plannerWindow = null; } });
+  win.on("closed", () => { if (plannerWindow === win) { void agentService.clearConfig(); plannerWindow = null; } });
   return win;
 }
 
@@ -201,9 +201,9 @@ app.whenReady().then(async()=>{
   agentCredentialStore = new AgentCredentialStore({ userDataPath: app.getPath("userData"), safeStorage });
   try {
     const cached = await agentCredentialStore.load();
-    if (cached) { agentService.configure(cached); agentService.setCredentialStored(true); }
+    if (cached) { await agentService.configure(cached); agentService.setCredentialStored(true); }
   } catch (error) { console.warn(`[agent] ${error.code || "CREDENTIAL_RESTORE_FAILED"}: ${error.message}`); }
   await registerLocalDataProtocol();createWindow();app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});
 });
 app.on("window-all-closed",()=>{if(process.platform!=="darwin")app.quit();});
-app.on("before-quit", () => agentService.clearConfig());
+app.on("before-quit", () => { void agentService.clearConfig(); });

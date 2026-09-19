@@ -6,6 +6,18 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-026A — Move the agent runtime to Python
+
+- Status: `REVIEW`
+- Priority: P0
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-024A
+- Scope: Python agent/tool/runner/provider/session runtime, bounded JSON-lines subprocess bridge, mock-only tests and documentation; no Planner tools or UI redesign
+
+Goal: keep the existing Electron UI and encrypted credential lifecycle while moving actual agent behavior, tool execution, conversation ownership and model protocol handling into a project-independent Python runtime.
+
+Delivered boundaries: Electron remains the trusted renderer/credential/process boundary. It launches a hidden isolated Python process and communicates through request-ID-correlated JSON lines. Cancellation terminates the runtime process so blocked standard-library HTTP work cannot survive in the background; the next request restores the in-memory connection configuration. No real credential or paid request is used by tests. Packaging a bundled Python executable remains follow-up work.
+
 ### P2AT-024A — Add a project-independent agent MVP
 
 - Status: `ACCEPTED`

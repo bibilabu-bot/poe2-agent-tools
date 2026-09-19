@@ -1,4 +1,19 @@
-# General agent MVP
+# General agent runtime
+
+P2AT-026A moves the active agent implementation to Python 3.11+. The Renderer UI and Electron security boundary remain JavaScript; agent behavior, tools, bounded model/tool iteration, conversation history and OpenAI-compatible protocol handling live under `apps/planner-desktop/python_agent/`.
+
+Electron starts the Python runtime as a hidden child process and uses newline-delimited JSON requests with unique numeric IDs. The API key is still persisted only through Electron `safeStorage`; plaintext is passed to Python only in a private stdin message and is never placed in process arguments, environment variables, output or logs. Cancelling an active request terminates the child process. A later request starts a clean process and restores the current in-memory configuration.
+
+Python entry points:
+
+- `python_agent/core.py`: `BaseAgent`, `BaseTool`, `ToolRegistry`, provider contract and bounded `AgentRunner`.
+- `python_agent/tools.py`: finite-number calculator.
+- `python_agent/provider.py`: bounded OpenAI-compatible Models, Chat Completions and Responses JSON adapter.
+- `python_agent/service.py`: Python-owned configuration, conversation and runner assembly.
+- `python_agent/rpc_server.py`: narrow JSON-lines process protocol.
+- `electron/python-agent-client.cjs`: Electron subprocess lifecycle and request correlation only.
+
+The earlier JavaScript core remains temporarily as parity-test/reference code but is no longer instantiated by the application runtime.
 
 P2AT-024A adds a project-independent agent foundation to the desktop application. It does not import Planner state, game data, DOM or Electron from its reusable core.
 
