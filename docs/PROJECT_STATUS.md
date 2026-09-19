@@ -15,7 +15,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | Passive tree renderer | Graph core accepted | Canvas2D rendering remains in Planner; pure graph construction, queries and deterministic eligible paths passed controller acceptance |
 | Allocation | Prototype | Normal, ascendancy and weapon-set allocation present |
 | Conditional/hidden nodes | Prototype | Conditional reveal and external hidden-node sidecar present |
-| Chinese localization | Prototype | Runtime translation from community PoB2 data |
+| Chinese localization | Whole-line repair in review | P2AT-022B layers a fixed REVIEW WeGame passive-tree candidate over complete PoB2 translations, removes partial term substitution and keeps unsupported lines as disclosed English; canonical tree identity and game state remain unchanged |
 | Local resource cache | Lock-integrated | Bundled and user-cache bytes are verified against ADR-007 before use; cache misses download immutable locked URLs |
 | Build save/open | Implemented | Desktop Save/Open controls, schema-v1 codec, safe file IPC and transactional state restoration accepted; Windows runtime round trip verified |
 | Build JSON contract | Schema v2 specified | Schema v1 remains implemented; P2AT-008D adds the accepted v2 jewel-instance/placement contract, migration and preservation policy for later codec/UI work |

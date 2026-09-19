@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "candidates": [
+    {
+      "id": "candidate.wegame.passive-tree.zh-cn.2026-08-03",
+      "status": "REVIEW",
+      "scope": "passive-tree-localization",
+      "name": "wegame-passive-tree-zh-cn.js",
+      "transport": {
+        "url": "https://wegame.gtimg.com/g.2002052-r.4de9d/helper/poe2/assets/tree-DMrX6mR8.js"
+      },
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "eb7f434e4061b27ba09ae5c8f4d0a753ff44a3ac2c746763d224916afaa385ab",
+        "bytes": 2027563
+      },
+      "provenance": {
+        "observedAt": "2026-09-18T00:00:00+08:00",
+        "buildPath": "g.2002052-r.4de9d/helper/poe2/assets/tree-DMrX6mR8.js",
+        "promotion": "controller-review-required",
+        "followMovingChunk": false,
+        "redistribution": "not-bundled-license-unconfirmed"
+      }
+    }
+  ]
+}
