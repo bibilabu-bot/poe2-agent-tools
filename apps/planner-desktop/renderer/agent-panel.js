@@ -4,7 +4,11 @@
   const byId = (id) => document.getElementById(id);
   const plannerView = byId("plannerView"), agentView = byId("agentView");
   const api = window.desktopAPI?.agent;
+  const MODEL_PREFERENCE_KEY = "p2at.agent.preferred-model";
   let configured = false, running = false, conversationId = 0, configRevision = 0;
+
+  function preferredModel() { try { return localStorage.getItem(MODEL_PREFERENCE_KEY) || ""; } catch { return ""; } }
+  function rememberModel(model) { try { if (model) localStorage.setItem(MODEL_PREFERENCE_KEY, model); } catch {} }
 
   function switchView(showAgent) {
     agentView.hidden = !showAgent;
@@ -55,6 +59,7 @@
     if (configured && status.baseUrl) byId("agentBaseUrl").value = status.baseUrl;
     byId("agentChatTarget").textContent = status.targetHost ? `目标服务：${status.targetHost}` : "未连接服务";
     setStatus(configured ? `已连接：${status.targetHost}${status.credentialStored ? "（Key 已安全缓存到本机）" : ""}` : "尚未连接", configured ? "connected" : ""); updateControls();
+    if (configured && !byId("agentModel").value.trim()) await loadModels();
   }
   byId("agentBaseUrl").addEventListener("input", async () => {
     const revision = ++configRevision;
@@ -99,7 +104,9 @@
       const select = byId("agentModelSelect");
       const placeholder = document.createElement("option"); placeholder.value = ""; placeholder.textContent = result.models.length ? "请选择模型" : "服务未返回模型";
       select.replaceChildren(placeholder, ...result.models.map((id) => { const option = document.createElement("option"); option.value = id; option.textContent = id; return option; }));
-      if (result.models.length === 1) { select.value = result.models[0]; byId("agentModel").value = result.models[0]; }
+      const remembered = preferredModel();
+      const selected = result.models.includes(remembered) ? remembered : result.models[0];
+      if (selected) { select.value = selected; byId("agentModel").value = selected; rememberModel(selected); }
       setModelStatus(`已获取 ${result.models.length} 个模型；列表不代表支持工具调用`, "connected");
     } catch {
       setModelStatus("模型列表请求失败；仍可手动填写模型 ID", "error");
@@ -109,8 +116,9 @@
   }
   byId("agentLoadModels").addEventListener("click", loadModels);
   byId("agentModelSelect").addEventListener("change", (event) => {
-    if (event.target.value) byId("agentModel").value = event.target.value;
+    if (event.target.value) { byId("agentModel").value = event.target.value; rememberModel(event.target.value); }
   });
+  byId("agentModel").addEventListener("change", (event) => rememberModel(event.target.value.trim()));
   async function newConversation(clearUi = true) {
     conversationId += 1; showTrace([]);
     if (api) await api.reset();
@@ -121,7 +129,13 @@
   byId("agentComposer").addEventListener("submit", async (event) => {
     event.preventDefault(); if (!configured || running) return;
     const input = byId("agentInput"), text = input.value.trim(), model = byId("agentModel").value.trim();
-    if (!text || !model) { setStatus("请填写模型 ID 和消息", "error"); return; }
+    if (!text) return;
+    if (!model) {
+      addMessage("error", "尚未选择模型。请展开左侧“模型与连接设置”后选择模型，或等待模型列表自动加载。");
+      byId("agentView").querySelector(".agent-settings").open = true;
+      setStatus("请先选择模型", "error"); return;
+    }
+    rememberModel(model);
     const requestConversation = conversationId; addMessage("user", text); input.value = ""; running = true; updateControls(); showTrace([]);
     const result = await api.send({ model, text, toolsEnabled: byId("agentToolsEnabled").checked });
     running = false; updateControls();
