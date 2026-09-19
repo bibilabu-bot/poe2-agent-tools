@@ -17,6 +17,8 @@ Python entry points:
 - `python_agent/rpc_server.py`: narrow JSON-lines process protocol.
 - `electron/python-agent-client.cjs`: Electron subprocess lifecycle and request correlation only.
 
+Model discovery remains a narrow Electron transport responsibility and reuses the previously accepted `net.fetch` OpenAI-compatible `/models` adapter. This preserves Windows system proxy/TLS behavior from the working MVP while Python continues to own conversation state, model/tool iteration, tool execution and chat/Responses protocol behavior. The renderer receives model IDs and controlled errors only; the API key is not returned.
+
 The earlier JavaScript core remains temporarily as parity-test/reference code but is no longer instantiated by the application runtime. This delivery is a development-environment migration and requires Python 3.11+ on the machine. Building and signing a bundled Python executable for release packages is not implemented by P2AT-026A.
 
 P2AT-024A adds a project-independent agent foundation to the desktop application. It does not import Planner state, game data, DOM or Electron from its reusable core.

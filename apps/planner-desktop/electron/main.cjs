@@ -15,6 +15,8 @@ const { createBoundedCandidateFetch, createLocalizationCandidateCatalog } = requ
 const { createTrustedPlannerSenderPredicate, createWeGameImportService, createWeGameIpcHandler } = require("./wegame-import-service.cjs");
 const { AgentService, createAgentIpcHandlers } = require("./agent-service.cjs");
 const { AgentCredentialStore } = require("./agent-credential-store.cjs");
+const { OpenAICompatibleProvider } = require("./openai-compatible-provider.cjs");
+const { PythonAgentError } = require("./python-agent-client.cjs");
 
 protocol.registerSchemesAsPrivileged([{
   scheme: "poe2",
@@ -137,7 +139,19 @@ async function loadOfficialTree({ signal } = {}) {
 }
 
 const weGameImportService = createWeGameImportService({ fetch: (url, options) => net.fetch(url, options), loadOfficialTree });
-const agentService = new AgentService();
+const agentService = new AgentService({
+  modelLister: async ({ baseUrl, apiKey, signal }) => {
+    const provider = new OpenAICompatibleProvider({
+      baseUrl,
+      apiKey,
+      fetch: (url, options) => net.fetch(url, options),
+    });
+    try { return await provider.listModels({ signal }); }
+    catch (error) {
+      throw new PythonAgentError(error.code || "MODEL_LIST_FAILED", error.message || "获取模型列表失败");
+    } finally { provider.clearSecret(); }
+  },
+});
 let agentCredentialStore = null;
 let plannerWindow = null;
 const plannerPageUrl = pathToFileURL(path.join(__dirname, "..", "renderer", "index.html")).href;

@@ -100,7 +100,12 @@
     try {
       const result = await api.listModels();
       if (result.stale) { setModelStatus("连接已变化，已忽略旧模型列表", "error"); return; }
-      if (!result.ok) { setModelStatus(`${result.error.message}；仍可手动填写模型 ID`, "error"); return; }
+      if (!result.ok) {
+        resetModelOptions("获取失败，请重试");
+        setModelStatus(`模型列表获取失败：${result.error.message}；可重试，手动填写仅作为临时兜底`, "error");
+        byId("agentView").querySelector(".agent-settings").open = true;
+        return;
+      }
       const select = byId("agentModelSelect");
       const placeholder = document.createElement("option"); placeholder.value = ""; placeholder.textContent = result.models.length ? "请选择模型" : "服务未返回模型";
       select.replaceChildren(placeholder, ...result.models.map((id) => { const option = document.createElement("option"); option.value = id; option.textContent = id; return option; }));

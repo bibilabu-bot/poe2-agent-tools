@@ -9,8 +9,8 @@ function safeError(error) {
 }
 
 class AgentService {
-  constructor({ client = new PythonAgentClient(), runTimeoutMs = RUN_TIMEOUT_MS } = {}) {
-    this.client = client; this.runTimeoutMs = runTimeoutMs; this.config = null; this.history = []; this.active = null; this.generation = 0; this.credentialStored = false;
+  constructor({ client = new PythonAgentClient(), modelLister = null, runTimeoutMs = RUN_TIMEOUT_MS } = {}) {
+    this.client = client; this.modelLister = modelLister; this.runTimeoutMs = runTimeoutMs; this.config = null; this.history = []; this.active = null; this.generation = 0; this.credentialStored = false;
   }
   status() {
     return { configured: Boolean(this.config), baseUrl: this.config?.baseUrl || null, targetHost: this.config ? new URL(this.config.baseUrl).host : null, running: Boolean(this.active), credentialStored: this.credentialStored };
@@ -37,12 +37,22 @@ class AgentService {
   }
   cancel() {
     if (!this.active) return;
+    this.active.controller?.abort(new PythonAgentError("CANCELLED", "已停止本次请求"));
     this.client.terminate(new PythonAgentError("CANCELLED", "已停止本次回复")); this.active = null;
   }
   async models() {
     if (this.active) return { ok: false, error: { code: "MODELS_IN_PROGRESS", message: "智能体当前已有请求正在运行" }, ...this.status() };
-    const operationToken = { kind: "models" }; this.active = operationToken;
-    try { await this.#ensureConfigured(); const result = await this.client.request("models"); return { ok: true, models: result.models, ...this.status() }; }
+    const generation = this.generation;
+    const controller = new AbortController();
+    const operationToken = { kind: "models", controller }; this.active = operationToken;
+    try {
+      if (!this.config) throw new PythonAgentError("NOT_CONFIGURED", "请先连接 API 服务");
+      const models = this.modelLister
+        ? await this.modelLister({ ...this.config, signal: controller.signal })
+        : (await (async () => { await this.#ensureConfigured(); return this.client.request("models"); })()).models;
+      if (generation !== this.generation) return { ok: false, stale: true, error: { code: "STALE_MODELS", message: "连接配置已变化，已忽略旧模型列表" }, ...this.status() };
+      return { ok: true, models, ...this.status() };
+    }
     catch (error) { return { ok: false, error: safeError(error), ...this.status() }; }
     finally { if (this.active === operationToken) this.active = null; }
   }

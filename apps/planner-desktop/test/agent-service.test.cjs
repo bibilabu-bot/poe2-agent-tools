@@ -33,6 +33,44 @@ test("service delegates configuration, models, and chat to Python", async () => 
   assert.ok(!JSON.stringify(service.status()).includes("secret"));
 });
 
+test("desktop model discovery uses the Electron transport compatibility path", async () => {
+  const client = new MockPythonClient();
+  const calls = [];
+  const service = new AgentService({
+    client,
+    modelLister: async ({ baseUrl, apiKey, signal }) => {
+      calls.push({ baseUrl, apiKey, signal });
+      return ["legacy-compatible-model"];
+    },
+  });
+  await service.configure({ baseUrl: "https://example.com/v1", apiKey: "secret" });
+  const result = await service.models();
+  assert.deepEqual(result.models, ["legacy-compatible-model"]);
+  assert.equal(calls[0].baseUrl, "https://example.com/v1");
+  assert.equal(calls[0].apiKey, "secret");
+  assert.equal(client.calls.filter((call) => call.method === "models").length, 0);
+});
+
+test("late desktop model discovery is ignored after reconfiguration", async () => {
+  const client = new MockPythonClient();
+  let release;
+  const service = new AgentService({
+    client,
+    modelLister: async () => new Promise((resolve) => { release = resolve; }),
+  });
+  await service.configure({ baseUrl: "https://old.example/v1", apiKey: "old-secret" });
+  const pending = service.models();
+  await new Promise((resolve) => setImmediate(resolve));
+  await service.configure({ baseUrl: "https://new.example/v1", apiKey: "new-secret" });
+  release(["old-model"]);
+  const result = await pending;
+  assert.equal(result.ok, false);
+  assert.equal(result.stale, true);
+  assert.equal(result.error.code, "STALE_MODELS");
+  assert.equal(result.baseUrl, "https://new.example/v1");
+  assert.ok(!JSON.stringify(result).includes("old-model"));
+});
+
 test("cancel terminates the Python process and the next request restores configuration", async () => {
   const client = new MockPythonClient();
   const service = new AgentService({ client });
