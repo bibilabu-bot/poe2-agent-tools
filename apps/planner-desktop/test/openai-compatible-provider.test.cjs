@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { OpenAICompatibleProvider, normalizeBaseUrl } = require("../electron/openai-compatible-provider.cjs");
+const { OpenAICompatibleProvider, normalizeBaseUrl, parseJsonOrEventStream } = require("../electron/openai-compatible-provider.cjs");
 
 test("base URL accepts HTTPS and loopback HTTP only", () => {
   assert.equal(normalizeBaseUrl("https://example.com/v1/").href, "https://example.com/v1");
@@ -51,4 +51,39 @@ test("an empty successful completion is rejected instead of shown as a reply", a
     fetch: async () => new Response(JSON.stringify({ choices: [{ message: { role: "assistant" }, finish_reason: "stop" }] }), { headers: { "content-type": "application/json" } }),
   });
   await assert.rejects(() => provider.complete({ model: "broken", messages: [], tools: [] }), { code: "EMPTY_RESPONSE" });
+});
+
+test("SSE responses are assembled even when a compatible relay ignores stream false", () => {
+  const parsed = parseJsonOrEventStream([
+    'data: {"choices":[{"delta":{"role":"assistant","content":"56"}}]}',
+    'data: {"choices":[{"delta":{"content":"088"}}]}',
+    "data: [DONE]",
+  ].join("\n"));
+  assert.equal(parsed.choices[0].message.content, "56088");
+});
+
+test("SSE tool-call argument fragments preserve call identity and order", () => {
+  const parsed = parseJsonOrEventStream([
+    'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"calculator","arguments":"{\\"expression\\":"}}]}}]}',
+    'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"123*456\\"}"}}]}}]}',
+    "data: [DONE]",
+  ].join("\n"));
+  assert.deepEqual(parsed.choices[0].message.tool_calls[0], { id: "call_1", type: "function", function: { name: "calculator", arguments: '{"expression":"123*456"}' } });
+});
+
+test("Responses API fallback handles responses-only relays", async () => {
+  const requests = [];
+  const provider = new OpenAICompatibleProvider({
+    baseUrl: "https://example.com/v1",
+    apiKey: "secret",
+    fetch: async (url, options) => {
+      requests.push({ url, body: JSON.parse(options.body) });
+      if (url.endsWith("/chat/completions")) return new Response("<!doctype html><title>relay</title>", { status: 200, headers: { "content-type": "text/html" } });
+      return new Response(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "56088" }] }] }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+  const result = await provider.complete({ model: "m", messages: [{ role: "user", content: "calculate" }], tools: [], signal: new AbortController().signal });
+  assert.equal(result.content, "56088");
+  assert.equal(requests[1].url, "https://example.com/v1/responses");
+  assert.deepEqual(requests[1].body.input, [{ role: "user", content: "calculate" }]);
 });

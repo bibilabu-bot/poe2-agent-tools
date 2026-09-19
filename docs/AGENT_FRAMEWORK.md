@@ -10,7 +10,7 @@ P2AT-024A adds a project-independent agent foundation to the desktop application
 - `apps/planner-desktop/src/agent-core/model-provider.js`: injected provider interface.
 - `apps/planner-desktop/src/agent-core/agent-runner.js`: bounded model → tool → model loop.
 - `apps/planner-desktop/src/agent-core/calculator-tool.js`: the only MVP tool; finite-number arithmetic without `eval` or side effects.
-- `apps/planner-desktop/electron/openai-compatible-provider.cjs`: OpenAI-compatible `GET /models` and non-streaming `POST /chat/completions` adapter.
+- `apps/planner-desktop/electron/openai-compatible-provider.cjs`: OpenAI-compatible `GET /models` adapter with Chat Completions and Responses wire support.
 - `apps/planner-desktop/electron/agent-service.cjs`: in-memory configuration/conversation owner and narrow IPC handlers.
 
 `ModelProvider.complete()` receives `{ model, messages, tools, signal }` and returns `{ content, toolCalls }`. Each tool call has `{ id, name, arguments }`. `BaseTool` exposes `name`, `description`, JSON-schema-style `parameters`, validated arguments and asynchronous `execute(args, { signal })`.
@@ -19,13 +19,13 @@ Future Planner integration must add a reviewed tool to `ToolRegistry`; it must n
 
 ## Loop and limits
 
-The runner makes at most 6 model requests and 12 tool calls per run. It retains at most 80 runner messages, truncates model text at 32,000 characters, tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters. Provider requests are limited to 512 KiB, responses to 2 MiB, provider requests time out after 45 seconds and the whole run after 120 seconds. One session permits only one active run.
+The runner makes at most 6 model requests and 12 tool calls per run. It retains at most 80 runner messages, truncates model text at 32,000 characters, tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters. Provider requests are limited to 512 KiB, responses to 2 MiB, provider requests time out after 90 seconds and the whole run after 120 seconds. One session permits only one active run.
 
 Text without tool calls finishes the run. Tool calls are validated and executed sequentially, appended with the exact call ID, then returned to the model. Unknown tools, malformed JSON/schema arguments and execution errors become controlled tool results. Cancellation and timeouts propagate through provider and tool signals. No automatic paid retry is performed.
 
 ## Provider compatibility boundary
 
-The first adapter follows the OpenAI Chat Completions tool-call shape and Models list shape. Compatible vendors may differ. A successful model listing does not prove tool support. A model/service that rejects tools produces an explicit message; users can disable the calculator and use ordinary chat. Model IDs are treated only as inert display/request values.
+The first adapter follows the OpenAI Chat Completions and Responses tool-call shapes plus the Models list shape. When a responses-only relay returns its HTML frontend or a 404 for Chat Completions, the provider switches to `/responses` and remembers that protocol for the active connection. Bounded JSON and server-sent-event responses are accepted. Compatible vendors may differ. A successful model listing does not prove tool support. A model/service that rejects tools produces an explicit message; users can disable the calculator and use ordinary chat. Model IDs are treated only as inert display/request values.
 
 Implementation references: OpenAI [Models API](https://platform.openai.com/docs/api-reference/models) and [API authentication/reference](https://platform.openai.com/docs/api-reference). The adapter intentionally remains separate because other “compatible” vendors may implement only a subset or vary error behavior.
 

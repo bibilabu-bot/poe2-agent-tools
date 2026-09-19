@@ -4,7 +4,7 @@ const { ModelProvider } = require("../src/agent-core/model-provider.js");
 const { isIP } = require("node:net");
 
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
-const DEFAULT_REQUEST_TIMEOUT_MS = 45_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 90_000;
 const MAX_REQUEST_BYTES = 512 * 1024;
 
 class ProviderError extends Error {
@@ -66,7 +66,7 @@ async function readJsonBounded(response, maxBytes = MAX_RESPONSE_BYTES, signal) 
   if (!response.body?.getReader) {
     const text = await response.text();
     if (Buffer.byteLength(text, "utf8") > maxBytes) throw new ProviderError("RESPONSE_TOO_LARGE", "服务响应过大");
-    try { return JSON.parse(text); } catch { throw new ProviderError("INVALID_RESPONSE", "服务返回了无效 JSON"); }
+    return parseJsonOrEventStream(text);
   }
   const reader = response.body.getReader();
   const abort = () => reader.cancel(signal.reason).catch(() => {});
@@ -83,7 +83,37 @@ async function readJsonBounded(response, maxBytes = MAX_RESPONSE_BYTES, signal) 
       chunks.push(Buffer.from(value));
     }
   } finally { signal?.removeEventListener("abort", abort); }
-  try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { throw new ProviderError("INVALID_RESPONSE", "服务返回了无效 JSON"); }
+  return parseJsonOrEventStream(Buffer.concat(chunks).toString("utf8"));
+}
+
+function parseJsonOrEventStream(text) {
+  try { return JSON.parse(text); } catch {}
+  if (/^\s*(?:<!doctype\s+html|<html\b)/i.test(text)) throw new ProviderError("HTML_RESPONSE", "服务返回了网页而不是 API 响应");
+  const payloads = text.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).filter((line) => line && line !== "[DONE]");
+  if (!payloads.length) throw new ProviderError("INVALID_RESPONSE", "服务返回了无法识别的响应格式");
+  let events;
+  try { events = payloads.map((payload) => JSON.parse(payload)); }
+  catch { throw new ProviderError("INVALID_RESPONSE", "服务返回了无效的流式数据"); }
+  const error = events.find((event) => event?.error)?.error;
+  if (error) return { error };
+  const full = events.findLast((event) => event?.choices?.[0]?.message);
+  if (full) return full;
+  const content = [];
+  const toolCalls = new Map();
+  for (const event of events) {
+    const delta = event?.choices?.[0]?.delta;
+    if (!delta) continue;
+    if (typeof delta.content === "string") content.push(delta.content);
+    for (const call of Array.isArray(delta.tool_calls) ? delta.tool_calls : []) {
+      const key = Number.isInteger(call?.index) ? call.index : toolCalls.size;
+      const current = toolCalls.get(key) || { id: "", type: "function", function: { name: "", arguments: "" } };
+      if (typeof call.id === "string") current.id = call.id;
+      if (typeof call.function?.name === "string") current.function.name += call.function.name;
+      if (typeof call.function?.arguments === "string") current.function.arguments += call.function.arguments;
+      toolCalls.set(key, current);
+    }
+  }
+  return { choices: [{ message: { role: "assistant", content: content.join(""), tool_calls: [...toolCalls.values()] } }] };
 }
 
 function publicStatusMessage(status) {
@@ -102,6 +132,7 @@ class OpenAICompatibleProvider extends ModelProvider {
     this.apiKey = apiKey;
     this.fetch = fetch;
     this.requestTimeoutMs = requestTimeoutMs;
+    this.wireApi = null;
   }
 
   async request(pathname, { method = "GET", body, signal } = {}) {
@@ -140,9 +171,16 @@ class OpenAICompatibleProvider extends ModelProvider {
   }
 
   async complete({ model, messages, tools, signal }) {
+    if (this.wireApi === "responses") return this.completeResponses({ model, messages, tools, signal });
     const body = { model, messages, stream: false };
     if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
-    const data = await this.request("/chat/completions", { method: "POST", body, signal });
+    let data;
+    try { data = await this.request("/chat/completions", { method: "POST", body, signal }); }
+    catch (error) {
+      if (!["HTML_RESPONSE", "HTTP_404"].includes(error?.code)) throw error;
+      this.wireApi = "responses";
+      return this.completeResponses({ model, messages, tools, signal });
+    }
     const message = data?.choices?.[0]?.message;
     if (!message || typeof message !== "object") throw new ProviderError("INVALID_RESPONSE", "聊天响应格式不兼容");
     const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls.map((call) => ({
@@ -155,7 +193,32 @@ class OpenAICompatibleProvider extends ModelProvider {
     return { content, toolCalls };
   }
 
+  async completeResponses({ model, messages, tools, signal }) {
+    const body = { model, input: toResponsesInput(messages), stream: false };
+    if (tools.length) body.tools = tools.map((tool) => ({ type: "function", name: tool.function.name, description: tool.function.description, parameters: tool.function.parameters }));
+    const data = await this.request("/responses", { method: "POST", body, signal });
+    const output = Array.isArray(data?.output) ? data.output : [];
+    const text = typeof data?.output_text === "string" ? data.output_text : output.flatMap((item) => item?.type === "message" && Array.isArray(item.content) ? item.content : []).filter((item) => item?.type === "output_text" && typeof item.text === "string").map((item) => item.text).join("");
+    const toolCalls = output.filter((item) => item?.type === "function_call").map((item) => ({ id: item.call_id, name: item.name, arguments: item.arguments }));
+    if (!text.trim() && toolCalls.length === 0) throw new ProviderError("EMPTY_RESPONSE", "服务返回了空回复；请更换模型或联系服务商检查上游账号");
+    return { content: text, toolCalls };
+  }
+
   clearSecret() { this.apiKey = ""; }
 }
 
-module.exports = { OpenAICompatibleProvider, ProviderError, normalizeBaseUrl, isPrivateIpLiteral, readJsonBounded, MAX_RESPONSE_BYTES, MAX_REQUEST_BYTES };
+function toResponsesInput(messages) {
+  const input = [];
+  for (const message of messages) {
+    if (message.role === "tool") { input.push({ type: "function_call_output", call_id: message.tool_call_id, output: message.content }); continue; }
+    if (message.role === "assistant" && Array.isArray(message.tool_calls)) {
+      if (message.content) input.push({ role: "assistant", content: message.content });
+      for (const call of message.tool_calls) input.push({ type: "function_call", call_id: call.id, name: call.function?.name, arguments: call.function?.arguments });
+      continue;
+    }
+    input.push({ role: message.role, content: message.content });
+  }
+  return input;
+}
+
+module.exports = { OpenAICompatibleProvider, ProviderError, normalizeBaseUrl, isPrivateIpLiteral, readJsonBounded, parseJsonOrEventStream, toResponsesInput, MAX_RESPONSE_BYTES, MAX_REQUEST_BYTES };
