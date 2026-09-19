@@ -1,6 +1,7 @@
 "use strict";
 
 const path = require("node:path");
+const { existsSync } = require("node:fs");
 const readline = require("node:readline");
 const { spawn } = require("node:child_process");
 
@@ -9,7 +10,9 @@ class PythonAgentError extends Error {
 }
 
 class PythonAgentClient {
-  constructor({ executable = process.env.P2AT_PYTHON || "python", cwd = path.join(__dirname, "..") } = {}) {
+  constructor({ executable, cwd = path.join(__dirname, "..") } = {}) {
+    const localPython = path.join(cwd, ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
+    executable = executable || process.env.P2AT_PYTHON || (existsSync(localPython) ? localPython : "python");
     this.executable = executable; this.cwd = cwd; this.child = null; this.pending = new Map(); this.nextId = 1;
   }
   async request(method, params = {}) {

@@ -21,11 +21,17 @@
 
 ```bash
 cd apps/planner-desktop
+python -m venv .venv
+# Windows:
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+# macOS/Linux: .venv/bin/python -m pip install -r requirements.txt
 npm install
 npm start
 ```
 
 首次运行时会从官方/GitHub CDN 获取核心数据并保存到 Electron 用户数据目录。缓存成功后，可离线使用已经下载的内容。
+
+智能体基础循环使用 LangGraph；Electron 自动选择项目 `.venv`。运行测试前请激活该环境（Windows PowerShell：`.\.venv\Scripts\Activate.ps1`；macOS/Linux：`source .venv/bin/activate`）。
 
 仅查看浏览器原型时，可直接打开 `apps/planner-web/src/index.html`。由于浏览器安全策略和远程数据依赖，推荐通过本地静态服务器访问。
 

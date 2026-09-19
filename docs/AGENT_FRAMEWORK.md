@@ -42,6 +42,38 @@ Future Planner integration must add a reviewed tool to `ToolRegistry`; it must n
 
 ## Loop and limits
 
+The Python runner uses LangGraph `StateGraph`: `START → model → (tools → model | END)`.
+Each invocation owns a fresh `RunState`; nodes return explicit replacement values (no
+implicit message append reducer). The existing HTTP provider and tool registry remain
+injected dependencies, outside state. Ambient LangSmith tracing is explicitly disabled
+so conversations are not uploaded to a tracing service. No automatic retry is enabled.
+This migration does not add a graph checkpointer or context summarization: durable UI
+conversation storage and the service's successful-turn commit boundary stay unchanged.
+Cancelled/failed intermediate graph state is discarded, not resumed on the next turn.
+
+Development setup (Python 3.11+), from `apps/planner-desktop`:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:PATH = "$PWD\.venv\Scripts;$env:PATH"
+npm test
+npm start
+```
+
+Electron prefers the local `.venv` automatically; `P2AT_PYTHON` overrides that choice.
+On Linux/macOS use `.venv/bin/python` and activate `.venv/bin/activate` for tests.
+Release installers still do not include Python or these dependencies.
+
+LangGraph migration verification (2026-09-19): Node 155/155 with the canonical local
+official-tree fixture (zero skips), Python 15/15, JavaScript syntax, upstream lock
+and jewel fixture checks passed. Real child-process coverage includes UTF-8,
+cancel/timeout/restart history recovery and rejection of partial SSE errors.
+Independent review found no blocking issue. Live desktop submissions reached the
+configured relay but returned HTTP 402, including `deepseek-v4-pro`; therefore a
+successful real-service calculator round trip is NOT claimed for this migration.
+The app remains available for manual validation after service access is restored.
+
 The runner makes at most 6 model requests and 12 tool calls per run. It retains at most 80 runner messages, truncates model text at 32,000 characters, tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters. Provider requests are limited to 512 KiB, responses to 2 MiB, provider requests time out after 90 seconds and the whole run after 120 seconds. One session permits only one active run.
 
 Text without tool calls finishes the run. Tool calls are validated and executed sequentially, appended with the exact call ID, then returned to the model. Unknown tools, malformed JSON/schema arguments and execution errors become controlled tool results. Cancellation and timeouts propagate through provider and tool signals. No automatic paid retry is performed.
@@ -58,7 +90,7 @@ Only HTTPS base URLs are accepted, except explicit HTTP loopback (`localhost`, `
 
 The API Key is accepted only by a password input, submitted through narrow IPC, and immediately removed from the renderer input. Electron `safeStorage` encrypts it with the operating-system credential facility before a versioned cache is written under the application's local user-data directory. The renderer never receives either plaintext or ciphertext. There is no plaintext fallback when OS encryption is unavailable. Status responses expose only connection state, target host, and whether a credential is cached. The key is never logged or included in prompts/tool arguments/results. **清除 Key** removes both the active in-memory credential and its encrypted local cache; changing the API address clears the active connection until the new address and key have been saved successfully.
 
-Conversation history is memory-only. New session, cancellation and configuration generation checks prevent late responses from entering a replacement conversation.
+Runtime history is memory-resident; completed UI turns additionally persist locally as described above. New session, cancellation and configuration generation checks prevent late responses from entering a replacement conversation.
 
 ## Run and review
 

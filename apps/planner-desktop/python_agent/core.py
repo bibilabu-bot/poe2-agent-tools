@@ -7,7 +7,10 @@ import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Sequence, TypedDict
+
+from langgraph.graph import END, START, StateGraph
+from langsmith import tracing_context
 
 
 class AgentError(Exception):
@@ -149,6 +152,19 @@ class RunResult:
     tool_calls: int = 0
 
 
+class RunState(TypedDict):
+    """Per-invocation working state; credentials and durable history stay outside."""
+
+    messages: list[dict[str, Any]]
+    trace: list[dict[str, Any]]
+    calls: list[ToolCall]
+    text: str
+    rounds: int
+    tool_count: int
+    model: str
+    tools_enabled: bool
+
+
 class AgentRunner:
     def __init__(
         self,
@@ -160,6 +176,13 @@ class AgentRunner:
         self.registry = registry
         self.limits = limits or RunnerLimits()
         self._run_lock = asyncio.Lock()
+        graph = StateGraph(RunState)
+        graph.add_node("model", self._model_step)
+        graph.add_node("tools", self._tools_step)
+        graph.add_edge(START, "model")
+        graph.add_conditional_edges("model", self._next_step, {"tools": "tools", "done": END})
+        graph.add_edge("tools", "model")
+        self.graph = graph.compile()
 
     async def run(
         self,
@@ -173,54 +196,61 @@ class AgentRunner:
             raise AgentError("RUN_IN_PROGRESS", "A response is already running")
 
         async with self._run_lock:
-            messages = agent.initial_messages(history)[-self.limits.max_messages :]
-            trace: list[dict[str, Any]] = []
-            tool_count = 0
-
-            for round_number in range(1, self.limits.max_model_rounds + 1):
-                reply = await self.provider.complete(
-                    model=model,
-                    messages=messages,
-                    tools=self.registry.definitions() if tools_enabled else [],
+            initial: RunState = {
+                "messages": agent.initial_messages(history)[-self.limits.max_messages :],
+                "trace": [], "calls": [], "text": "", "rounds": 0,
+                "tool_count": 0, "model": model, "tools_enabled": tools_enabled,
+            }
+            # Never upload user conversations through ambient LangSmith settings.
+            # No checkpointer/retry: service commits only a fully successful turn.
+            with tracing_context(enabled=False):
+                state = await self.graph.ainvoke(
+                    initial, {"recursion_limit": 2 * self.limits.max_model_rounds + 2}
                 )
-                content = reply.content[: self.limits.max_text_chars]
-                calls = list(reply.tool_calls)
-                call_ids = [call.call_id for call in calls]
-                if any(not call_id or len(call_id) > 256 for call_id in call_ids) or len(set(call_ids)) != len(call_ids):
-                    raise AgentError("INVALID_TOOL_CALL", "Tool call IDs must be present and unique")
-                if tool_count + len(calls) > self.limits.max_tool_calls:
-                    raise AgentError("TOOL_CALL_LIMIT", "Tool-call limit exceeded")
+            return RunResult(state["text"], state["messages"], state["trace"],
+                             state["rounds"], state["tool_count"])
 
-                assistant: dict[str, Any] = {"role": "assistant", "content": content}
-                if calls:
-                    assistant["tool_calls"] = [
-                        {
-                            "id": call.call_id,
-                            "type": "function",
-                            "function": {"name": call.name, "arguments": call.arguments},
-                        }
-                        for call in calls
-                    ]
-                messages.append(assistant)
-
-                if not calls:
-                    return RunResult(content, messages, trace, round_number, tool_count)
-                if not tools_enabled:
-                    raise AgentError("TOOLS_DISABLED", "Tools are disabled")
-
-                for call in calls:
-                    tool_count += 1
-                    result, ok = await self._execute_tool(call)
-                    result_text = _bounded_json(result, self.limits.max_tool_result_chars)
-                    trace.append(
-                        {"callId": call.call_id, "name": call.name[:64], "ok": ok, "result": result_text}
-                    )
-                    messages.append(
-                        {"role": "tool", "tool_call_id": call.call_id, "content": result_text}
-                    )
-                messages = messages[-self.limits.max_messages :]
-
+    async def _model_step(self, state: RunState) -> dict[str, Any]:
+        if state["rounds"] >= self.limits.max_model_rounds:
             raise AgentError("MODEL_ROUND_LIMIT", "Model-round limit exceeded")
+        reply = await self.provider.complete(
+            model=state["model"], messages=state["messages"],
+            tools=self.registry.definitions() if state["tools_enabled"] else [],
+        )
+        content = reply.content[: self.limits.max_text_chars]
+        calls = list(reply.tool_calls)
+        call_ids = [call.call_id for call in calls]
+        if any(not value or len(value) > 256 for value in call_ids) or len(set(call_ids)) != len(call_ids):
+            raise AgentError("INVALID_TOOL_CALL", "Tool call IDs must be present and unique")
+        if state["tool_count"] + len(calls) > self.limits.max_tool_calls:
+            raise AgentError("TOOL_CALL_LIMIT", "Tool-call limit exceeded")
+        if calls and not state["tools_enabled"]:
+            raise AgentError("TOOLS_DISABLED", "Tools are disabled")
+        assistant: dict[str, Any] = {"role": "assistant", "content": content}
+        if calls:
+            assistant["tool_calls"] = [
+                {"id": call.call_id, "type": "function",
+                 "function": {"name": call.name, "arguments": call.arguments}}
+                for call in calls
+            ]
+        return {"messages": [*state["messages"], assistant], "calls": calls,
+                "text": content, "rounds": state["rounds"] + 1}
+
+    @staticmethod
+    def _next_step(state: RunState) -> str:
+        return "tools" if state["calls"] else "done"
+
+    async def _tools_step(self, state: RunState) -> dict[str, Any]:
+        messages = list(state["messages"])
+        trace = list(state["trace"])
+        for call in state["calls"]:
+            result, ok = await self._execute_tool(call)
+            result_text = _bounded_json(result, self.limits.max_tool_result_chars)
+            trace.append({"callId": call.call_id, "name": call.name[:64],
+                          "ok": ok, "result": result_text})
+            messages.append({"role": "tool", "tool_call_id": call.call_id, "content": result_text})
+        return {"messages": messages[-self.limits.max_messages :], "trace": trace,
+                "tool_count": state["tool_count"] + len(state["calls"]), "calls": []}
 
     async def _execute_tool(self, call: ToolCall) -> tuple[Any, bool]:
         try:

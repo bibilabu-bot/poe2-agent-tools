@@ -4,7 +4,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from python_agent.core import AgentError, AgentRunner, ChatAgent, ModelProvider, ModelReply, ToolCall, ToolRegistry
+from python_agent.core import AgentError, AgentRunner, ChatAgent, ModelProvider, ModelReply, RunnerLimits, ToolCall, ToolRegistry
 from python_agent.tools import CalculatorTool
 from python_agent.provider import MAX_RESPONSE_BYTES, OpenAICompatibleProvider, _parse_chat_event_stream, normalize_base_url
 
@@ -62,6 +62,58 @@ class ScriptedProvider(ModelProvider):
 
 
 class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_graph_round_limit_does_not_make_extra_request(self):
+        reply = ModelReply(tool_calls=(ToolCall("c", "missing", "{}"),))
+        provider = ScriptedProvider([reply, reply, ModelReply("must not run")])
+        runner = AgentRunner(provider, ToolRegistry(), RunnerLimits(max_model_rounds=2))
+        with self.assertRaises(AgentError) as caught:
+            await runner.run(agent=ChatAgent(), history=[], model="mock")
+        self.assertEqual(caught.exception.code, "MODEL_ROUND_LIMIT")
+        self.assertEqual(len(provider.requests), 2)
+
+    async def test_graph_disabled_tools_and_reuse_isolate_state(self):
+        provider = ScriptedProvider([
+            ModelReply(tool_calls=(ToolCall("c", "missing", "{}"),)), ModelReply("fresh"),
+        ])
+        runner = AgentRunner(provider, ToolRegistry())
+        with self.assertRaises(AgentError) as caught:
+            await runner.run(agent=ChatAgent(), history=[], model="mock", tools_enabled=False)
+        self.assertEqual(caught.exception.code, "TOOLS_DISABLED")
+        result = await runner.run(agent=ChatAgent(), history=[], model="mock")
+        self.assertEqual(result.rounds, 1)
+        self.assertEqual(result.trace, [])
+        self.assertEqual(len(result.messages), 2)
+
+    async def test_graph_multiple_tools_leave_input_history_unchanged(self):
+        history = [{"role": "user", "content": "中文 😀"}]
+        provider = ScriptedProvider([
+            ModelReply(tool_calls=tuple(ToolCall(str(i), "calculator", '{"operator":"multiply","a":3,"b":4}') for i in range(2))),
+            ModelReply("12"),
+        ])
+        runner = AgentRunner(provider, ToolRegistry([CalculatorTool()]))
+        self.assertEqual(set(runner.graph.nodes), {"__start__", "model", "tools"})
+        result = await runner.run(agent=ChatAgent(), history=history, model="mock")
+        self.assertEqual(result.tool_calls, 2)
+        self.assertEqual([entry["callId"] for entry in result.trace], ["0", "1"])
+        self.assertEqual(history, [{"role": "user", "content": "中文 😀"}])
+
+    async def test_graph_cancellation_releases_lock(self):
+        entered = asyncio.Event()
+        class WaitingProvider(ScriptedProvider):
+            async def complete(self, **kwargs):
+                entered.set()
+                await asyncio.Event().wait()
+        runner = AgentRunner(WaitingProvider([]), ToolRegistry())
+        task = asyncio.create_task(runner.run(agent=ChatAgent(), history=[], model="mock"))
+        await asyncio.wait_for(entered.wait(), 5)
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        runner.provider = ScriptedProvider([ModelReply("continued")])
+        result = await runner.run(agent=ChatAgent(), history=[], model="mock")
+        self.assertEqual(result.text, "continued")
+        self.assertEqual(result.rounds, 1)
+
     async def test_chat_without_tools(self):
         provider = ScriptedProvider([ModelReply("hello")])
         result = await AgentRunner(provider, ToolRegistry()).run(

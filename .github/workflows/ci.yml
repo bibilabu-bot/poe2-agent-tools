@@ -26,6 +26,14 @@ jobs:
           cache: npm
           cache-dependency-path: apps/planner-desktop/package-lock.json
 
+      - name: Use Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python agent dependencies
+        run: python -m pip install -r apps/planner-desktop/requirements.txt
+
       - name: Install desktop dependencies without lifecycle scripts
         working-directory: apps/planner-desktop
         run: npm ci --ignore-scripts

@@ -54,7 +54,7 @@ test("real Python process preserves completed UTF-8 history across cancel and re
   context.after(() => new Promise((resolve) => server.close(resolve)));
 
   const client = new PythonAgentClient();
-  const service = new AgentService({ client, runTimeoutMs: 700 });
+  const service = new AgentService({ client, runTimeoutMs: 10_000 });
   context.after(() => client.terminate());
   await service.configure({ baseUrl: `http://127.0.0.1:${server.address().port}/v1`, apiKey: "synthetic-secret" });
 
@@ -74,9 +74,11 @@ test("real Python process preserves completed UTF-8 history across cancel and re
   assert.ok(continuedRequest.messages.some((message) => message.content === "第一轮完成：中文🚀"));
   assert.ok(!continuedRequest.messages.some((message) => message.content === "请取消这一轮🛑"));
 
+  service.runTimeoutMs = 700;
   const timedOut = await service.send({ model: "mock", text: "请让这一轮超时⌛", toolsEnabled: false });
   assert.equal(timedOut.ok, false);
   assert.equal(timedOut.error.code, "RUN_TIMEOUT");
+  service.runTimeoutMs = 10_000;
   const afterTimeout = await service.send({ model: "mock", text: "超时后继续", toolsEnabled: false });
   assert.equal(afterTimeout.ok, true);
   const afterTimeoutRequest = observed.find((entry) => entry.lastUser === "超时后继续");

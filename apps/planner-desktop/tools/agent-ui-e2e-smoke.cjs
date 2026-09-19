@@ -15,6 +15,7 @@ const page = pages.find((candidate) => candidate.type === "page" && candidate.ur
 if (!page) throw new Error("planner page was not found");
 
 const socket = new WebSocket(page.webSocketDebuggerUrl);
+try {
 await new Promise((resolve, reject) => { socket.addEventListener("open", resolve, { once: true }); socket.addEventListener("error", reject, { once: true }); });
 let sequence = 0;
 const pending = new Map();
@@ -50,6 +51,9 @@ const ready = await waitFor(`(() => {
   const status = document.getElementById('agentConnectionStatus').textContent;
   return model && status.includes('已连接') ? { model, status } : null;
 })()`);
+if (process.env.P2AT_UI_SMOKE_MODEL) {
+  await evaluate(`document.getElementById('agentModel').value = ${JSON.stringify(process.env.P2AT_UI_SMOKE_MODEL)}`);
+}
 if (restoredText) {
   await waitFor(`(() => [...document.querySelectorAll('#agentMessages .agent-message')].some((item) => item.textContent.includes(${JSON.stringify(restoredText)})))()`);
 }
@@ -86,6 +90,9 @@ const lastMessage = completed.messages.at(-1);
 if (!lastMessage?.role.includes("assistant") || !lastMessage.text.includes(expectedText)) {
   throw new Error(`live UI chat failed: ${JSON.stringify(lastMessage)}`);
 }
+if (process.env.P2AT_UI_REQUIRE_TOOL === "1" && !completed.toolTrace.includes("calculator")) {
+  throw new Error("Expected calculator tool trace was not displayed");
+}
 const activity = await evaluate(`(() => {
   const rows = [...document.querySelectorAll('#agentMessages .agent-activity')];
   const last = rows.at(-1);
@@ -96,7 +103,8 @@ const screenshot = await command("Page.captureScreenshot", { format: "png", capt
 const screenshotPath = path.join(os.tmpdir(), "p2at-agent-ui-e2e.png");
 await fs.writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
 socket.close();
-process.stdout.write(JSON.stringify({ ready, completed, screenshotPath }, null, 2));
+process.stdout.write(JSON.stringify({ ready, model: completed.model, toolTrace: completed.toolTrace, lastMessage, screenshotPath }, null, 2));
+} finally { socket.close(); }
 }
 
 main().catch((error) => { process.stderr.write(`${error.stack || error.message}\n`); process.exitCode = 1; });

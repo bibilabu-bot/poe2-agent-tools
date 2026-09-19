@@ -1,10 +1,12 @@
 # PoE2 Planner Desktop v0.2 — 本地数据缓存版
 
-应用现在有两个顶层页面：**天赋树**保留现有 Planner 实例，**智能体**通过用户配置的 OpenAI-compatible 服务提供与项目无关的普通聊天。API Key 通过操作系统安全存储加密后缓存于本机，设置中的“清除 Key”会删除缓存；会话历史仍只保存在当前进程内存中。接口、限额与兼容边界见 `../../docs/AGENT_FRAMEWORK.md`。
+应用现在有两个顶层页面：**天赋树**保留现有 Planner 实例，**智能体**通过用户配置的 OpenAI-compatible 服务提供与项目无关的普通聊天。API Key 通过操作系统安全存储加密后缓存于本机，设置中的“清除 Key”会删除缓存；已完成会话及活动摘要在本地持久化，与服务地址绑定。接口、限额与兼容边界见 `../../docs/AGENT_FRAMEWORK.md`。
 
 这一版把 Planner 的资源地址全部从公网 URL 改成 `poe2://` 本地资源协议。
 
 ## 运行
+需要 Python 3.11+。先运行 `python -m venv .venv`，再使用 Windows 的 `.venv\Scripts\python.exe -m pip install -r requirements.txt`（macOS/Linux 使用 `.venv/bin/python`）。Electron 自动使用此独立环境；发行包尚未内置 Python。
+
 ```bash
 npm install
 npm start
@@ -15,7 +17,7 @@ npm start
 npm test
 ```
 
-该命令使用 Node.js 内置测试运行器，只验证纯逻辑：不启动 Electron，也不访问网络。
+测试前请激活 `.venv`。该命令运行 Node 与 Python 测试，包括真实 Python 子进程和本机模拟 HTTP 服务；不启动 Electron，也不请求真实模型服务。
 
 ## Build 文件 IPC
 
