@@ -10,14 +10,15 @@
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
 body{overflow:hidden}
 button,input,select{font:inherit}
-button{color:var(--text);background:#16171a;border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer}
+button{min-height:34px;color:var(--text);background:#16171a;border:1px solid var(--border);border-radius:7px;padding:7px 10px;cursor:pointer}
 button:hover{border-color:#816a43}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid #e0b768;outline-offset:2px}
 button:disabled,input:disabled,select:disabled{opacity:.4;cursor:not-allowed}
 input[type=text],input[type=number],select{width:100%;padding:9px;background:#0e0f12;border:1px solid var(--border);border-radius:8px;color:var(--text)}
 input[type=range]{width:100%;accent-color:var(--accent)}
 .app{height:100%;display:grid;grid-template-rows:auto 1fr}
-.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);background:#0b0c0e}
-.title{font-weight:700}.meta{font-size:12px;color:var(--muted);margin-top:3px}.toolbar{display:flex;gap:7px;flex-wrap:wrap}
+.top{display:flex;align-items:center;gap:14px;min-height:54px;padding:7px 12px;border-bottom:1px solid var(--border);background:#0b0c0e}
+.top>div:first-child{min-width:210px;max-width:360px}.title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.toolbar{min-width:0;flex:1;display:block}
 .build-action{border-color:#826a3e;background:#211a0f}
 .build-feedback{margin:0 0 10px;padding:8px 9px;border:1px solid #4c402b;border-radius:8px;background:#15120d;color:#d8c49b;font-size:11px;line-height:1.45}
 .build-feedback.error-state{border-color:#784147;background:#281416;color:#f0b6b6}
@@ -29,8 +30,19 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .wegame-dialog input[type=url],.wegame-dialog select{width:100%;box-sizing:border-box;margin-top:5px}.wegame-dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;padding:0}
 .wegame-preview{margin-top:13px;padding:11px;border:1px solid #4f452f;border-radius:9px;background:#18150f}.wegame-counts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.wegame-counts span{padding:7px;border-radius:6px;background:#0e1115;text-align:center}
 .wegame-warning{margin-top:9px;padding:8px;border-left:3px solid #db9b45;background:#2a1c0d;color:#f0c98f;line-height:1.5}.wegame-error{color:#f0aaaa}.wegame-confirm{display:flex!important;gap:8px;align-items:flex-start;line-height:1.45}.wegame-confirm input{margin-top:3px}
-.content{min-height:0;display:grid;grid-template-columns:330px 1fr}
-.sidebar{overflow:auto;border-right:1px solid var(--border);background:linear-gradient(180deg,#18150f,#0b0b0d);padding:14px}
+.content{position:relative;min-height:0;display:grid;grid-template-columns:0 1fr;transition:grid-template-columns .16s ease}
+.content.panel-open{grid-template-columns:clamp(280px,23vw,320px) 1fr}
+.module-nav{display:flex;align-items:center;justify-content:flex-end;gap:5px;white-space:nowrap}
+.tool-trigger{min-height:38px;padding:5px 12px;display:flex;align-items:center;justify-content:center;gap:6px;border-color:transparent;background:transparent;color:#a9a49b;font-size:12px}
+.tool-trigger:hover,.tool-trigger.active{color:#f0d9a3;background:#241c10;border-color:#80663a}
+.tool-icon{display:grid;place-items:center;width:22px;height:22px;border:1px solid #4a4439;border-radius:6px;font-size:11px;font-weight:800}
+.sidebar{min-width:0;overflow:hidden;border-right:0;background:linear-gradient(180deg,#18150f,#0b0b0d)}
+.panel-open .sidebar{border-right:1px solid var(--border)}
+.tool-panel{height:100%;overflow:auto;padding:12px}
+.tool-panel[hidden]{display:none}
+.panel-heading{position:sticky;top:-12px;z-index:3;display:flex;align-items:center;justify-content:space-between;margin:-12px -12px 10px;padding:9px 10px;border-bottom:1px solid #35312a;background:#12110fef;backdrop-filter:blur(8px);color:#dbc38e}
+.panel-close{min-width:32px;min-height:30px;padding:2px 8px;border-color:transparent;background:transparent;font-size:20px;line-height:1}
+.panel-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 10px}.panel-actions-primary button:first-child{grid-column:1/-1}.panel-actions button{min-width:0;padding-inline:6px}
 .section{padding:12px 0;border-bottom:1px solid #2a2c31}.section:first-child{padding-top:0}.section:last-child{border-bottom:0}
 .h{font-size:12px;font-weight:800;letter-spacing:.09em;color:#d8c49b;margin-bottom:9px}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;margin:7px 0}
@@ -103,7 +115,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 @keyframes flash{50%{background:#3d301d}}
 .legend{display:flex;flex-wrap:wrap;gap:8px 12px;font-size:11px;color:#a9a49b;margin-top:8px}
 .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:-1px}
-@media(max-width:880px){body{overflow:auto}.app{height:auto;min-height:100%}.content{grid-template-columns:1fr}.sidebar{max-height:430px;border-right:0;border-bottom:1px solid var(--border)}.stage{height:70vh;min-height:520px}}
+@media(max-width:900px){.top{gap:7px;padding-inline:7px}.top>div:first-child{min-width:120px;max-width:160px}.title{font-size:12px}.meta{display:none}.tool-trigger{padding-inline:7px;font-size:11px}.tool-icon{display:none}.content,.content.panel-open{grid-template-columns:1fr}.sidebar{position:absolute;z-index:7;left:0;top:0;bottom:0;width:min(320px,calc(100vw - 24px));box-shadow:18px 0 40px #000b;transform:translateX(-105%);transition:transform .16s ease}.panel-open .sidebar{transform:translateX(0)}.stage{grid-column:1}}
+@media(prefers-reduced-motion:reduce){.content,.sidebar{transition:none}}
 </style>
 </head>
 <body>
@@ -116,15 +129,11 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
     <div id="status" class="title">准备 Planner…</div>
     <div id="meta" class="meta">完整 Graph + 官方 sprite + Build allocation</div>
   </div>
-  <div class="toolbar">
-    <button id="importWeGame" class="build-action" disabled>导入 WeGame 天赋</button>
-    <button id="openBuild" class="build-action" disabled>打开 Build</button>
-    <button id="saveBuild" class="build-action" disabled>保存 Build</button>
-    <button id="undo" disabled>↶ Undo</button>
-    <button id="redo" disabled>↷ Redo</button>
-    <button id="fit" disabled>完整天赋树</button>
-    <button id="zin" disabled>＋</button>
-    <button id="zout" disabled>－</button>
+  <div class="toolbar" aria-label="常用操作">
+    <div class="toolbar-group"><button id="importWeGame" class="build-action" disabled>导入 WeGame</button></div>
+    <div class="toolbar-group"><button id="openBuild" class="build-action" disabled>打开</button><button id="saveBuild" class="build-action" disabled>保存</button></div>
+    <div class="toolbar-group"><button id="undo" disabled title="撤销">↶ 撤销</button><button id="redo" disabled title="重做">↷ 重做</button></div>
+    <div class="toolbar-group"><button id="fit" disabled>适配全树</button><button id="zin" disabled aria-label="放大">＋</button><button id="zout" disabled aria-label="缩小">－</button></div>
   </div>
 </header>
 
@@ -320,6 +329,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
 <script src="build-state-adapter.js"></script>
 <script src="wegame-import-ui.js"></script>
 <script src="passive-graph.js"></script>
+<script src="layout-shell.js"></script>
 <script src="planner.js"></script>
 
 <script>
