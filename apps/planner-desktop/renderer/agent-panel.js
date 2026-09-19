@@ -142,7 +142,12 @@
     }
     rememberModel(model);
     const requestConversation = conversationId; addMessage("user", text); input.value = ""; running = true; updateControls(); showTrace([]);
-    const result = await api.send({ model, text, toolsEnabled: byId("agentToolsEnabled").checked });
+    let result;
+    try {
+      result = await api.send({ model, text, toolsEnabled: byId("agentToolsEnabled").checked });
+    } catch {
+      result = { ok: false, error: { message: "桌面与智能体通信失败，请重试；若持续失败请重新启动应用" } };
+    }
     running = false; updateControls();
     if (requestConversation !== conversationId || result.stale) return;
     if (!result.ok) { addMessage("error", result.error.message); return; }

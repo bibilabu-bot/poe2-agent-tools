@@ -18,7 +18,14 @@ class ProviderHandler(BaseHTTPRequestHandler):
     def _record(self):
         length = int(self.headers.get("content-length", "0"))
         body = self.rfile.read(length) if length else b""
-        type(self).requests.append((self.command, self.path, self.headers.get("authorization"), body))
+        type(self).requests.append((
+            self.command,
+            self.path,
+            self.headers.get("authorization"),
+            body,
+            self.headers.get("user-agent"),
+            self.headers.get("accept"),
+        ))
 
     def do_GET(self):
         self._record()
@@ -141,6 +148,8 @@ class PythonProviderTests(unittest.IsolatedAsyncioTestCase):
         reply = await provider.complete(model="model-a", messages=[{"role": "user", "content": "hi"}], tools=[])
         self.assertEqual(reply.content, "chat-ok")
         self.assertTrue(all(row[2] == "Bearer test-secret" for row in ProviderHandler.requests[-2:]))
+        self.assertTrue(all(row[4].startswith("Mozilla/5.0") for row in ProviderHandler.requests[-2:]))
+        self.assertTrue(all("application/json" in row[5] for row in ProviderHandler.requests[-2:]))
         self.assertNotIn("test-secret", repr(reply))
 
     async def test_chat_falls_back_to_responses(self):

@@ -7,6 +7,7 @@ const path = require("node:path");
 async function main() {
 const endpoint = process.env.P2AT_CDP_ENDPOINT || "http://127.0.0.1:9222";
 const testMessage = process.env.P2AT_UI_SMOKE_MESSAGE || "请只回答：56088";
+const expectedText = process.env.P2AT_UI_SMOKE_EXPECTED || "56088";
 const pages = await fetch(`${endpoint}/json/list`).then((response) => response.json());
 const page = pages.find((candidate) => candidate.type === "page" && candidate.url?.endsWith("/renderer/index.html"));
 if (!page) throw new Error("planner page was not found");
@@ -68,6 +69,10 @@ const completed = await waitFor(`(() => {
     sendDisabled: document.getElementById('agentSend').disabled,
   };
 })()`, 130_000);
+const lastMessage = completed.messages.at(-1);
+if (!lastMessage?.role.includes("assistant") || !lastMessage.text.includes(expectedText)) {
+  throw new Error(`live UI chat failed: ${JSON.stringify(lastMessage)}`);
+}
 const screenshot = await command("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
 const screenshotPath = path.join(os.tmpdir(), "p2at-agent-ui-e2e.png");
 await fs.writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));

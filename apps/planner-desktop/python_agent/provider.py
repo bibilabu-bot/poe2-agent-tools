@@ -14,6 +14,10 @@ from .core import AgentError, ModelProvider, ModelReply, ToolCall
 
 MAX_REQUEST_BYTES = 512 * 1024
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+DESKTOP_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+)
 
 
 def normalize_base_url(value: str) -> str:
@@ -129,7 +133,12 @@ class OpenAICompatibleProvider(ModelProvider):
             f"{self.base_url}{path}",
             data=encoded,
             method="POST" if encoded is not None else "GET",
-            headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+                "User-Agent": DESKTOP_USER_AGENT,
+            },
         )
         opener = urllib.request.build_opener(_NoRedirect())
         try:
