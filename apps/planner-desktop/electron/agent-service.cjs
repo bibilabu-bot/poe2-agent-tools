@@ -35,6 +35,24 @@ class AgentService {
     if (this.config) { await this.#ensureConfigured(); await this.client.request("reset"); }
     this.generation += 1; return { ok: true };
   }
+  async restoreConversation(messages) {
+    if (this.active) return { ok: false, error: { code: "RUN_IN_PROGRESS", message: "当前会话已有请求正在运行" } };
+    if (!Array.isArray(messages) || messages.length > 60) throw new PythonAgentError("INVALID_HISTORY", "本地会话记录无效");
+    let size = 0;
+    if (messages.length % 2 !== 0) throw new PythonAgentError("INVALID_HISTORY", "本地会话包含未完成轮次");
+    const history = messages.map((message, index) => {
+      if (!message || !["user", "assistant"].includes(message.role) || typeof message.content !== "string") throw new PythonAgentError("INVALID_HISTORY", "本地会话记录无效");
+      const expectedRole = index % 2 === 0 ? "user" : "assistant";
+      if (message.role !== expectedRole) throw new PythonAgentError("INVALID_HISTORY", "本地会话轮次顺序无效");
+      size += message.content.length;
+      const roleLimit = message.role === "user" ? 12000 : 32000;
+      if (!message.content || message.content.length > roleLimit || size > 256000) throw new PythonAgentError("INVALID_HISTORY", "本地会话记录过大");
+      return { role: message.role, content: message.content };
+    });
+    if (this.config && history.length) { await this.#ensureConfigured(); await this.client.request("restore", { history }); }
+    this.history = structuredClone(history);
+    return { ok: true, messages: history.length };
+  }
   cancel() {
     if (!this.active) return;
     this.active.controller?.abort(new PythonAgentError("CANCELLED", "已停止本次请求"));
@@ -93,6 +111,7 @@ function createAgentIpcHandlers(service, isTrustedSender, credentialStore = null
     clear: async (event) => { guard(event); return mutate(async () => { await service.clearConfig(); try { if (credentialStore) await credentialStore.clear(); return { ok: true, ...service.status() }; } catch (error) { service.setCredentialStored(true); return { ok: false, error: safeError(error), ...service.status() }; } }); },
     models: async (event) => { guard(event); return service.models(); }, send: async (event, value) => { guard(event); return service.send(value || {}); },
     cancel: async (event) => { guard(event); service.cancel(); return { ok: true }; }, reset: async (event) => { guard(event); return service.reset(); },
+    restore: async (event, value) => { guard(event); try { return await service.restoreConversation(value?.messages); } catch (error) { return { ok: false, error: safeError(error) }; } },
   };
 }
 

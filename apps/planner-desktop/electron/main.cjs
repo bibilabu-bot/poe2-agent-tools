@@ -210,6 +210,7 @@ ipcMain.handle("agent:list-models", agentIpcHandlers.models);
 ipcMain.handle("agent:send", agentIpcHandlers.send);
 ipcMain.handle("agent:cancel", agentIpcHandlers.cancel);
 ipcMain.handle("agent:reset", agentIpcHandlers.reset);
+ipcMain.handle("agent:restore-conversation", agentIpcHandlers.restore);
 
 app.whenReady().then(async()=>{
   agentCredentialStore = new AgentCredentialStore({ userDataPath: app.getPath("userData"), safeStorage });

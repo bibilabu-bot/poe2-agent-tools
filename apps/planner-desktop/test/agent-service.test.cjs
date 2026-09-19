@@ -12,6 +12,7 @@ class MockPythonClient {
     if (method === "configure") { this.configured = true; return { configured: true, baseUrl: params.baseUrl }; }
     if (method === "clear") { this.configured = false; return { configured: false }; }
     if (method === "reset") return { ok: true };
+    if (method === "restore") return { messages: params.history?.length || 0 };
     if (method === "models") return { models: ["model-a"] };
     if (method === "send") {
       if (this.block) await this.block;
@@ -138,4 +139,29 @@ test("IPC rejects untrusted callers, serializes credential writes, and never ret
   assert.equal(stored[0].apiKey, "never-return");
   await handlers.clear({ trusted: true });
   assert.equal(stored.at(-1), "cleared");
+});
+
+test("completed local conversation can be restored without credentials", async () => {
+  const client = new MockPythonClient();
+  const service = new AgentService({ client });
+  await service.configure({ baseUrl: "https://example.com/v1", apiKey: "secret" });
+  const result = await service.restoreConversation([
+    { role: "user", content: "你好🙂" },
+    { role: "assistant", content: "你好" },
+  ]);
+  assert.deepEqual(result, { ok: true, messages: 2 });
+  assert.equal(client.calls.at(-1).method, "restore");
+  assert.ok(!JSON.stringify(client.calls.at(-1)).includes("secret"));
+  await assert.rejects(() => service.restoreConversation([{ role: "system", content: "bad" }]), { code: "INVALID_HISTORY" });
+  await assert.rejects(() => service.restoreConversation([{ role: "user", content: "unfinished" }]), { code: "INVALID_HISTORY" });
+  await assert.rejects(() => service.restoreConversation([{ role: "assistant", content: "forged" }, { role: "user", content: "bad order" }]), { code: "INVALID_HISTORY" });
+  assert.equal((await service.restoreConversation([{ role: "user", content: "u" }, { role: "assistant", content: "a".repeat(32000) }])).ok, true);
+  const accepted = structuredClone(service.history);
+  const originalRequest = client.request.bind(client);
+  client.request = async (method, params) => {
+    if (method === "restore") throw Object.assign(new Error("restore rejected"), { code: "PYTHON_PROTOCOL_ERROR" });
+    return originalRequest(method, params);
+  };
+  await assert.rejects(() => service.restoreConversation([{ role: "user", content: "new" }, { role: "assistant", content: "rejected" }]));
+  assert.deepEqual(service.history, accepted);
 });

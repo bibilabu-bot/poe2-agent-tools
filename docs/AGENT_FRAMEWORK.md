@@ -19,6 +19,8 @@ Python entry points:
 
 Model discovery remains a narrow Electron transport responsibility and reuses the previously accepted `net.fetch` OpenAI-compatible `/models` adapter. This preserves Windows system proxy/TLS behavior from the working MVP while Python continues to own conversation state, model/tool iteration, tool execution and chat/Responses protocol behavior. The renderer receives model IDs and controlled errors only; the API key is not returned.
 
+Completed user/assistant turns and their bounded operational timeline are persisted locally in the renderer profile, bound to the exact normalized API endpoint, and restored into the Python conversation checkpoint after restart or same-endpoint reconnection. Credentials remain separate in Electron `safeStorage`; failed, cancelled, partial, malformed and cross-endpoint turns are not restored. The timeline exposes elapsed time and operational/tool summaries, never hidden model reasoning.
+
 The earlier JavaScript core remains temporarily as parity-test/reference code but is no longer instantiated by the application runtime. This delivery is a development-environment migration and requires Python 3.11+ on the machine. Building and signing a bundled Python executable for release packages is not implemented by P2AT-026A.
 
 P2AT-024A adds a project-independent agent foundation to the desktop application. It does not import Planner state, game data, DOM or Electron from its reusable core.

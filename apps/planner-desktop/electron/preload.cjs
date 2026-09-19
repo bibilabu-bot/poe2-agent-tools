@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("desktopAPI", {
     listModels: () => ipcRenderer.invoke("agent:list-models"),
     send: (request) => ipcRenderer.invoke("agent:send", request),
     cancel: () => ipcRenderer.invoke("agent:cancel"),
-    reset: () => ipcRenderer.invoke("agent:reset")
+    reset: () => ipcRenderer.invoke("agent:reset"),
+    restoreConversation: (messages) => ipcRenderer.invoke("agent:restore-conversation", { messages })
   })
 });

@@ -8,6 +8,8 @@ async function main() {
 const endpoint = process.env.P2AT_CDP_ENDPOINT || "http://127.0.0.1:9222";
 const testMessage = process.env.P2AT_UI_SMOKE_MESSAGE || "请只回答：56088";
 const expectedText = process.env.P2AT_UI_SMOKE_EXPECTED || "56088";
+const restoredText = process.env.P2AT_UI_EXPECT_RESTORED_TEXT || "";
+const testMissingModel = process.env.P2AT_UI_SMOKE_PRE_MISSING_MODEL === "1";
 const pages = await fetch(`${endpoint}/json/list`).then((response) => response.json());
 const page = pages.find((candidate) => candidate.type === "page" && candidate.url?.endsWith("/renderer/index.html"));
 if (!page) throw new Error("planner page was not found");
@@ -48,6 +50,17 @@ const ready = await waitFor(`(() => {
   const status = document.getElementById('agentConnectionStatus').textContent;
   return model && status.includes('已连接') ? { model, status } : null;
 })()`);
+if (restoredText) {
+  await waitFor(`(() => [...document.querySelectorAll('#agentMessages .agent-message')].some((item) => item.textContent.includes(${JSON.stringify(restoredText)})))()`);
+}
+if (testMissingModel) {
+  await evaluate(`(() => {
+    const model = document.getElementById('agentModel'); model.dataset.smokeValue = model.value; model.value = '';
+    const input = document.getElementById('agentInput'); input.value = 'this must not persist';
+    document.getElementById('agentComposer').requestSubmit(); model.value = model.dataset.smokeValue; return true;
+  })()`);
+  await waitFor(`document.querySelector('#agentMessages .agent-message.error')?.textContent.includes('尚未选择模型')`);
+}
 const beforeCount = await evaluate("document.querySelectorAll('#agentMessages .agent-message').length");
 await evaluate(`(() => {
   const input = document.getElementById('agentInput');
@@ -73,6 +86,12 @@ const lastMessage = completed.messages.at(-1);
 if (!lastMessage?.role.includes("assistant") || !lastMessage.text.includes(expectedText)) {
   throw new Error(`live UI chat failed: ${JSON.stringify(lastMessage)}`);
 }
+const activity = await evaluate(`(() => {
+  const rows = [...document.querySelectorAll('#agentMessages .agent-activity')];
+  const last = rows.at(-1);
+  return last ? { className: last.className, text: last.textContent } : null;
+})()`);
+if (!activity || !activity.className.includes("done") || !activity.text.includes("已收到模型回复")) throw new Error(`activity timeline missing: ${JSON.stringify(activity)}`);
 const screenshot = await command("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
 const screenshotPath = path.join(os.tmpdir(), "p2at-agent-ui-e2e.png");
 await fs.writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
