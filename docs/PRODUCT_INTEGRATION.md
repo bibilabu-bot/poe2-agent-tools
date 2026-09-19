@@ -24,7 +24,7 @@ Numeric IDs alone cannot identify a localized name across runtime and official t
 - Jewel fixture: all six outputs verified in a temporary copy.
 - Offline real-Electron DOM smoke: layout mounts, Agent navigation remains connected and visible, Agent/Planner page round trip works, and WeGame controls remain present. `tools/integration-ui-smoke.cjs` uses a new empty profile, no application preload and blocks HTTP; it never loads credentials or sends model requests.
 - No real model requests, credentials read, tree-data upgrades or upstream datasets committed during integration.
-- Integrated visual acceptance is performed separately by the controller; branch screenshots are historical task evidence, not new integrated screenshots.
+- Controller native Windows acceptance: tree loaded with 8/8 cached resources; Agent navigation was visible and clickable, tree → Agent → tree succeeded and restored zoom 0.024; Build/search panels expanded and collapsed. No model chat request or credential inspection was performed. Existing branch screenshots remain historical task evidence rather than new integrated captures.
 
 ## Exclusions and current limits
 
