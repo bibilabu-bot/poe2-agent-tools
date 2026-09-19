@@ -49,3 +49,7 @@ npm start
 Open **智能体**, enter the service URL and key locally, connect, fetch or manually type a model, then send a message. No real-service claim is made without a user-supplied key. Automated tests use explicit mock providers and HTTP responses.
 
 The no-secret preview is stored at `docs/assets/screenshots/agent-mvp.png`. It is captured while Planner data is unavailable to verify that the Agent view is not gated by tree initialization.
+
+### Live compatibility acceptance (2026-09-19)
+
+A user-authorized, low-limit third-party OpenAI-compatible relay was tested without persisting its key. `GET /v1/models` returned three selectable models. `deepseek-v4-flash` completed ordinary Chinese chat and the full two-request calculator loop (`123 × 456 = 56088`) with the exact tool call ID preserved. One advertised model returned HTTP 402 and another returned an empty HTTP-200 message for ordinary chat / truncated text after a tool result; these are now surfaced as provider failures rather than presented as successful empty replies. This evidence validates the application loop and also demonstrates why listing a model cannot be treated as a capability guarantee.

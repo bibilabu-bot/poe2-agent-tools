@@ -90,6 +90,7 @@ function publicStatusMessage(status) {
   if (status === 401 || status === 403) return "认证失败，请检查 API Key";
   if (status === 404) return "接口不存在，请检查 API 地址是否包含正确的版本路径（如 /v1）";
   if (status === 429) return "服务限流或额度不足";
+  if (status === 402) return "服务余额不足或付款状态异常";
   return `服务请求失败（HTTP ${status}）`;
 }
 
@@ -149,7 +150,9 @@ class OpenAICompatibleProvider extends ModelProvider {
       name: call?.function?.name,
       arguments: call?.function?.arguments,
     })) : [];
-    return { content: typeof message.content === "string" ? message.content : "", toolCalls };
+    const content = typeof message.content === "string" ? message.content : "";
+    if (!content.trim() && toolCalls.length === 0) throw new ProviderError("EMPTY_RESPONSE", "服务返回了空回复；请更换模型或联系服务商检查上游账号");
+    return { content, toolCalls };
   }
 
   clearSecret() { this.apiKey = ""; }

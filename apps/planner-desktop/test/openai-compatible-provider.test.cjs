@@ -43,3 +43,12 @@ test("abort and timeout cover response body reading", async () => {
   const provider = new OpenAICompatibleProvider({ baseUrl: "https://example.com/v1", apiKey: "x", requestTimeoutMs: 10, fetch: async () => new Response(stream) });
   await assert.rejects(() => provider.listModels(), (error) => error.code === "TIMEOUT");
 });
+
+test("an empty successful completion is rejected instead of shown as a reply", async () => {
+  const provider = new OpenAICompatibleProvider({
+    baseUrl: "https://example.com/v1",
+    apiKey: "x",
+    fetch: async () => new Response(JSON.stringify({ choices: [{ message: { role: "assistant" }, finish_reason: "stop" }] }), { headers: { "content-type": "application/json" } }),
+  });
+  await assert.rejects(() => provider.complete({ model: "broken", messages: [], tools: [] }), { code: "EMPTY_RESPONSE" });
+});
