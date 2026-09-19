@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, safeStorage } = require("electron");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const fs = require("node:fs/promises");
@@ -13,6 +13,8 @@ const cacheManifest = require("../data/cache/manifest.json");
 const localizationCandidates = require("../data/localization-candidates.json");
 const { createBoundedCandidateFetch, createLocalizationCandidateCatalog } = require("./localization-candidate.cjs");
 const { createTrustedPlannerSenderPredicate, createWeGameImportService, createWeGameIpcHandler } = require("./wegame-import-service.cjs");
+const { AgentService, createAgentIpcHandlers } = require("./agent-service.cjs");
+const { AgentCredentialStore } = require("./agent-credential-store.cjs");
 
 protocol.registerSchemesAsPrivileged([{
   scheme: "poe2",
@@ -135,6 +137,8 @@ async function loadOfficialTree({ signal } = {}) {
 }
 
 const weGameImportService = createWeGameImportService({ fetch: (url, options) => net.fetch(url, options), loadOfficialTree });
+const agentService = new AgentService({ fetch: (url, options) => net.fetch(url, options) });
+let agentCredentialStore = null;
 let plannerWindow = null;
 const plannerPageUrl = pathToFileURL(path.join(__dirname, "..", "renderer", "index.html")).href;
 
@@ -157,9 +161,9 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
-  win.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("file://")) event.preventDefault(); });
+  win.webContents.on("will-navigate", (event, url) => { if (url !== plannerPageUrl) event.preventDefault(); });
   plannerWindow = win;
-  win.on("closed", () => { if (plannerWindow === win) plannerWindow = null; });
+  win.on("closed", () => { if (plannerWindow === win) { agentService.clearConfig(); plannerWindow = null; } });
   return win;
 }
 
@@ -181,6 +185,25 @@ ipcMain.handle("data:get-path", async () => ({bundledData:bundledRoot(),userData
 ipcMain.handle("build:save-json", buildIpcHandlers.save);
 ipcMain.handle("build:open-json", buildIpcHandlers.open);
 ipcMain.handle("wegame:import-passives", createWeGameIpcHandler(weGameImportService, isTrustedPlannerSender));
+const agentIpcHandlers = createAgentIpcHandlers(agentService, isTrustedPlannerSender, {
+  save: (...args) => agentCredentialStore.save(...args),
+  clear: (...args) => agentCredentialStore.clear(...args),
+});
+ipcMain.handle("agent:status", agentIpcHandlers.status);
+ipcMain.handle("agent:configure", agentIpcHandlers.configure);
+ipcMain.handle("agent:clear-config", agentIpcHandlers.clear);
+ipcMain.handle("agent:list-models", agentIpcHandlers.models);
+ipcMain.handle("agent:send", agentIpcHandlers.send);
+ipcMain.handle("agent:cancel", agentIpcHandlers.cancel);
+ipcMain.handle("agent:reset", agentIpcHandlers.reset);
 
-app.whenReady().then(async()=>{await registerLocalDataProtocol();createWindow();app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});});
+app.whenReady().then(async()=>{
+  agentCredentialStore = new AgentCredentialStore({ userDataPath: app.getPath("userData"), safeStorage });
+  try {
+    const cached = await agentCredentialStore.load();
+    if (cached) { agentService.configure(cached); agentService.setCredentialStored(true); }
+  } catch (error) { console.warn(`[agent] ${error.code || "CREDENTIAL_RESTORE_FAILED"}: ${error.message}`); }
+  await registerLocalDataProtocol();createWindow();app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});
+});
 app.on("window-all-closed",()=>{if(process.platform!=="darwin")app.quit();});
+app.on("before-quit", () => agentService.clearConfig());

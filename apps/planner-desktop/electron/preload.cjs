@@ -6,5 +6,14 @@ contextBridge.exposeInMainWorld("desktopAPI", {
   syncCoreData: () => ipcRenderer.invoke("data:sync-core"),
   saveBuildJson: (request) => ipcRenderer.invoke("build:save-json", request),
   openBuildJson: () => ipcRenderer.invoke("build:open-json"),
-  importWeGamePassives: (url) => ipcRenderer.invoke("wegame:import-passives", { url })
+  importWeGamePassives: (url) => ipcRenderer.invoke("wegame:import-passives", { url }),
+  agent: Object.freeze({
+    getStatus: () => ipcRenderer.invoke("agent:status"),
+    configure: (request) => ipcRenderer.invoke("agent:configure", request),
+    clearConfig: () => ipcRenderer.invoke("agent:clear-config"),
+    listModels: () => ipcRenderer.invoke("agent:list-models"),
+    send: (request) => ipcRenderer.invoke("agent:send", request),
+    cancel: () => ipcRenderer.invoke("agent:cancel"),
+    reset: () => ipcRenderer.invoke("agent:reset")
+  })
 });
