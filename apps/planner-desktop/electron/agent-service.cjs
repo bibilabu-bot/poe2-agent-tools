@@ -13,7 +13,7 @@ const RUN_TIMEOUT_MS = 120_000;
 
 function safeError(error) {
   if (error?.name === "AbortError" || error?.code === "ABORT_ERR") return { code: "CANCELLED", message: "已停止本次回复" };
-  const known = error instanceof ProviderError || error instanceof AgentRunError;
+  const known = error instanceof ProviderError || error instanceof AgentRunError || ["SECURE_STORAGE_UNAVAILABLE", "CREDENTIAL_CACHE_INVALID"].includes(error?.code);
   return { code: known ? error.code : "AGENT_FAILED", message: known ? error.message : "智能体运行失败" };
 }
 
@@ -26,9 +26,11 @@ class AgentService {
     this.generation = 0;
     this.active = null;
     this.modelRequest = null;
+    this.credentialStored = false;
   }
 
-  status() { return { configured: Boolean(this.provider), targetHost: this.baseUrl?.host || null, running: Boolean(this.active) }; }
+  status() { return { configured: Boolean(this.provider), baseUrl: this.baseUrl?.href || null, targetHost: this.baseUrl?.host || null, running: Boolean(this.active), credentialStored: this.credentialStored }; }
+  setCredentialStored(value) { this.credentialStored = Boolean(value); return this.status(); }
 
   configure({ baseUrl, apiKey }) {
     this.cancel();
@@ -36,6 +38,7 @@ class AgentService {
     this.provider = null;
     this.baseUrl = null;
     this.history = [];
+    this.credentialStored = false;
     this.generation += 1;
     const normalized = normalizeBaseUrl(baseUrl);
     const provider = new OpenAICompatibleProvider({ baseUrl: normalized.href, apiKey, fetch: this.fetch });
@@ -50,6 +53,7 @@ class AgentService {
     this.provider = null;
     this.baseUrl = null;
     this.history = [];
+    this.credentialStored = false;
     this.generation += 1;
     return this.status();
   }
@@ -128,12 +132,18 @@ function validateConfigure(value) {
   return value;
 }
 
-function createAgentIpcHandlers(service, isTrustedSender) {
+function createAgentIpcHandlers(service, isTrustedSender, credentialStore = null) {
   const guard = (event) => { if (!isTrustedSender(event)) throw new ProviderError("UNTRUSTED_SENDER", "请求来源不受信任"); };
+  let credentialMutation = Promise.resolve();
+  const mutateCredential = (operation) => {
+    const result = credentialMutation.then(operation, operation);
+    credentialMutation = result.catch(() => {});
+    return result;
+  };
   return {
     status: async (event) => { guard(event); return service.status(); },
-    configure: async (event, value) => { guard(event); try { return { ok: true, ...service.configure(validateConfigure(value)) }; } catch (error) { return { ok: false, error: safeError(error), ...service.status() }; } },
-    clear: async (event) => { guard(event); return { ok: true, ...service.clearConfig() }; },
+    configure: async (event, value) => { guard(event); return mutateCredential(async () => { try { const config = validateConfigure(value); service.configure(config); if (credentialStore) { await credentialStore.save(config); service.setCredentialStored(true); } return { ok: true, ...service.status() }; } catch (error) { service.clearConfig(); return { ok: false, error: safeError(error), ...service.status() }; } }); },
+    clear: async (event) => { guard(event); return mutateCredential(async () => { service.clearConfig(); try { if (credentialStore) await credentialStore.clear(); service.setCredentialStored(false); return { ok: true, ...service.status() }; } catch (error) { service.setCredentialStored(true); return { ok: false, error: safeError(error), ...service.status() }; } }); },
     models: async (event) => { guard(event); return service.models(); },
     send: async (event, value) => { guard(event); return service.send(value || {}); },
     cancel: async (event) => { guard(event); service.cancel(); return { ok: true }; },

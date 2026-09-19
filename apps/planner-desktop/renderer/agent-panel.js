@@ -52,8 +52,9 @@
     const status = await api.getStatus();
     if (revision !== configRevision) return;
     configured = status.configured;
+    if (configured && status.baseUrl) byId("agentBaseUrl").value = status.baseUrl;
     byId("agentChatTarget").textContent = status.targetHost ? `目标服务：${status.targetHost}` : "未连接服务";
-    setStatus(configured ? `已连接：${status.targetHost}（Key 已进入会话内存）` : "尚未连接", configured ? "connected" : ""); updateControls();
+    setStatus(configured ? `已连接：${status.targetHost}${status.credentialStored ? "（Key 已安全缓存到本机）" : ""}` : "尚未连接", configured ? "connected" : ""); updateControls();
   }
   byId("agentBaseUrl").addEventListener("input", async () => {
     const revision = ++configRevision;
@@ -77,10 +78,16 @@
       configured = false; setStatus("API 地址已变化；旧连接结果已丢弃，请重新连接", "error"); updateControls(); return;
     }
     if (!result.ok) { configured = false; setStatus(result.error.message, "error"); updateControls(); return; }
-    configured = true; conversationId += 1; byId("agentChatTarget").textContent = `目标服务：${result.targetHost}`; setStatus(`已连接：${result.targetHost}（Key 已进入会话内存）`, "connected"); updateControls();
+    configured = true; conversationId += 1; byId("agentChatTarget").textContent = `目标服务：${result.targetHost}`; setStatus(`已连接：${result.targetHost}（Key 已安全缓存到本机）`, "connected"); updateControls();
     await loadModels();
   });
-  byId("agentClearConfig").addEventListener("click", async () => { configRevision += 1; if (api) await api.clearConfig(); configured = false; byId("agentApiKey").value = ""; await newConversation(false); await refreshStatus(); });
+  byId("agentClearConfig").addEventListener("click", async () => {
+    configRevision += 1;
+    const result = api ? await api.clearConfig() : { ok: false, error: { message: "桌面安全桥不可用" } };
+    configured = false; byId("agentApiKey").value = ""; await newConversation(false);
+    if (!result.ok) { setStatus(`${result.error.message}；本地缓存可能仍存在`, "error"); updateControls(); return; }
+    await refreshStatus();
+  });
   async function loadModels() {
     const button = byId("agentLoadModels");
     button.disabled = true; button.textContent = "获取中…";

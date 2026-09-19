@@ -12,7 +12,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 | --- | --- | --- |
 | Repository migration | Complete | ChatGPT export reorganized and committed to `main` |
 | Desktop shell | Prototype | Electron 0.2; isolated preload and local resource protocol |
-| General agent MVP | Review | Project-independent bounded core, in-memory OpenAI-compatible provider configuration, ordinary chat and calculator tool loop added by P2AT-024A; real provider validation still requires a user-supplied key |
+| General agent MVP | Review | Project-independent bounded core, OS-encrypted local API credential cache, ordinary chat and calculator tool loop added by P2AT-024A; live provider and tool-loop acceptance completed with a user-authorized limited key |
 | Passive tree renderer | Graph core accepted | Canvas2D rendering remains in Planner; pure graph construction, queries and deterministic eligible paths passed controller acceptance |
 | Allocation | Prototype | Normal, ascendancy and weapon-set allocation present |
 | Conditional/hidden nodes | Prototype | Conditional reveal and external hidden-node sidecar present |

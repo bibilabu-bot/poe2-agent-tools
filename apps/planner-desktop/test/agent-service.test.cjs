@@ -11,7 +11,7 @@ test("service keeps configuration and conversation in memory and clears both", a
   const service = new AgentService({ fetch: async (url, options) => { requests.push({ url, options }); return json({ choices: [{ message: { content: "ok" } }] }); } });
   assert.equal((await service.send({ model: "m", text: "hi" })).error.code, "NOT_CONFIGURED");
   const status = service.configure({ baseUrl: "https://example.com/v1", apiKey: "session-secret" });
-  assert.deepEqual(status, { configured: true, targetHost: "example.com", running: false });
+  assert.deepEqual(status, { configured: true, baseUrl: "https://example.com/v1", targetHost: "example.com", running: false, credentialStored: false });
   assert.equal((await service.send({ model: "m", text: "first", toolsEnabled: false })).text, "ok");
   assert.equal((await service.send({ model: "m", text: "second", toolsEnabled: false })).text, "ok");
   const secondBody = JSON.parse(requests[1].options.body);
@@ -64,5 +64,48 @@ test("failed reconfiguration clears the previous provider and key state", () => 
   const service = new AgentService({ fetch: async () => json({}) });
   service.configure({ baseUrl: "https://example.com/v1", apiKey: "old-secret" });
   assert.throws(() => service.configure({ baseUrl: "http://example.com/v1", apiKey: "new-secret" }));
-  assert.deepEqual(service.status(), { configured: false, targetHost: null, running: false });
+  assert.deepEqual(service.status(), { configured: false, baseUrl: null, targetHost: null, running: false, credentialStored: false });
+});
+
+test("IPC stores credentials locally and clear removes the cache", async () => {
+  const calls = [];
+  const credentialStore = {
+    save: async (value) => calls.push(["save", { ...value }]),
+    clear: async () => calls.push(["clear"]),
+  };
+  const service = new AgentService({ fetch: async () => json({ data: [] }) });
+  const handlers = createAgentIpcHandlers(service, () => true, credentialStore);
+  const connected = await handlers.configure({}, { baseUrl: "https://example.com/v1", apiKey: "local-secret" });
+  assert.equal(connected.credentialStored, true);
+  assert.deepEqual(calls, [["save", { baseUrl: "https://example.com/v1", apiKey: "local-secret" }]]);
+  assert.ok(!JSON.stringify(connected).includes("local-secret"));
+  const cleared = await handlers.clear({});
+  assert.equal(cleared.credentialStored, false);
+  assert.deepEqual(calls.at(-1), ["clear"]);
+});
+
+test("credential mutations serialize configure, clear, and overlapping configure requests", async () => {
+  let releaseFirstSave;
+  const firstSaveBlocked = new Promise((resolve) => { releaseFirstSave = resolve; });
+  const calls = [];
+  let saveCount = 0;
+  const credentialStore = {
+    save: async ({ baseUrl }) => { calls.push(`save:${baseUrl}`); saveCount += 1; if (saveCount === 1) await firstSaveBlocked; },
+    clear: async () => { calls.push("clear"); },
+  };
+  const service = new AgentService({ fetch: async () => json({ data: [] }) });
+  const handlers = createAgentIpcHandlers(service, () => true, credentialStore);
+  const first = handlers.configure({}, { baseUrl: "https://first.example/v1", apiKey: "first" });
+  await new Promise((resolve) => setImmediate(resolve));
+  const clear = handlers.clear({});
+  const second = handlers.configure({}, { baseUrl: "https://second.example/v1", apiKey: "second" });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(calls, ["save:https://first.example/v1"]);
+  releaseFirstSave();
+  assert.equal((await first).ok, true);
+  assert.equal((await clear).ok, true);
+  assert.equal((await second).ok, true);
+  assert.deepEqual(calls, ["save:https://first.example/v1", "clear", "save:https://second.example/v1"]);
+  assert.equal(service.status().baseUrl, "https://second.example/v1");
+  assert.equal(service.status().credentialStored, true);
 });

@@ -1,6 +1,6 @@
 # PoE2 Planner Desktop v0.2 — 本地数据缓存版
 
-应用现在有两个顶层页面：**天赋树**保留现有 Planner 实例，**智能体**通过用户配置的 OpenAI-compatible 服务提供与项目无关的普通聊天。Agent 设置、API Key 与会话历史均只保存在当前进程内存中；接口、限额与兼容边界见 `../../docs/AGENT_FRAMEWORK.md`。
+应用现在有两个顶层页面：**天赋树**保留现有 Planner 实例，**智能体**通过用户配置的 OpenAI-compatible 服务提供与项目无关的普通聊天。API Key 通过操作系统安全存储加密后缓存于本机，设置中的“清除 Key”会删除缓存；会话历史仍只保存在当前进程内存中。接口、限额与兼容边界见 `../../docs/AGENT_FRAMEWORK.md`。
 
 这一版把 Planner 的资源地址全部从公网 URL 改成 `poe2://` 本地资源协议。
 
