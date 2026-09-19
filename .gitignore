@@ -5,6 +5,7 @@ dist/
 out/
 release/
 coverage/
+.research-cache/
 *.log
 .DS_Store
 Thumbs.db
