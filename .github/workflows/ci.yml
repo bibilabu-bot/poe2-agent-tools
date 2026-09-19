@@ -46,6 +46,14 @@ jobs:
         working-directory: apps/planner-desktop
         run: npm run check
 
+      - name: Install Electron for rendered UI regression
+        working-directory: apps/planner-desktop
+        run: env -u ELECTRON_SKIP_BINARY_DOWNLOAD node node_modules/electron/install.js
+
+      - name: Verify rendered agent errors
+        working-directory: apps/planner-desktop
+        run: xvfb-run -a npm run test:agent-ui
+
       - name: Check jewel compiler script syntax
         working-directory: tools/jewel-compiler
         run: |

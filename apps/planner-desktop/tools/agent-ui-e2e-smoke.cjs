@@ -8,6 +8,7 @@ async function main() {
 const endpoint = process.env.P2AT_CDP_ENDPOINT || "http://127.0.0.1:9222";
 const testMessage = process.env.P2AT_UI_SMOKE_MESSAGE || "请只回答：56088";
 const expectedText = process.env.P2AT_UI_SMOKE_EXPECTED || "56088";
+const expectedError = process.env.P2AT_UI_EXPECT_ERROR || "";
 const restoredText = process.env.P2AT_UI_EXPECT_RESTORED_TEXT || "";
 const testMissingModel = process.env.P2AT_UI_SMOKE_PRE_MISSING_MODEL === "1";
 const pages = await fetch(`${endpoint}/json/list`).then((response) => response.json());
@@ -87,7 +88,14 @@ const completed = await waitFor(`(() => {
   };
 })()`, 130_000);
 const lastMessage = completed.messages.at(-1);
-if (!lastMessage?.role.includes("assistant") || !lastMessage.text.includes(expectedText)) {
+const visibleResult = await evaluate(`(() => {
+  const el = [...document.querySelectorAll('#agentMessages .agent-message')].at(-1);
+  if (!el) return false;
+  const s = getComputedStyle(el), r = el.getBoundingClientRect();
+  return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0;
+})()`);
+if (!visibleResult) throw new Error("Last response exists but is not visible");
+if (!lastMessage?.role.includes(expectedError ? "error" : "assistant") || !lastMessage.text.includes(expectedError || expectedText)) {
   throw new Error(`live UI chat failed: ${JSON.stringify(lastMessage)}`);
 }
 if (process.env.P2AT_UI_REQUIRE_TOOL === "1" && !completed.toolTrace.includes("calculator")) {
@@ -96,9 +104,9 @@ if (process.env.P2AT_UI_REQUIRE_TOOL === "1" && !completed.toolTrace.includes("c
 const activity = await evaluate(`(() => {
   const rows = [...document.querySelectorAll('#agentMessages .agent-activity')];
   const last = rows.at(-1);
-  return last ? { className: last.className, text: last.textContent } : null;
+  return last ? { className: last.className, text: last.textContent, visible: getComputedStyle(last).display !== 'none' && last.getBoundingClientRect().height > 0 } : null;
 })()`);
-if (!activity || !activity.className.includes("done") || !activity.text.includes("已收到模型回复")) throw new Error(`activity timeline missing: ${JSON.stringify(activity)}`);
+if (!activity?.visible || !activity.className.includes(expectedError ? "error" : "done") || !activity.text.includes(expectedError ? "处理失败" : "已收到模型回复")) throw new Error(`activity timeline missing: ${JSON.stringify(activity)}`);
 const screenshot = await command("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
 const screenshotPath = path.join(os.tmpdir(), "p2at-agent-ui-e2e.png");
 await fs.writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));

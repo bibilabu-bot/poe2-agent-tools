@@ -74,6 +74,16 @@ configured relay but returned HTTP 402, including `deepseek-v4-pro`; therefore a
 successful real-service calculator round trip is NOT claimed for this migration.
 The app remains available for manual validation after service access is restored.
 
+Follow-up visibility fix: the Planner error overlay style is scoped to `#error`,
+not the shared `.error` class. `npm run test:agent-ui` renders the production CSS
+in Chromium and asserts that agent message/activity/status errors remain visible
+in normal layout while the Planner overlay retains its behavior. CI runs this
+with Electron under Xvfb. The regression failed before the fix and passed after.
+Live UI error-path acceptance confirmed the HTTP 402 message and failed activity
+are visible; this is not successful chat/tool acceptance. Node 155/155 (no skips),
+Python 15/15, syntax, source-lock and jewel checks passed. A new success demo video
+is deferred until the configured service allows real conversation requests.
+
 The runner makes at most 6 model requests and 12 tool calls per run. It retains at most 80 runner messages, truncates model text at 32,000 characters, tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters. Provider requests are limited to 512 KiB, responses to 2 MiB, provider requests time out after 90 seconds and the whole run after 120 seconds. One session permits only one active run.
 
 Text without tool calls finishes the run. Tool calls are validated and executed sequentially, appended with the exact call ID, then returned to the model. Unknown tools, malformed JSON/schema arguments and execution errors become controlled tool results. Cancellation and timeouts propagate through provider and tool signals. No automatic paid retry is performed.
