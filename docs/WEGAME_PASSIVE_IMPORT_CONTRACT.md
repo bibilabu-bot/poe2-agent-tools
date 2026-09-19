@@ -29,6 +29,16 @@ Cancellation is checked before cache publication and throughout temporary-file w
 
 Candidate construction is complete before any later UI application. The P2AT-021C UI task must confirm class/ascendancy, visibly disclose inactive source specialisations and skill overrides, and apply active arrays transactionally or leave Planner unchanged.
 
+## P2AT-021C owner-approved experimental UI mapping
+
+The accepted P2AT-021B boundary remains unchanged: `sourceSpecialisations` are inert in the transport candidate and do not themselves authorize native behavior. During P2AT-021C Windows validation, the project owner explicitly approved an experimental UI decision to map the exact source labels `set1` to native Weapon Set I and `set2` to native Weapon Set II after the user reviews and confirms the mapping. No other source label is inferred.
+
+Before replacement, the UI validates every mapped node against the live Planner directory and weapon-specialisation eligibility. It shows the applicable count and a bounded list of omissions with source label, numeric ID and reason; any omission requires a separate explicit acknowledgment. Applied set allocations use the existing schema-v1 `weaponSet1`/`weaponSet2` fields and therefore survive native Save/Open. The source candidate remains memory-only and is not copied into unknown fields.
+
+One public-link Windows run on 2026-09-18 applied Weapon Set I `16/17` and Weapon Set II `17/17`. Numeric node `52669` (`fire75`) was present in the locked official tree but absent from the current slim Planner catalog, so it was visibly omitted. The project owner confirmed the resulting mapping in the running application. This single sample is an owner-approved experimental product rule, not a claim that Tencent documents the numbering or that every future WeGame response uses the same meaning.
+
+Skill overrides, jewel contents, uninterpreted talent members and unresolved evidence remain inactive and unsaved. Equipment, skills and DPS are still outside the importer.
+
 ## Stable error codes
 
 `WEGAME_INVALID_URL`, `WEGAME_REDIRECT_REJECTED`, `WEGAME_TIMEOUT`, `WEGAME_NETWORK_ERROR`, `WEGAME_HTTP_ERROR`, `WEGAME_CONTENT_TYPE_ERROR`, `WEGAME_RESPONSE_TOO_LARGE`, `WEGAME_STREAM_UNAVAILABLE`, `WEGAME_INVALID_JSON`, `WEGAME_BUSINESS_ERROR`, `WEGAME_SCHEMA_ERROR`, `WEGAME_TREE_ERROR`, `WEGAME_BUSY`, `WEGAME_UNTRUSTED_CALLER`, and `WEGAME_INTERNAL_ERROR`.

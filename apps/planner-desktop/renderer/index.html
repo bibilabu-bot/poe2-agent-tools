@@ -23,6 +23,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .build-feedback.error-state{border-color:#784147;background:#281416;color:#f0b6b6}
 .build-feedback summary{cursor:pointer;font-weight:700}
 .build-feedback ol{max-height:180px;overflow:auto;margin:7px 0 0;padding-left:22px;color:#c6c1b8}
+.wegame-dialog{width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;border:1px solid #806537;border-radius:12px;background:#111318;color:var(--text);box-shadow:0 24px 80px #000;padding:0}
+.wegame-dialog::backdrop{background:#05070acc;backdrop-filter:blur(3px)}
+.wegame-dialog form{padding:18px}.wegame-dialog h2{margin:0 0 7px;color:#e6c77d}.wegame-dialog label{display:block;margin-top:11px}
+.wegame-dialog input[type=url],.wegame-dialog select{width:100%;box-sizing:border-box;margin-top:5px}.wegame-dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;padding:0}
+.wegame-preview{margin-top:13px;padding:11px;border:1px solid #4f452f;border-radius:9px;background:#18150f}.wegame-counts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.wegame-counts span{padding:7px;border-radius:6px;background:#0e1115;text-align:center}
+.wegame-warning{margin-top:9px;padding:8px;border-left:3px solid #db9b45;background:#2a1c0d;color:#f0c98f;line-height:1.5}.wegame-error{color:#f0aaaa}.wegame-confirm{display:flex!important;gap:8px;align-items:flex-start;line-height:1.45}.wegame-confirm input{margin-top:3px}
 .content{min-height:0;display:grid;grid-template-columns:330px 1fr}
 .sidebar{overflow:auto;border-right:1px solid var(--border);background:linear-gradient(180deg,#18150f,#0b0b0d);padding:14px}
 .section{padding:12px 0;border-bottom:1px solid #2a2c31}.section:first-child{padding-top:0}.section:last-child{border-bottom:0}
@@ -111,6 +117,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
     <div id="meta" class="meta">完整 Graph + 官方 sprite + Build allocation</div>
   </div>
   <div class="toolbar">
+    <button id="importWeGame" class="build-action" disabled>导入 WeGame 天赋</button>
     <button id="openBuild" class="build-action" disabled>打开 Build</button>
     <button id="saveBuild" class="build-action" disabled>保存 Build</button>
     <button id="undo" disabled>↶ Undo</button>
@@ -278,9 +285,40 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
 </div>
 </div>
 
+<dialog id="weGameDialog" class="wegame-dialog">
+  <form id="weGameForm" novalidate>
+    <h2>导入 WeGame 天赋</h2>
+    <div class="note">粘贴公开分享链接。主进程会临时读取角色身份，仅用于随后请求天赋树；身份不会返回界面或持久化。不会请求装备、技能或 DPS。</div>
+    <label>WeGame 分享链接
+      <input id="weGameUrl" type="url" required autocomplete="off" spellcheck="false" placeholder="https://www.wegame.com.cn/helper/poe2/#/share/…">
+    </label>
+    <div id="weGameStatus" class="note" role="status" aria-live="polite">输入链接后读取预览；读取和取消都不会修改当前 Build。</div>
+    <div id="weGamePreview" class="wegame-preview" hidden>
+      <b>导入预览</b>
+      <div id="weGameCounts" class="wegame-counts"></div>
+      <div id="weGameSourceClass" class="note"></div>
+      <label>确认基础职业<select id="weGameClass"></select></label>
+      <label>确认升华职业<select id="weGameAscendancy"></select></label>
+      <div id="weGameInactiveWarning" class="wegame-warning"></div>
+      <div id="weGameBudgetWarning" class="wegame-warning" hidden></div>
+      <details id="weGameOmissions" class="wegame-warning" hidden><summary id="weGameOmissionSummary"></summary><ol id="weGameOmissionList"></ol></details>
+      <label class="wegame-confirm"><input id="weGamePartialAck" type="checkbox"><span>我确认这是实验性部分导入：set1/set2 暂按武器组 I/II 激活并保存；全部属性选择覆盖、珠宝内容和未解析数据不会激活，只在本次预览中保留，保存 Build 也不会保存这些未支持内容。</span></label>
+      <label id="weGameOmissionAckRow" class="wegame-confirm" hidden><input id="weGameOmissionAck" type="checkbox"><span>我已查看上方省略明细，确认在缺失节点不进入 Build 的情况下继续。</span></label>
+      <label id="weGameReplaceRow" class="wegame-confirm" hidden><input id="weGameReplaceAck" type="checkbox"><span>我确认用该导入结果覆盖当前非空 Build，并清除旧的撤销/预览历史。</span></label>
+      <details id="weGameDiagnostics" class="note"><summary>诊断详情（最多 100 条）</summary><ol id="weGameDiagnosticList"></ol></details>
+    </div>
+    <menu>
+      <button id="weGameCancel" type="button">取消</button>
+      <button id="weGameRead" type="submit" class="build-action">读取预览</button>
+      <button id="weGameApply" type="button" class="build-action" hidden>确认并替换 Build</button>
+    </menu>
+  </form>
+</dialog>
+
 <script src="stat-utils.js"></script>
 <script src="build-codec.js"></script>
 <script src="build-state-adapter.js"></script>
+<script src="wegame-import-ui.js"></script>
 <script src="passive-graph.js"></script>
 <script src="planner.js"></script>
 

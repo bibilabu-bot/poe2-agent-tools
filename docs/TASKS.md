@@ -628,7 +628,7 @@ Delivery requirements include strict URL/redirect/response controls, only `GetRo
 
 ### P2AT-021C — Connect WeGame passive import UI
 
-- Status: `IN_PROGRESS`
+- Status: `REVIEW`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-021B acceptance
@@ -636,7 +636,9 @@ Delivery requirements include strict URL/redirect/response controls, only `GetRo
 
 Goal: let a user review the P2AT-021B candidate, confirm unresolved class/ascendancy meaning, see inactive weapon-specialisation and override warnings, and apply only supported passive allocations without partial mutation.
 
-Acceptance: visible URL entry, bounded preview, explicit class/ascendancy confirmation and partial-import acknowledgment; cancel/error leaves the old Build unchanged. Validate every active ID against the live Planner catalog before transactional replacement, rebuild starts and derived state, and retain the existing rollback/unsafe-save safeguards. Never guess set1/set2 numbering or apply overrides, equipment, skills or jewel contents. Inactive candidate data is memory-only and is not saved in native unknown fields; disclose this before application. Keep the existing budget values and warn on over-budget imports. Test replacement of a nonempty Build, cancellation, bad input/network failures, rollback and native save/reopen of supported allocations. Deliver a Windows Electron preview with screenshots, exact launch instructions and a real public-link test when reachable; distinguish live and fixture evidence. No schema revision, visual redesign or unrelated refactoring.
+Acceptance: visible URL entry, bounded preview, explicit class/ascendancy confirmation and partial-import acknowledgment; cancel/error leaves the old Build unchanged. Validate every active ID against the live Planner catalog before transactional replacement, rebuild starts and derived state, and retain the existing rollback/unsafe-save safeguards. Do not apply overrides, equipment, skills or jewel contents. Inactive candidate data is memory-only and is not saved in native unknown fields; disclose this before application. Keep the existing budget values and warn on over-budget imports. Test replacement of a nonempty Build, cancellation, bad input/network failures, rollback and native save/reopen of supported allocations. Deliver a Windows Electron preview with screenshots, exact launch instructions and a real public-link test when reachable; distinguish live and fixture evidence. No schema revision, visual redesign or unrelated refactoring.
+
+Owner-approved validation decision (2026-09-18): the P2AT-021B candidate continues to preserve source specialisations inertly, while the P2AT-021C UI may, only after explicit review and confirmation, map exact `set1` to Weapon Set I and exact `set2` to Weapon Set II. The UI must show actual applicable counts, bounded omission details and real budget accounting before replacement. The observed public sample applied `16/17` and `17/17`; node `52669` was explicitly omitted because the current Planner catalog lacks it. This is a validated experimental mapping for the current product, not a general Tencent numbering guarantee. Task remains `REVIEW` until controller acceptance.
 
 ### P2AT-020A — Prototype a particle-driven loading experience
 
