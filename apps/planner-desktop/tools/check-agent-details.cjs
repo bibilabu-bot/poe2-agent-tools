@@ -64,6 +64,12 @@ app.whenReady().then(async () => {
     await mount();
     await waitFor("!document.getElementById('agentSend').disabled");
     await waitFor("!document.querySelector('[data-save-profile=embedding]').disabled");
+    await evaluate("window.desktopAPI.retrievalSettings.test=async()=>({ok:true,durationMs:12,detail:'返回有效向量'});document.querySelector('[data-test-profile=embedding]').click()");
+    await waitFor("document.getElementById('embeddingStatus').textContent.includes('连接测试通过')");
+    assert.equal(await evaluate("!!window.savedProfiles.embedding"),false);
+    await evaluate("window.desktopAPI.retrievalSettings.test=async()=>({ok:false,error:{message:'HTTP 401：Key 无效'}});document.querySelector('[data-test-profile=embedding]').click()");
+    await waitFor("document.getElementById('embeddingStatus').textContent.includes('HTTP 401')");
+    assert.equal(await evaluate("document.querySelector('[data-test-profile=embedding]').disabled"),false);
     assert.equal(await evaluate("document.getElementById('embeddingModelSelect').value"), "text-embedding-v4");
     await evaluate("document.getElementById('embeddingModelSelect').value='text-embedding-v2';document.getElementById('embeddingModelSelect').dispatchEvent(new Event('change'))");
     assert.deepEqual(await evaluate("[...document.getElementById('embeddingDimensions').options].map(o=>o.value)"), ["1536"]);

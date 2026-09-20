@@ -289,6 +289,22 @@ Chromium reports it available. No clipboard read or logging is introduced. Two m
 unit checks, syntax checking and both rendered UI fixtures passed. User clipboard
 contents were not accessed during verification.
 
+Connection-test follow-up: each retrieval profile has an explicit paid-API test
+button using current form values, or a stored key only for the same endpoint.
+Fixed synthetic text is sent; no history/Planner data or automatic persistence.
+Electron net.fetch retains desktop network compatibility, rejects redirects and
+omits cookies. Tests have a 15-second timeout and 256 KB response cap. Embedding
+responses must contain a finite nonzero vector matching configured dimensions;
+rerank responses must contain two distinct valid indexes and finite scores. Both
+DashScope native and flat rerank response shapes are supported. qwen3-rerank with
+the native endpoint reports the required endpoint correction before sending.
+Only static errors/HTTP status and timing reach the renderer; provider bodies and
+raw transport exceptions never do. Passing validates connectivity/response shape,
+not domain ranking quality or RAG integration. Mock tests cover success, malformed
+results, HTTP/business errors, timeout, size bounds, cached-key binding, trust and
+non-persistence; rendered fixtures verify success/failure feedback and button reset.
+No live credential was used for this implementation verification.
+
 ## Run and review
 
 From `apps/planner-desktop`:

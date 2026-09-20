@@ -2,9 +2,10 @@
 
 const path = require("node:path");
 const { AgentCredentialStore } = require("./agent-credential-store.cjs");
+const { testRetrievalConnection } = require("./retrieval-connection-test.cjs");
 
 // Separate encrypted profiles; never reuse the chat key implicitly.
-function createRetrievalSettings({ userDataPath, safeStorage, isTrustedSender }) {
+function createRetrievalSettings({ userDataPath, safeStorage, isTrustedSender, fetchImpl = globalThis.fetch }) {
   const stores = Object.fromEntries(["embedding", "reranker"].map(kind => [kind,
     new AgentCredentialStore({ userDataPath: path.join(userDataPath, "retrieval-settings", kind), safeStorage })]));
   let queue = Promise.resolve();
@@ -34,6 +35,15 @@ function createRetrievalSettings({ userDataPath, safeStorage, isTrustedSender })
     queue = task.catch(() => {}); return task;
   };
   return {
+    test: handle(async value => {
+      const config = validate(value);
+      if (!config.apiKey) {
+        const previous = await read(value.kind);
+        if (previous?.baseUrl === config.baseUrl) config.apiKey = previous.apiKey;
+      }
+      if (!config.apiKey) return { ok:false, error:{message:"请输入 Key，或先保存当前地址的 Key"} };
+      return testRetrievalConnection(value.kind, config, fetchImpl);
+    }),
     status: handle(async () => ({ ok: true, embedding: publicValue(await read("embedding")), reranker: publicValue(await read("reranker")) })),
     save: handle(async value => {
       const config = validate(value), previous = await read(value.kind);

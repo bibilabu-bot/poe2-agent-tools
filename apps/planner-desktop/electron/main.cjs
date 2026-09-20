@@ -217,7 +217,8 @@ ipcMain.handle("agent:reset", agentIpcHandlers.reset);
 ipcMain.handle("agent:restore-conversation", agentIpcHandlers.restore);
 
 app.whenReady().then(async()=>{
-  const retrievalSettings = createRetrievalSettings({ userDataPath: app.getPath("userData"), safeStorage, isTrustedSender: isTrustedPlannerSender });
+  const retrievalSettings = createRetrievalSettings({ userDataPath: app.getPath("userData"), safeStorage, isTrustedSender: isTrustedPlannerSender, fetchImpl: (url, options) => net.fetch(url, options) });
+  ipcMain.handle("settings:retrieval-test", retrievalSettings.test);
   ipcMain.handle("settings:retrieval-status", retrievalSettings.status);
   ipcMain.handle("settings:retrieval-save", retrievalSettings.save);
   ipcMain.handle("settings:retrieval-clear", retrievalSettings.clear);

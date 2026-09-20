@@ -61,6 +61,23 @@
       status(kind, "原保存维度不在该模型预置范围内，已调整显示值；请确认后重新保存", true);
     }
   };
+  for (const kind of ["embedding", "reranker"]) {
+    const button = document.createElement("button"); button.textContent = "连接测试"; button.dataset.testProfile = kind;
+    document.querySelector(`[data-save-profile="${kind}"]`).after(button);
+    const help = document.createElement("p"); help.className = "agent-help";
+    help.textContent = "连接测试使用当前填写的配置发送固定样例，可能产生少量 API 费用；不上传历史或天赋资料，不自动保存。";
+    field(kind, "Status").before(help);
+    button.addEventListener("click", async () => {
+      busy(kind, true); button.textContent = "测试中…"; status(kind, "正在测试当前配置，请稍候…");
+      try {
+        const result = await api.test({ kind, baseUrl: field(kind,"Url").value.trim(), model:field(kind,"Model").value.trim(),
+          apiKey:field(kind,"Key").value, ...(kind === "embedding" ? {dimensions:Number(field(kind,"Dimensions").value)} : {}) });
+        status(kind, result.ok ? `连接测试通过 · ${result.durationMs} ms · ${result.detail}；配置未自动保存，RAG 尚未接入` : `连接测试失败：${result.error.message}`, !result.ok);
+      } catch { status(kind, "连接测试不可用，请完整重启桌面应用后重试", true); }
+      finally { busy(kind, false); button.textContent = "连接测试"; }
+    });
+    document.querySelectorAll(`[data-profile="${kind}"] input,[data-profile="${kind}"] select`).forEach(input=>input.addEventListener("input",()=>status(kind,"配置已修改，请重新保存或连接测试")));
+  }
   document.querySelectorAll("[data-save-profile]").forEach(button => button.addEventListener("click", async () => {
     const kind = button.dataset.saveProfile;
     busy(kind, true);
