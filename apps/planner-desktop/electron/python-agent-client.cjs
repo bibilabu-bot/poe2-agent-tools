@@ -10,10 +10,11 @@ class PythonAgentError extends Error {
 }
 
 class PythonAgentClient {
-  constructor({ executable, cwd = path.join(__dirname, "..") } = {}) {
+  constructor({ executable, cwd = path.join(__dirname, ".."), memoryPath = "" } = {}) {
     const localPython = path.join(cwd, ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
     executable = executable || process.env.P2AT_PYTHON || (existsSync(localPython) ? localPython : "python");
     this.executable = executable; this.cwd = cwd; this.child = null; this.pending = new Map(); this.nextId = 1;
+    this.memoryPath = memoryPath;
   }
   async request(method, params = {}) {
     this.#ensureProcess();
@@ -36,7 +37,7 @@ class PythonAgentClient {
     const bootstrap = "import runpy,sys;sys.path.insert(0,sys.argv[1]);runpy.run_module('python_agent.rpc_server',run_name='__main__')";
     const child = spawn(this.executable, ["-X", "utf8", "-I", "-c", bootstrap, this.cwd], {
       cwd: this.cwd, stdio: ["pipe", "pipe", "pipe"], windowsHide: true,
-      env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+      env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1", P2AT_AGENT_MEMORY_DB: this.memoryPath },
     });
     this.child = child;
     child.stdout.setEncoding("utf8");

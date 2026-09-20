@@ -7,7 +7,7 @@ import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence, TypedDict
+from typing import Any, Callable, Mapping, Sequence, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
@@ -178,10 +178,12 @@ class AgentRunner:
         provider: ModelProvider,
         registry: ToolRegistry,
         limits: RunnerLimits | None = None,
+        memory_context: Callable[[], dict[str, Any]] | None = None,
     ) -> None:
         self.provider = provider
         self.registry = registry
         self.limits = limits or RunnerLimits()
+        self.memory_context = memory_context
         self._run_lock = asyncio.Lock()
         graph = StateGraph(RunState)
         graph.add_node("prepare_context", self._prepare_context)
@@ -226,12 +228,28 @@ class AgentRunner:
                              state["trace"], state["rounds"], state["tool_count"], state["context_report"])
 
     def _prepare_context(self, state: RunState) -> dict[str, Any]:
+        instructions = list(state["instructions"])
+        memory = self.memory_context() if self.memory_context else None
+        memory_chars = 0
+        if memory is not None:
+            text = "[MEMORY_CONTEXT_DATA]\n" + json.dumps(memory, ensure_ascii=False, separators=(",", ":"))
+            memory_chars = len(text)
+            if memory_chars > self.limits.max_history_chars:
+                raise AgentError("MEMORY_DIRECTORY_FULL", "Full memory directory and notebook exceed the history budget")
+            # Keep recalled user/model content at user-data priority, never system authority.
+            instructions.append({"role": "user", "content": text})
         try:
-            selected = select_context(state["history"], state["messages"], state["instructions"],
-                                      history_limit=self.limits.max_history_chars)
+            selected = select_context(state["history"], state["messages"], instructions,
+                                      history_limit=self.limits.max_history_chars - memory_chars)
         except ContextError as error:
             raise AgentError("INVALID_HISTORY", str(error)) from error
-        return {"model_input": selected.messages, "context_report": selected.report}
+        report = {**selected.report, "memoryChars": memory_chars,
+                  "totalHistoryChars": selected.report["historyChars"] + memory_chars}
+        if memory is not None:
+            report.update({"currentTurn": memory["current_turn"],
+                           "directoryTurns": len(memory["directory"]),
+                           "notebookRevision": memory["notebook"]["revision"]})
+        return {"model_input": selected.messages, "context_report": report}
 
     async def _model_step(self, state: RunState) -> dict[str, Any]:
         if state["rounds"] >= self.limits.max_model_rounds:

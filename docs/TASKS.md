@@ -27,6 +27,15 @@ and tool work from that budget. Selection is non-destructive and runs before eve
 model call. Existing archive, input and transport safety limits remain separate.
 No summarization, intent classification or UI redesign is included.
 
+Owner-approved durable-memory follow-up (2026-09-20): full minimal per-turn index in
+every model input, current-turn ordinal, transactional structured/freeform notebook,
+keyword search returning metadata only, and full original-turn reads supporting
+consecutive ranges. SQLite archives completed turns separately from bounded working
+context; first index is extractive, not an LLM semantic summary. Four-strategy log
+evidence is required. Same local profile/endpoint remains the conversation identity;
+no multi-account model, Planner coupling, UI redesign or bundled Python is added.
+See `docs/MEMORY_ACCEPTANCE.md`; task remains REVIEW and main is not merged.
+
 Delivered boundaries: Electron remains the trusted renderer/credential/process boundary. It launches a hidden isolated Python process with explicit UTF-8 stdin/stdout handling and communicates through request-ID-correlated JSON lines. The existing Electron `net.fetch` adapter remains responsible only for `/models` discovery so the migrated build preserves the accepted Windows proxy/TLS behavior; Python owns agent execution, conversation, tools and completion protocols. Cancellation terminates the runtime process so blocked standard-library HTTP work cannot survive in the background; the next request restores the connection configuration and only fully completed bounded conversation checkpoints. Completed user/assistant turns plus bounded operational steps and elapsed time persist in the local renderer profile and are bound to the exact normalized API endpoint; credentials remain separately encrypted and hidden reasoning is never stored or displayed. Interrupted, malformed, cross-endpoint and partial SSE turns are never restored or committed. Explicit SSE error events fail the run. Automated tests use no real credential or paid request; a separately authorized local acceptance smoke may use the user's cached configuration without printing the key. This remains a development-environment migration: packaging a bundled Python executable for release remains follow-up work, and the task stays `REVIEW`.
 
 ### P2AT-024A — Add a project-independent agent MVP

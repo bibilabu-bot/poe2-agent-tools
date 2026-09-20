@@ -16,7 +16,7 @@ const { createTrustedPlannerSenderPredicate, createWeGameImportService, createWe
 const { AgentService, createAgentIpcHandlers } = require("./agent-service.cjs");
 const { AgentCredentialStore } = require("./agent-credential-store.cjs");
 const { OpenAICompatibleProvider } = require("./openai-compatible-provider.cjs");
-const { PythonAgentError } = require("./python-agent-client.cjs");
+const { PythonAgentError, PythonAgentClient } = require("./python-agent-client.cjs");
 
 protocol.registerSchemesAsPrivileged([{
   scheme: "poe2",
@@ -140,6 +140,7 @@ async function loadOfficialTree({ signal } = {}) {
 
 const weGameImportService = createWeGameImportService({ fetch: (url, options) => net.fetch(url, options), loadOfficialTree });
 const agentService = new AgentService({
+  client: new PythonAgentClient({ memoryPath: path.join(app.getPath("userData"), "agent-memory.sqlite3") }),
   modelLister: async ({ baseUrl, apiKey, signal }) => {
     const provider = new OpenAICompatibleProvider({
       baseUrl,

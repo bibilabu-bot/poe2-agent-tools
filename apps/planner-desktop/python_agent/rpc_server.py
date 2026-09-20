@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from typing import Any
 
@@ -32,7 +33,7 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any]) -
 async def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8", errors="strict", newline="\n")
     sys.stderr.reconfigure(encoding="utf-8", errors="strict", newline="\n")
-    service = AgentService()
+    service = AgentService(memory_path=os.environ.get("P2AT_AGENT_MEMORY_DB") or None)
     while line := await asyncio.to_thread(sys.stdin.buffer.readline):
         request_id: Any = None
         try:

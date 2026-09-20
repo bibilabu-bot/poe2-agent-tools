@@ -4,7 +4,7 @@ P2AT-026A moves the active agent implementation to Python 3.11+. The Renderer UI
 
 Electron starts the Python runtime as a hidden child process and uses newline-delimited JSON requests with unique numeric IDs. The process is launched in Python isolated mode with UTF-8 mode explicitly enabled; Node encodes stdin and decodes stdout/stderr as UTF-8, while Python strictly decodes stdin and reconfigures stdout/stderr as UTF-8. Chinese and emoji round trips are covered through the real child process.
 
-The API key is still persisted only through Electron `safeStorage`; plaintext is passed to Python only in a private stdin message and is never placed in process arguments, environment variables, output or logs. Electron retains a bounded, memory-only checkpoint of conversation turns only after Python reports a fully completed run. Cancelling, timing out or restarting the child restores that checkpoint into the new runtime, so completed conversation remains available while the interrupted user turn, tool work and partial model output are discarded. New session, configuration change and clear-key operations erase the checkpoint.
+The API key is still persisted only through Electron `safeStorage`; plaintext is passed to Python only in a private stdin message and is never placed in process arguments, environment variables, output or logs. The production Python service persists completed turns and notebook changes together in a local SQLite transaction. Electron retains a bounded in-process recovery cache. On restart the authoritative archive takes precedence over that cache, so completed tool records are not replaced with display-only user/assistant pairs. Failed or interrupted turns do not commit. New session creates a new archive namespace; clearing the key disconnects without deleting archived conversations.
 
 Chat SSE parsing treats explicit `event: error`, top-level `error`, `type: error` and `response.failed` events as failed runs even if text deltas arrived first. No partial text from such a response is returned as success or committed to conversation history.
 
@@ -14,6 +14,7 @@ Python entry points:
 - `python_agent/tools.py`: finite-number calculator.
 - `python_agent/provider.py`: bounded OpenAI-compatible Models, Chat Completions and Responses JSON adapter.
 - `python_agent/service.py`: Python-owned configuration, conversation and runner assembly.
+- `python_agent/memory.py`: SQLite archive, full extractive directory, transactional notebook and memory tools.
 - `python_agent/rpc_server.py`: narrow JSON-lines process protocol.
 - `electron/python-agent-client.cjs`: Electron subprocess lifecycle and request correlation only.
 
@@ -48,8 +49,8 @@ Each invocation owns a fresh `RunState`; nodes return explicit replacement value
 implicit message append reducer). The existing HTTP provider and tool registry remain
 injected dependencies, outside state. Ambient LangSmith tracing is explicitly disabled
 so conversations are not uploaded to a tracing service. No automatic retry is enabled.
-This migration does not add a graph checkpointer or context summarization: durable UI
-conversation storage and the service's successful-turn commit boundary stay unchanged.
+No graph checkpointer is installed. The owner-approved memory follow-up adds a SQLite
+completed-turn archive and extractive index (described below), not intermediate graph resumption.
 Cancelled/failed intermediate graph state is discarded, not resumed on the next turn.
 
 Development setup (Python 3.11+), from `apps/planner-desktop`:
@@ -85,7 +86,7 @@ are visible; this is not successful chat/tool acceptance. Node 155/155 (no skips
 Python 15/15, syntax, source-lock and jewel checks passed. A new success demo video
 is deferred until the configured service allows real conversation requests.
 
-The runner makes at most 6 model requests and 12 tool calls per run. It truncates model text at 32,000 characters, bounds tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service's separate archive retention trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters. Provider requests are limited to 512 KiB, responses to 2 MiB, provider requests time out after 90 seconds and the whole run after 120 seconds. One session permits only one active run.
+The runner makes at most 6 model requests and 12 tool calls per run. It truncates model text at 32,000 characters, bounds tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service's working cache trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters; this no longer deletes the corresponding SQLite archive. Provider requests are limited to 512 KiB, responses to 2 MiB, provider requests time out after 90 seconds and the whole run after 120 seconds. One session permits only one active run.
 
 ### History context selection (2026-09-20)
 
@@ -135,7 +136,56 @@ Only HTTPS base URLs are accepted, except explicit HTTP loopback (`localhost`, `
 
 The API Key is accepted only by a password input, submitted through narrow IPC, and immediately removed from the renderer input. Electron `safeStorage` encrypts it with the operating-system credential facility before a versioned cache is written under the application's local user-data directory. The renderer never receives either plaintext or ciphertext. There is no plaintext fallback when OS encryption is unavailable. Status responses expose only connection state, target host, and whether a credential is cached. The key is never logged or included in prompts/tool arguments/results. **清除 Key** removes both the active in-memory credential and its encrypted local cache; changing the API address clears the active connection until the new address and key have been saved successfully.
 
-Runtime history is memory-resident; completed UI turns additionally persist locally as described above. New session, cancellation and configuration generation checks prevent late responses from entering a replacement conversation.
+The working history is memory-resident; full completed turns and notebook state persist in SQLite, and the bounded display timeline remains in the renderer profile. New session, cancellation and configuration generation checks prevent late responses from entering a replacement conversation.
+
+## Durable memory follow-up (2026-09-20)
+
+Production stores `agent-memory.sqlite3` under Electron's `userData` directory. No
+new dependency is needed: SQLite comes from Python's standard library. This is local
+conversation data, **not encrypted storage**. The configured API key is never supplied
+to the memory store. Treat conversational content as private local data and do not
+paste credentials into chat or notes. Memory is not uploaded to a tracing service.
+
+- Every successful turn archives its user, assistant and tool messages atomically
+  with notebook updates. Failed/cancelled turns and staged notes are discarded.
+- Every `prepare_context` injects ALL completed-turn index entries, the notebook,
+  `completed_turns` and `current_turn = completed_turns + 1`. Failed attempts do not
+  consume an ordinal. The injected block is user-role historical data, never system
+  authority. Archived tool calls are evidence, not instructions to execute.
+- The first summary implementation is a deterministic **extractive index label**:
+  short question/answer excerpts plus tool names, at most 96 code points. It is not
+  an LLM semantic summary and can omit important middle-of-turn details; search scans
+  complete archived messages, not just these labels. No extra summarization API call.
+- Directory and notebook share the existing 100,000-character historical allowance
+  with recent raw turns. The active turn is still excluded. Directory JSON is capped
+  at 60,000 characters; overflow fails explicitly instead of silently omitting older
+  entries. This is not an unlimited-context promise.
+- `update_notebook`: replace `goal`, `constraints`, `decisions`; merge arbitrary
+  `notes` key/value facts, with null deleting a note. Maximum 8,000 serialized
+  characters and 32 named notes. Changes are immediately visible to the next model
+  call in the same run, but only persist if the whole turn succeeds.
+- `search_memory(query, limit=5, offset=0)`: case-insensitive literal keywords,
+  whitespace-separated AND, up to five matches per page. Returns only `turn_id`,
+  timestamp, summary, character count and next offset, not original messages.
+- `read_memory(start_turn_id, count=1, offset=0)`: one to five consecutive completed
+  turns. Returns JSON text fragments up to 1,500 characters; concatenate `text` using
+  `next_offset` until `complete=true`. Original tool records are included. Reading
+  has a 12,000-character aggregate per-run budget in addition to loop limits; a long
+  record may require continued reading in later turns. No silent content truncation.
+- These three memory tools are always available in the production conversation.
+  The existing UI checkbox still controls only the calculator demonstration tool.
+- Existing UI history imports once, atomically, if the active archive is empty;
+  subsequent restores use the archive without reimporting or reducing tool records.
+  Previously discarded history cannot be recovered retroactively.
+- Scope is one local app profile + exact normalized endpoint + active conversation.
+  Same-endpoint API-key rotation intentionally preserves conversation continuity.
+  This is not a remote-account system: use **new session** when actually switching
+  accounts. New sessions retain the previous archive on disk but current tools cannot
+  access it; an archived-session browser and deletion UI are not part of this change.
+
+See `MEMORY_ACCEPTANCE.md` for reproducible four-strategy evidence. This remains a
+development-environment build; packaged Python is still not implemented. Task REVIEW,
+no main merge.
 
 ## Run and review
 
