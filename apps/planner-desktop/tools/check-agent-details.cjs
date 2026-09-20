@@ -38,11 +38,27 @@ app.whenReady().then(async () => {
     }
     throw new Error("UI state did not arrive");
   }
+  async function checkMinimalLayout() {
+    const layout = await evaluate(`(() => {
+      const activity = document.querySelector('.agent-activity.done');
+      return {stepCount:activity.querySelectorAll('.agent-activity-step').length,
+        stepsDisplay:getComputedStyle(activity.querySelector('.agent-activity-steps')).display,
+        rows:[...activity.querySelectorAll('.agent-operation')].map(d=>({
+          border:getComputedStyle(d).borderTopWidth,background:getComputedStyle(d).backgroundColor,
+          summaryBorder:getComputedStyle(d.querySelector('summary')).borderBottomWidth}))};
+    })()`);
+    assert.equal(layout.stepCount, 0); assert.equal(layout.stepsDisplay, "none");
+    for (const row of layout.rows) {
+      assert.equal(row.border, "0px"); assert.equal(row.background, "rgba(0, 0, 0, 0)");
+      assert.equal(row.summaryBorder, "0px");
+    }
+  }
   try {
     await mount();
     await waitFor("!document.getElementById('agentSend').disabled");
     await evaluate("document.getElementById('agentModel').value='mock'; document.getElementById('agentInput').value='查看记忆'; document.getElementById('agentComposer').requestSubmit()");
     await waitFor("document.querySelectorAll('.agent-operation').length === 2");
+    await checkMinimalLayout();
     assert.equal(await evaluate("[...document.querySelectorAll('.agent-operation')].every(d=>!d.open)"), true);
     await evaluate("document.querySelectorAll('.agent-operation summary')[1].click()");
     const first = await evaluate(`(() => { const d=document.querySelectorAll('.agent-operation')[1], p=d.querySelector('pre');
@@ -51,11 +67,13 @@ app.whenReady().then(async () => {
     assert.match(first.text, /"start_turn_id": 7/); assert.match(first.text, /搜索 #1/); assert.match(first.text, /4 ms/);
     assert.match(first.text, /已解析，缩进展示/); assert.match(first.text, /\n    "turn_id": 7,/);
     assert.ok(!first.text.includes('\\"turn_id\\"'));
+    await checkMinimalLayout();
     await evaluate("document.querySelectorAll('.agent-operation summary')[1].click()");
     assert.equal(await evaluate("document.querySelectorAll('.agent-operation')[1].open"), false);
     await mount();
     await waitFor("document.querySelectorAll('.agent-operation').length === 2");
     assert.match(await evaluate("document.querySelectorAll('.agent-operation')[1].textContent"), /"count": 2/);
+    await checkMinimalLayout();
     console.log("PASS: production panel expands/collapses parameters, results, timing and memory links; reload restores details; HTML stays inert");
   } finally { window.destroy(); await isolated.clearStorageData(); }
 }).then(() => app.exit(0), error => { console.error(error.stack); app.exit(1); });

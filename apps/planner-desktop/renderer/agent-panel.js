@@ -58,7 +58,10 @@
     let renderedTrace = null;
     const render = () => {
       head.textContent = `${entry.state === "error" ? "处理失败，用时" : "已处理"} ${formatDuration(entry.durationMs)}`;
-      body.replaceChildren(...entry.steps.map((text) => Object.assign(document.createElement("div"), { className: "agent-activity-step", textContent: text })));
+      // Completed operations already have their own expandable rows. Keep transient
+      // waiting/failure messages, without repeating the completed step checklist.
+      body.hidden = entry.state === "done";
+      body.replaceChildren(...(body.hidden ? [] : entry.steps).map((text) => Object.assign(document.createElement("div"), { className: "agent-activity-step", textContent: text })));
       element.className = `agent-activity ${entry.state}`;
       if (renderedTrace !== entry.trace) {
         operations.replaceChildren(...window.AgentTrace.renderTrace(document, entry.trace));

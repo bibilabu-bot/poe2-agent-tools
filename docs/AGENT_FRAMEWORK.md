@@ -224,6 +224,15 @@ Python 28/28, both rendered UI fixtures, and independent review passed. The live
 window was refreshed without a model request, confirming indentation and absence of
 the outer JSON-string escaping.
 
+Timeline styling follow-up: completed turns omit the redundant sent/tool-done/reply
+checklist and retain elapsed time plus the expandable tool rows. Running and failed
+turns retain their status messages. Tool rows use transparent, borderless styling,
+including when expanded; keyboard focus outlines remain for accessibility. Existing
+stored steps remain compatible but are not repeated in the completed UI. Production
+fixture checks verify no checklist DOM rows and transparent/zero-border computed
+styles before expansion, after expansion and after reload. Node 163/163, Python
+28/28, rendered UI fixtures and independent review passed.
+
 ## Run and review
 
 From `apps/planner-desktop`:

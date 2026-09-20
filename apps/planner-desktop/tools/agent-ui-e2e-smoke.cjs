@@ -120,7 +120,7 @@ const activity = await evaluate(`(() => {
   const last = rows.at(-1);
   return last ? { className: last.className, text: last.textContent, visible: getComputedStyle(last).display !== 'none' && last.getBoundingClientRect().height > 0 } : null;
 })()`);
-if (!activity?.visible || !activity.className.includes(expectedError ? "error" : "done") || !activity.text.includes(expectedError ? "处理失败" : "已收到模型回复")) throw new Error(`activity timeline missing: ${JSON.stringify(activity)}`);
+if (!activity?.visible || !activity.className.includes(expectedError ? "error" : "done") || !activity.text.includes(expectedError ? "处理失败" : "已处理")) throw new Error(`activity timeline missing: ${JSON.stringify(activity)}`);
 const screenshot = await command("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
 const screenshotPath = path.join(os.tmpdir(), "p2at-agent-ui-e2e.png");
 await fs.writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
