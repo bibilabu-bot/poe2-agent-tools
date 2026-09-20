@@ -70,6 +70,8 @@ test("durable memory: four strategies, UTF-8, restart, cancellation and SSE roll
   assert.equal(observed[1].memory.notebook.notes.验收口令, "蓝鹭-908🙂");
   assert.equal(result.trace.length, 3);
   assert.ok(result.trace.every(r => r.ok));
+  assert.equal(JSON.parse(result.trace[1].arguments).query, "琥珀");
+  assert.ok(result.trace.every(r => Number.isFinite(r.durationMs) && r.durationMs >= 0));
   const search = JSON.parse(result.trace[1].result);
   const read = JSON.parse(result.trace[2].result);
   assert.equal(search.metadata_only, true);

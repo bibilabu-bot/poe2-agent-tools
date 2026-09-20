@@ -145,3 +145,39 @@ paged and bounded per run. See `AGENT_FRAMEWORK.md` for exact limits and privacy
 
 No Planner integration, UI redesign, vector search, semantic ranking, graph resume
 checkpoint, multi-account system, archive-management UI or bundled Python is added.
+
+## Follow-up: expandable operation details
+
+Owner requested inspectable UI operations after the four-strategy delivery. The
+focused timeline change adds collapsed per-tool rows (arguments, result, call ID,
+execution duration, memory range/search overlap); it is not a full UI redesign.
+
+Actual `kimi-k3` UI acceptance returned project `琥珀-731🙂` and delivery `周五`,
+with these measured tool details:
+
+```json
+{"name":"search_memory","arguments":{"limit":5,"query":"琥珀"},"matchedTurnIds":[11,13,14,16,18]}
+{"name":"read_memory","arguments":{"count":2,"start_turn_id":14},"turn_ids":[14,15],"complete":true}
+```
+
+The UI smoke clicked the collapsed read tool and verified a visible parameters
+section. An initial attempt targeted an old still-running development instance and
+failed this check; after closing the two exact test instances and launching the
+current version, the full real-model/UI test passed. A subsequent actual page reload
+(no extra model request) produced:
+
+```json
+{"restored":true,"expanded":true,"parametersPresent":true,"memoryLinkPresent":true}
+```
+
+Final follow-up checks: Node 161/161, zero skips; Python 28/28; syntax; both Electron
+production-UI tests (error visibility plus expand/collapse/reload/inert HTML); and
+independent Python/JavaScript safety review passed. Review corrections expanded
+credential-key redaction and made truncation markers consume the documented text
+budget. Optional static-analysis packages remain uninstalled.
+
+Tool details currently arrive with the completed response, not as live intermediate
+events. Failed-run partial traces are not retained. Legacy turns without saved
+arguments/durations are not backfilled with invented data. See the framework guide
+for display budgets, redaction scope and the 30-turn UI cache boundary. REVIEW and
+development-only Python packaging status are unchanged.

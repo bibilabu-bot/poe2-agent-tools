@@ -1,6 +1,7 @@
 "use strict";
 
 const { PythonAgentClient, PythonAgentError } = require("./python-agent-client.cjs");
+const { normalizeTrace } = require("../renderer/agent-trace.js");
 const RUN_TIMEOUT_MS = 120_000;
 
 function safeError(error) {
@@ -83,7 +84,7 @@ class AgentService {
       const result = await this.client.request("send", value || {});
       if (generation !== this.generation) return { ok: false, stale: true, error: { code: "STALE_RUN", message: "会话已变化，已忽略迟到响应" } };
       this.history = Array.isArray(result.history) ? structuredClone(result.history) : this.history;
-      return { ok: true, text: result.text, trace: result.trace, context: result.context, stopReason: null };
+      return { ok: true, text: result.text, trace: normalizeTrace(result.trace, this.config?.apiKey || ""), context: result.context, stopReason: null };
     } catch (error) { return { ok: false, error: safeError(error) }; }
     finally { clearTimeout(timeout); if (this.active === runToken) this.active = null; }
   }

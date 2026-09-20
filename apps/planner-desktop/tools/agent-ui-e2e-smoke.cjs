@@ -86,7 +86,7 @@ const completed = await waitFor(`(() => {
     model: document.getElementById('agentModel').value,
     connection: document.getElementById('agentConnectionStatus').textContent,
     modelStatus: document.getElementById('agentModelStatus').textContent,
-    toolTrace: document.getElementById('agentToolLog').textContent,
+    toolTrace: [...document.querySelectorAll('#agentMessages .agent-activity')].at(-1)?.textContent || '',
     sendDisabled: document.getElementById('agentSend').disabled,
   };
 })()`, 130_000);
@@ -101,8 +101,19 @@ if (!visibleResult) throw new Error("Last response exists but is not visible");
 if (!lastMessage?.role.includes(expectedError ? "error" : "assistant") || !lastMessage.text.includes(expectedError || expectedText)) {
   throw new Error(`live UI chat failed: ${JSON.stringify(lastMessage)}`);
 }
-if (process.env.P2AT_UI_REQUIRE_TOOL === "1" && !completed.toolTrace.includes("calculator")) {
-  throw new Error("Expected calculator tool trace was not displayed");
+const expectedTool = process.env.P2AT_UI_EXPECT_TOOL || (process.env.P2AT_UI_REQUIRE_TOOL === "1" ? "calculator" : "");
+if (expectedTool && !completed.toolTrace.includes(expectedTool)) {
+  throw new Error("Expected tool trace was not displayed");
+}
+if (expectedTool) {
+  const expanded = await evaluate(`(() => {
+    const activity = [...document.querySelectorAll('#agentMessages .agent-activity')].at(-1);
+    const details = [...activity.querySelectorAll('details.agent-operation')].find(d => d.querySelector('summary').textContent.includes(${JSON.stringify(expectedTool)}));
+    if (!details || details.open) return false;
+    details.querySelector('summary').click();
+    return details.open && details.querySelector('pre').getBoundingClientRect().height > 0 && details.textContent.includes('传参');
+  })()`);
+  if (!expanded) throw new Error("Tool details did not expand visibly");
 }
 const activity = await evaluate(`(() => {
   const rows = [...document.querySelectorAll('#agentMessages .agent-activity')];

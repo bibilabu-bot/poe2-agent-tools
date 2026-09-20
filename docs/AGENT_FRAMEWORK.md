@@ -187,6 +187,34 @@ See `MEMORY_ACCEPTANCE.md` for reproducible four-strategy evidence. This remains
 development-environment build; packaged Python is still not implemented. Task REVIEW,
 no main merge.
 
+### Expandable operational details
+
+Each completed run now has collapsed native `details` rows under its activity
+timeline. Expand a tool to inspect its call ID, arguments, result, and monotonic
+execution duration (not provider latency). Memory tools additionally show search
+matches, read ranges/page offsets and notebook revision. A read can identify matching
+IDs in prior search results; that is an observable overlap, not a claim about the
+model's private decision process. All text is rendered with `textContent`.
+
+Python emits the actual arguments and duration. A display-only projection redacts
+the configured API key and named credential fields before IPC, limits arguments to
+4,000 characters, results to 8,000 and the combined argument/result text per turn to
+24,000 (including truncation notices; small call metadata/JSON framing is additional).
+Empty fields at exhausted budget show an explicit UI notice. Model/tool execution data and archived original records are not
+changed by these display limits. This is not a general detector of all user secrets.
+
+Display details persist with the latest 30 complete UI turns (matching the bridge's
+60-message restore boundary). Storage pressure drops oldest complete UI triplets;
+the full SQLite archive is unaffected. Old records without arguments show "未保存"
+rather than fabricated parameters/timing. This version displays tool details once
+the entire response returns; live intermediate tool-event streaming and preservation
+of failed-run partial tool traces are not included. No hidden reasoning is displayed.
+
+Verification: pure trace tests, real-subprocess argument/duration assertions, and
+`npm run test:agent-ui` with production markup/scripts/CSS verify expand/collapse,
+reload restoration and inert HTML inside tool results. The Electron UI tests own
+their exit status explicitly so closing a window cannot hide assertion failures.
+
 ## Run and review
 
 From `apps/planner-desktop`:

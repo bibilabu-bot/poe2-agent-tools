@@ -49,20 +49,35 @@
     const entry = { kind: "message", role, text, persistent }; timeline.push(entry); return entry;
   }
   function formatDuration(ms) { const seconds = Math.max(0, Math.floor(ms / 1000)); return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`; }
-  function addActivity({ durationMs = 0, steps = [], state = "done", persistent = true } = {}) {
+  function addActivity({ durationMs = 0, steps = [], trace = [], state = "done", persistent = true } = {}) {
     const element = document.createElement("div");
     const head = document.createElement("div"); head.className = "agent-activity-head"; element.append(head);
     const body = document.createElement("div"); body.className = "agent-activity-steps"; element.append(body);
-    const entry = { kind: "activity", durationMs, steps: [...steps], state, persistent }; timeline.push(entry);
+    const operations = document.createElement("div"); element.append(operations);
+    const entry = { kind: "activity", durationMs, steps: [...steps], trace: window.AgentTrace.normalizeTrace(trace), state, persistent }; timeline.push(entry);
+    let renderedTrace = null;
     const render = () => {
       head.textContent = `${entry.state === "error" ? "处理失败，用时" : "已处理"} ${formatDuration(entry.durationMs)}`;
       body.replaceChildren(...entry.steps.map((text) => Object.assign(document.createElement("div"), { className: "agent-activity-step", textContent: text })));
       element.className = `agent-activity ${entry.state}`;
+      if (renderedTrace !== entry.trace) {
+        operations.replaceChildren(...window.AgentTrace.renderTrace(document, entry.trace));
+        renderedTrace = entry.trace;
+      }
     };
     render(); byId("agentMessages").append(element); return { entry, render };
   }
   function saveConversation() {
-    try { localStorage.setItem(CONVERSATION_KEY, JSON.stringify({ version: 1, baseUrl: connectedBaseUrl, timeline: timeline.filter((item) => item.persistent).slice(-120) })); } catch {}
+    const rows = timeline.filter((item) => item.persistent).slice(-90);
+    while (rows.length) {
+      const serialized = JSON.stringify({ version: 1, baseUrl: connectedBaseUrl, timeline: rows });
+      if (serialized.length > 1500000 && rows.length > 3) { rows.splice(0, 3); continue; }
+      try { localStorage.setItem(CONVERSATION_KEY, serialized); return; }
+      catch (error) {
+        if (error.name === "QuotaExceededError" && rows.length > 3) { rows.splice(0, 3); continue; }
+        setStatus("本地界面记录保存失败；完整成功对话仍保存在智能体数据库中", "error"); return;
+      }
+    }
   }
   async function restoreConversation() {
     let saved;
@@ -70,7 +85,7 @@
     if (saved?.version !== 1 || typeof saved.baseUrl !== "string" || !Array.isArray(saved.timeline) || !api) return;
     const status = await api.getStatus(); connectedBaseUrl = status.baseUrl || connectedBaseUrl;
     if (!status.configured || saved.baseUrl !== status.baseUrl) return;
-    const rows = saved.timeline.slice(-120), restored = [], history = [];
+    const rows = saved.timeline.slice(-90), restored = [], history = [];
     let valid = rows.length > 0 && rows.length % 3 === 0;
     for (let index = 0; valid && index < rows.length; index += 3) {
       const user = rows[index], activity = rows[index + 1], assistant = rows[index + 2];
@@ -80,21 +95,22 @@
         && activity?.kind === "activity" && activity.state === "done" && Number.isFinite(duration) && duration >= 0 && duration <= 86400000
         && Array.isArray(steps) && steps.length > 0 && steps.length <= 20 && steps.every((step) => typeof step === "string" && step.length > 0 && step.length <= 500)
         && assistant?.kind === "message" && assistant.role === "assistant" && typeof assistant.text === "string" && assistant.text.length > 0 && assistant.text.length <= 32000;
-      if (valid) { restored.push(user, { ...activity, durationMs: duration, steps: [...steps] }, assistant); history.push({ role: "user", content: user.text }, { role: "assistant", content: assistant.text }); }
+      if (valid) { restored.push(user, { ...activity, durationMs: duration, steps: [...steps], trace: window.AgentTrace.normalizeTrace(activity.trace) }, assistant); history.push({ role: "user", content: user.text }, { role: "assistant", content: assistant.text }); }
     }
     const result = valid ? await api.restoreConversation(history) : { ok: false };
     if (!result.ok) { try { localStorage.removeItem(CONVERSATION_KEY); } catch {} return; }
     byId("agentMessages").replaceChildren(); timeline = [];
     for (const item of restored) {
       if (item.kind === "message") addMessage(item.role, item.text);
-      else addActivity({ durationMs: item.durationMs, steps: item.steps, state: "done" });
+      else addActivity({ durationMs: item.durationMs, steps: item.steps, trace: item.trace, state: "done" });
     }
     byId("agentMessages").scrollTop = byId("agentMessages").scrollHeight;
   }
   function showTrace(trace) {
     const log = byId("agentToolLog");
     if (!trace?.length) { log.hidden = true; log.textContent = ""; return; }
-    log.textContent = trace.map((item) => `${item.ok ? "✓" : "!"} ${item.name} · ${item.callId}\n${item.result}`).join("\n\n"); log.hidden = false;
+    // Details now belong to their historical turn, not an unbounded global dump.
+    log.hidden = true; log.textContent = "";
   }
   async function refreshStatus() {
     if (!api) { setStatus("桌面安全桥不可用", "error"); return; }
@@ -210,6 +226,7 @@
       addMessage("error", result.error.message, false); return;
     }
     activity.entry.state = "done";
+    activity.entry.trace = window.AgentTrace.normalizeTrace(result.trace);
     activity.entry.steps = [`已发送到 ${model}`, ...(result.trace || []).map((item) => `${item.ok ? "已完成" : "工具失败"}：${item.name}`), "已收到模型回复"];
     activity.entry.persistent = true; userEntry.persistent = true; activity.render();
     showTrace(result.trace); addMessage("assistant", result.text || "（模型未返回文本）"); saveConversation();

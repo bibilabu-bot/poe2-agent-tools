@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Sequence, TypedDict
@@ -285,9 +286,12 @@ class AgentRunner:
         messages = list(state["messages"])
         trace = list(state["trace"])
         for call in state["calls"]:
+            started = time.monotonic()
             result, ok = await self._execute_tool(call)
             result_text = _bounded_json(result, self.limits.max_tool_result_chars)
             trace.append({"callId": call.call_id, "name": call.name[:64],
+                          "arguments": call.arguments,
+                          "durationMs": round((time.monotonic() - started) * 1000),
                           "ok": ok, "result": result_text})
             messages.append({"role": "tool", "tool_call_id": call.call_id, "content": result_text})
         return {"messages": messages, "trace": trace,

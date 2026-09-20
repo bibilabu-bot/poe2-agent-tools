@@ -5,6 +5,7 @@ const { app, BrowserWindow } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const assert = require("node:assert/strict");
+app.on("window-all-closed", () => {}); // Do not mask assertion failures on teardown.
 
 app.whenReady().then(async () => {
   const renderer = path.join(__dirname, "../renderer");
