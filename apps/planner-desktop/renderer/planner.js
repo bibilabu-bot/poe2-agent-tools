@@ -1725,8 +1725,8 @@ function prepareEdges() {
 
 function resize() {
   const r=wrap.getBoundingClientRect();
-  W=Math.max(320,Math.floor(r.width));
-  H=Math.max(420,Math.floor(r.height));
+  W=Math.max(1,Math.floor(r.width));
+  H=Math.max(1,Math.floor(r.height));
   DPR=Math.min(2,window.devicePixelRatio||1);
   canvas.width=Math.round(W*DPR);
   canvas.height=Math.round(H*DPR);

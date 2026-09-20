@@ -40,3 +40,29 @@
 .retrieval-settings h2{font-size:17px;margin:0 0 4px}
 .retrieval-settings label{font-size:12px;color:#c8c3b8}
 .retrieval-settings input,.retrieval-settings select{width:100%;box-sizing:border-box;padding:9px;background:#0a0c0f;border:1px solid #34373d;border-radius:8px;color:#eee9df}
+
+/* One header geometry across all mounted pages; tools belong to the content rail. */
+.top,.agent-top{height:72px;min-height:72px;padding:12px 24px;gap:16px;overflow:hidden}
+.top>div:first-child,.agent-top>div:first-child{min-width:0;max-width:none;flex:1;overflow:hidden}
+.top .title,.agent-top h1{font-size:18px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .meta,.agent-top p{font-size:11px;margin:4px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.page-nav,.agent-nav{display:flex;flex:0 0 auto;gap:8px;margin-left:auto}
+.page-nav button,.agent-nav button{width:76px;height:36px;min-height:36px;padding:6px 8px;font-size:13px;white-space:nowrap}
+.content{grid-template-columns:64px 0 minmax(0,1fr)}
+.content.panel-open{grid-template-columns:64px clamp(280px,23vw,320px) minmax(0,1fr)}
+.module-nav{align-self:stretch;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:6px;padding:10px 5px;border-right:1px solid var(--border);background:#0b0c0e;overflow-y:auto}
+.tool-trigger{flex:none;min-height:58px;padding:5px 2px;flex-direction:column;gap:4px;font-size:11px}
+.tool-icon{display:grid}
+@media(max-width:900px){
+  .content,.content.panel-open{grid-template-columns:64px minmax(0,1fr)}
+  .content>.sidebar{left:64px;width:min(320px,calc(100vw - 72px));transform:translateX(calc(-100% - 64px))}
+  .content.panel-open>.sidebar{transform:translateX(0)}
+  .content>.stage{grid-column:2}
+}
+@media(max-width:600px){
+  .top,.agent-top{padding-inline:10px;gap:8px}
+  .top .title,.agent-top h1{font-size:14px}
+  .top .meta,.agent-top p{display:none}
+  .page-nav,.agent-nav{gap:4px}
+  .page-nav button,.agent-nav button{width:62px;font-size:12px}
+}

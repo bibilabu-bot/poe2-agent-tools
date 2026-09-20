@@ -6,6 +6,47 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-027A — Unify page navigation and left Planner tools
+
+- Status: `REVIEW`
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-026A REVIEW branch; mastery correction 114e47e
+- Scope: common page header and left vertical collapsible Planner tools only.
+
+Acceptance: identical top-right Planner/Agent/Settings navigation geometry; existing
+Build/allocation/search/display/stat controls and state preserved; narrow overlay,
+Canvas resize and hit coordinates correct. Real rendering screenshots, tests and an
+independent commit on the existing isolated branch. No allocation/data contract changes.
+
+### P2AT-027B — Move Settings scrolling to the window edge
+
+- Status: `READY`
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-027A
+- Scope: full-width single Settings page scroll owner, centered readable inner form.
+
+Acceptance: scrollbar at right window edge, fixed page navigation, dark thin styling,
+mouse and keyboard scrolling; no nested main scrollbar; all separate model profiles,
+secure Key storage and connection behavior retained. Edge assertions/screenshots and
+independent commit. No real paid requests.
+
+### P2AT-027C — Restore independent sessions and simplify chat layout
+
+- Status: `READY`
+- Assignment target: `Codex local executor`
+- Depends on: P2AT-027A, P2AT-027B, P2AT-026A SQLite memory
+- Scope: collapsible session overview, persisted selection/list, central chat/composer.
+
+Acceptance: genuine SQLite conversation namespaces isolate history, notebooks, context,
+keyword/semantic search and run events; endpoint boundaries unchanged. First user text
+provides title without model calls; recent ordering; new chat preserves all archives;
+restart restores selected session. Disable switching while generating with stop guidance.
+Explain any minimal backward-compatible migration and test archive preservation before
+implementation; destructive conversion requires escalation. Synthetic two-session,
+restart, error/cancel and late-event regressions, independent boundary review, real UI
+screenshots, separate commit. Preserve streaming, stop, details, follow-scroll; no delete,
+sync, parallel generation, index rebuild or unsafe model HTML. Remain REVIEW, no main merge.
+
 ### P2AT-026A — Move the agent runtime to Python
 
 - Status: `REVIEW`

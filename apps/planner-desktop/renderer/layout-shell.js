@@ -99,7 +99,8 @@
     });
 
     sidebar.replaceChildren(...Object.values(panels));
-    toolbar.replaceChildren(rail);
+    toolbar.remove();
+    content.insertBefore(rail, sidebar);
     let openPanel = null;
     let lastTrigger = null;
     let resizeTimer = 0;
