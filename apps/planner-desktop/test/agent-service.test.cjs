@@ -9,6 +9,7 @@ class MockPythonClient {
   async request(method, params = {}) {
     this.calls.push({ method, params: structuredClone(params) });
     if (method === "status") return { configured: this.configured };
+    if (method === "rag_configure") return { ready: false };
     if (method === "configure") { this.configured = true; return { configured: true, baseUrl: params.baseUrl }; }
     if (method === "clear") { this.configured = false; return { configured: false }; }
     if (method === "reset") return { ok: true };
@@ -22,6 +23,32 @@ class MockPythonClient {
   }
   terminate(error) { this.configured = false; this.terminatedWith = error; }
 }
+
+test("cancel or timeout during RAG profile loading cannot resurrect a model request", async () => {
+  for (const mode of ["cancel", "timeout"]) {
+    const client = new MockPythonClient();
+    const service = new AgentService({ client, runTimeoutMs: mode === "timeout" ? 20 : 1000 });
+    await service.configure({ baseUrl: "https://example.com/v1", apiKey: "fixture-only" });
+    let release;
+    service.ragConfiguration = () => new Promise(resolve => { release = resolve; });
+    const pending = service.send({ model: "m", text: "hi" });
+    await new Promise(resolve => setImmediate(resolve));
+    if (mode === "cancel") service.cancel();
+    else await new Promise(resolve => setTimeout(resolve, 40));
+    release({ profiles: null });
+    assert.equal((await pending).error.code, mode === "cancel" ? "CANCELLED" : "RUN_TIMEOUT");
+    assert.equal(client.calls.some(call => ["rag_configure", "send"].includes(call.method)), false);
+  }
+});
+
+test("unreadable optional RAG credentials disable retrieval but preserve ordinary chat", async () => {
+  const client = new MockPythonClient();
+  const service = new AgentService({client});
+  await service.configure({baseUrl:"https://example.com/v1",apiKey:"fixture-only"});
+  service.ragConfiguration = async () => { throw Object.assign(new Error("unreadable"), {code:"CREDENTIAL_CACHE_INVALID"}); };
+  assert.equal((await service.send({model:"m",text:"hi"})).text,"ok");
+  assert.deepEqual(client.calls.find(call=>call.method==="rag_configure").params,{profiles:null,unavailable:true});
+});
 
 test("service delegates configuration, models, and chat to Python", async () => {
   const client = new MockPythonClient();

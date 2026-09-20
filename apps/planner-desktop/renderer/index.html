@@ -393,7 +393,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
   <main class="settings-content">
     <div id="chatSettingsHost"></div>
     <section class="retrieval-settings" data-profile="embedding">
-      <h2>向量化 · Embedding</h2><p class="agent-help">将天赋资料、查询及获准使用的会话文本转换为向量。此处仅保存配置，RAG 尚未接入，不会发送资料。</p>
+      <h2>向量化 · Embedding</h2><p class="agent-help">将天赋描述、查询及当前会话摘要转换为向量。保存不发送资料，构建索引或语义查询时才调用。</p>
       <label for="embeddingUrl">API 基础地址（HTTPS）</label><input id="embeddingUrl" type="text" value="https://dashscope.aliyuncs.com/compatible-mode/v1" autocomplete="off">
       <label for="embeddingModel">模型 ID</label><input id="embeddingModel" type="text" value="text-embedding-v4" autocomplete="off">
       <label for="embeddingKey">API Key（留空保留同地址已存 Key）</label><input id="embeddingKey" type="password" autocomplete="off">
@@ -401,7 +401,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
       <div class="agent-actions"><button data-save-profile="embedding">保存配置</button><button data-clear-profile="embedding">清除配置及 Key</button></div><p id="embeddingStatus" class="agent-status" role="status">未配置</p>
     </section>
     <section class="retrieval-settings" data-profile="reranker">
-      <h2>重排序 · Reranker</h2><p class="agent-help">对候选资料排序。此处仅保存配置，接口尚未验证；不会改变当前聊天模型。</p>
+      <h2>重排序 · Reranker</h2><p class="agent-help">对检索命中的候选资料排序；不会改变当前聊天模型。保存后建议先连接测试。</p>
       <label for="rerankerUrl">API 完整地址（HTTPS）</label><input id="rerankerUrl" type="text" value="https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank" autocomplete="off">
       <label for="rerankerModel">模型 ID</label><input id="rerankerModel" type="text" value="qwen3.7-text-rerank" autocomplete="off">
       <label for="rerankerKey">API Key（留空保留同地址已存 Key）</label><input id="rerankerKey" type="password" autocomplete="off">

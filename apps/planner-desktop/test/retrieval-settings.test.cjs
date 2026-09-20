@@ -14,6 +14,18 @@ async function fixture(t, secure = safeStorage, fetchImpl) {
   const create = () => createRetrievalSettings({ userDataPath, safeStorage: secure, fetchImpl, isTrustedSender: event => event === "trusted" });
   return { create, userDataPath, api: create() };
 }
+
+test("explicit replacement key repairs an unreadable profile without requiring destructive clear", async t=>{
+  let unreadable=false;
+  const secure={...safeStorage,decryptString: bytes=>{if(unreadable)throw new Error("wrong context");return bytes.toString();}};
+  const {api}=await fixture(t,secure);
+  assert.equal((await api.save("trusted",value)).ok,true);
+  unreadable=true;
+  assert.equal((await api.save("trusted",{...value,apiKey:""})).ok,false);
+  assert.equal((await api.save("trusted",{...value,apiKey:"new-fixture-secret"})).ok,true);
+  unreadable=false;
+  assert.equal((await api.status("trusted")).embedding.hasKey,true);
+});
 test("retrieval profiles restore separately, never expose keys, retain same-endpoint key and clear independently", async t => {
   const { api, create, userDataPath } = await fixture(t);
   const result = await api.save("trusted", value);

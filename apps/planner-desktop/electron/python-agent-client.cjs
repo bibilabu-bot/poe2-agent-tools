@@ -10,11 +10,12 @@ class PythonAgentError extends Error {
 }
 
 class PythonAgentClient {
-  constructor({ executable, cwd = path.join(__dirname, ".."), memoryPath = "" } = {}) {
+  constructor({ executable, cwd = path.join(__dirname, ".."), memoryPath = "", onProgress = null } = {}) {
     const localPython = path.join(cwd, ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
     executable = executable || process.env.P2AT_PYTHON || (existsSync(localPython) ? localPython : "python");
     this.executable = executable; this.cwd = cwd; this.child = null; this.pending = new Map(); this.nextId = 1;
     this.memoryPath = memoryPath;
+    this.onProgress = onProgress;
   }
   async request(method, params = {}) {
     this.#ensureProcess();
@@ -59,6 +60,10 @@ class PythonAgentClient {
     if (this.child !== child) return;
     let response;
     try { response = JSON.parse(line); } catch { this.terminate(new PythonAgentError("PYTHON_PROTOCOL_ERROR", "Python 智能体返回了无效数据")); return; }
+    if (response.event === "rag_progress") {
+      if (Number.isInteger(response.completed) && Number.isInteger(response.total) && response.completed >= 0 && response.completed <= response.total && response.total <= 20000) this.onProgress?.({completed:response.completed,total:response.total});
+      return;
+    }
     const pending = this.pending.get(response.id); if (!pending) return;
     this.pending.delete(response.id);
     if (response.ok) pending.resolve(response.result);

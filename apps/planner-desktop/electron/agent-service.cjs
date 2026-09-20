@@ -78,10 +78,32 @@ class AgentService {
   async send(value) {
     if (this.active) return { ok: false, error: { code: "RUN_IN_PROGRESS", message: "当前会话已有回复正在运行" } };
     const generation = this.generation; const runToken = {}; this.active = runToken;
-    const timeout = setTimeout(() => this.client.terminate(new PythonAgentError("RUN_TIMEOUT", "智能体运行超时，已停止")), this.runTimeoutMs);
+    const timeout = setTimeout(() => {
+      runToken.failure = new PythonAgentError("RUN_TIMEOUT", "智能体运行超时，已停止");
+      if (this.active === runToken) this.client.terminate(runToken.failure);
+    }, this.runTimeoutMs);
+    const checkActive = () => {
+      if (runToken.failure) throw runToken.failure;
+      if (this.active !== runToken || generation !== this.generation) throw new PythonAgentError("CANCELLED", "已停止本次回复");
+    };
     try {
       await this.#ensureConfigured();
+      checkActive();
+      if (this.ragConfiguration) {
+        try {
+          const config = await this.ragConfiguration();
+          checkActive();
+          await this.client.request("rag_configure", config);
+        } catch (error) {
+          checkActive();
+          if (["CANCELLED", "RUN_TIMEOUT"].includes(error?.code)) throw error;
+          // Optional retrieval failures must not disable the base chat service.
+          await this.client.request("rag_configure", {profiles:null, unavailable:true});
+        }
+        checkActive();
+      }
       const result = await this.client.request("send", value || {});
+      checkActive();
       if (generation !== this.generation) return { ok: false, stale: true, error: { code: "STALE_RUN", message: "会话已变化，已忽略迟到响应" } };
       this.history = Array.isArray(result.history) ? structuredClone(result.history) : this.history;
       return { ok: true, text: result.text, trace: normalizeTrace(result.trace, this.config?.apiKey || ""), context: result.context, stopReason: null };

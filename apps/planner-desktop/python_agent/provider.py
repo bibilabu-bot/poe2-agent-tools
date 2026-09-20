@@ -40,12 +40,13 @@ def normalize_base_url(value: str) -> str:
 
 
 class OpenAICompatibleProvider(ModelProvider):
-    def __init__(self, base_url: str, api_key: str, timeout: float = 90.0) -> None:
+    def __init__(self, base_url: str, api_key: str, timeout: float = 90.0, accept: str = "application/json, text/event-stream") -> None:
         self.base_url = normalize_base_url(base_url)
         if not api_key or len(api_key) > 4096:
             raise AgentError("INVALID_API_KEY", "API Key is invalid")
         self._api_key = api_key
         self.timeout = timeout
+        self.accept = accept
         self._wire_api: str | None = None
 
     def clear_secret(self) -> None:
@@ -136,7 +137,7 @@ class OpenAICompatibleProvider(ModelProvider):
             headers={
                 "Authorization": f"Bearer {self._api_key}",
                 "Content-Type": "application/json",
-                "Accept": "application/json, text/event-stream",
+                "Accept": self.accept,
                 "User-Agent": DESKTOP_USER_AGENT,
             },
         )
@@ -161,6 +162,8 @@ class OpenAICompatibleProvider(ModelProvider):
         try:
             return json.loads(text)
         except json.JSONDecodeError:
+            if self.accept == "application/json":
+                raise AgentError("INVALID_RESPONSE", "Service returned invalid JSON") from None
             return _parse_chat_event_stream(text)
 
 

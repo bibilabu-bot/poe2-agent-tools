@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, safeStorage, Menu } = require("electron");
 const { installEditContextMenu } = require("./edit-context-menu.cjs");
+const { buildPassiveCorpus, passiveCorpusIdentity } = require("./passive-corpus.cjs");
+const { createRagManager } = require("./rag-manager.cjs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const fs = require("node:fs/promises");
@@ -219,6 +221,17 @@ ipcMain.handle("agent:restore-conversation", agentIpcHandlers.restore);
 app.whenReady().then(async()=>{
   const retrievalSettings = createRetrievalSettings({ userDataPath: app.getPath("userData"), safeStorage, isTrustedSender: isTrustedPlannerSender, fetchImpl: (url, options) => net.fetch(url, options) });
   ipcMain.handle("settings:retrieval-test", retrievalSettings.test);
+  const ragManager = createRagManager({userDataPath:app.getPath("userData"),profiles:retrievalSettings.profiles,isTrustedSender:isTrustedPlannerSender,sourceVersion:passiveCorpusIdentity(upstreamLock,require("../data/localization-candidates.json")),
+    loadCorpus:async()=>{
+      const read = async(kind,name)=>{const response=await localResourceResponse(kind,name);if(!response.ok)throw new Error("source unavailable");return response.text();};
+      const [official,runtime,translation,wegame]=await Promise.all([read("data","official-data.json"),read("data","tree-pre.json"),read("data","ChineseTranslation.lua"),read("localization","wegame-passive-tree-zh-cn.js")]);
+      return buildPassiveCorpus({official:JSON.parse(official),runtime:JSON.parse(runtime),translation,wegame,sourceVersion:upstreamLock.snapshotId});
+    }});
+  agentService.ragConfiguration=ragManager.configuration;
+  ipcMain.handle("rag:status",ragManager.status);
+  ipcMain.handle("rag:build",ragManager.build);
+  ipcMain.handle("rag:cancel",ragManager.cancel);
+  app.on("before-quit",()=>ragManager.close());
   ipcMain.handle("settings:retrieval-status", retrievalSettings.status);
   ipcMain.handle("settings:retrieval-save", retrievalSettings.save);
   ipcMain.handle("settings:retrieval-clear", retrievalSettings.clear);

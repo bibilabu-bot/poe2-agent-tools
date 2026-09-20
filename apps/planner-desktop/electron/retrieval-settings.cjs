@@ -35,6 +35,8 @@ function createRetrievalSettings({ userDataPath, safeStorage, isTrustedSender, f
     queue = task.catch(() => {}); return task;
   };
   return {
+    // Main-process integration only. Never register this method on IPC/preload.
+    profiles: async () => { await queue; const embedding=await read("embedding"),reranker=await read("reranker"); return embedding && reranker ? {embedding,reranker} : null; },
     test: handle(async value => {
       const config = validate(value);
       if (!config.apiKey) {
@@ -46,8 +48,11 @@ function createRetrievalSettings({ userDataPath, safeStorage, isTrustedSender, f
     }),
     status: handle(async () => ({ ok: true, embedding: publicValue(await read("embedding")), reranker: publicValue(await read("reranker")) })),
     save: handle(async value => {
-      const config = validate(value), previous = await read(value.kind);
-      if (!config.apiKey && previous?.baseUrl === config.baseUrl) config.apiKey = previous.apiKey;
+      const config = validate(value);
+      if (!config.apiKey) {
+        const previous = await read(value.kind);
+        if (previous?.baseUrl === config.baseUrl) config.apiKey = previous.apiKey;
+      }
       if (!config.apiKey) throw new Error("key required");
       const { baseUrl, ...secret } = config;
       const payload = JSON.stringify(secret);

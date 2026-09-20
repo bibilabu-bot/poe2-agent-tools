@@ -13,6 +13,26 @@ from .service import AgentService
 
 
 async def dispatch(service: AgentService, method: str, params: dict[str, Any]) -> Any:
+    if method == "rag_configure":
+        from .rag import RagIndex, RetrievalProvider
+        if service.rag:
+            service.rag.db.close()
+        service.rag = None
+        service.rag_unavailable = bool(params.get("unavailable"))
+        service.rag = RagIndex(params["path"],RetrievalProvider(params["profiles"]),params.get("sourceVersion","")) if params.get("profiles") else None
+        return service.rag.status() if service.rag else {"ready":False,"count":0}
+    if method == "rag_build":
+        if not service.rag: raise AgentError("RAG_NOT_CONFIGURED","请先保存向量化和重排序配置")
+        def progress(completed, total):
+            sys.stdout.write(json.dumps({"event":"rag_progress","completed":completed,"total":total}) + "\n")
+            sys.stdout.flush()
+        return await service.rag.build(params["corpus"],progress)
+    if method == "rag_search":
+        from .rag import RagTool
+        if not service.rag: raise AgentError("RAG_NOT_CONFIGURED","请先配置 RAG")
+        tool = RagTool(service.rag,params.get("tool","search_passive_nodes"))
+        tool.validate(params["arguments"])
+        return await tool.execute(params["arguments"])
     if method == "status":
         return service.status()
     if method == "configure":

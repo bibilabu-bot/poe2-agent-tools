@@ -53,13 +53,22 @@
     try { result = JSON.parse(row.result); } catch { return "结果未完整展示，请查看下方截断提示。"; }
     if (!result || typeof result !== "object" || Array.isArray(result)) return "没有可展示的结构化记忆元数据。";
     if (!row.ok) return "工具执行失败，未将结果作为成功记忆。";
+    if (row.name === "search_passive_nodes" || row.name === "search_memory_semantic") {
+      const passive = row.name === "search_passive_nodes";
+      const ids = (Array.isArray(result.matches) ? result.matches : []).map(r => passive ? r.id : r.turn_id);
+      return `向量检索 → ${result.candidate_count ?? 0} 个候选 → 重排序 → ${passive ? "节点" : "轮次"}：${ids.join("、") || "无"}（仅元数据，非穷尽列表）`;
+    }
+    if (row.name === "read_passive_nodes") {
+      const ids = (Array.isArray(result.nodes) ? result.nodes : []).map(r => r.id);
+      return `按 ID 读取天赋原文 → 节点：${ids.join("、") || "无"}；保留条件及限制；资料版本：${result.version ?? "未知"}`;
+    }
     if (row.name === "search_memory") {
       const ids = (Array.isArray(result.matches) ? result.matches : []).map(r => r?.turn_id).filter(Number.isInteger);
       return `关键词搜索 → 命中轮次：${ids.join("、") || "无"}（仅元数据）${result.next_offset != null ? `；下一页 offset=${result.next_offset}` : ""}`;
     }
     if (row.name === "read_memory") {
       const ids = Array.isArray(result.turn_ids) ? result.turn_ids.filter(Number.isInteger) : [];
-      const sources = previous.filter(r => r.ok && r.name === "search_memory").filter(r => {
+      const sources = previous.filter(r => r.ok && ["search_memory", "search_memory_semantic"].includes(r.name)).filter(r => {
         try { return JSON.parse(r.result).matches.some(m => ids.includes(m.turn_id)); } catch { return false; }
       });
       return `读取原文 → 轮次：${ids.join("、") || "无"}；offset=${result.offset ?? 0}；${result.complete ? "范围已读完" : `还有下一页 offset=${result.next_offset}`}${sources.length ? "；与前序搜索的命中轮次重合（不代表模型决策因果）" : "；直接按轮次读取"}`;
@@ -100,6 +109,9 @@
     calculator: { label: "运行计算器", icon: "calculator", path: "M5 2h14v20H5ZM8 5h8v4H8ZM8 13h2m4 0h2m-8 4h2m4 0h2" },
   };
   const defaultStyle = { label: "运行工具", icon: "tool", path: "m8 5-6 7 6 7m8-14 6 7-6 7" };
+  toolStyles.search_passive_nodes = {...toolStyles.search_memory,label:"检索天赋",icon:"passive-search"};
+  toolStyles.read_passive_nodes = {...toolStyles.read_memory,label:"读取天赋",icon:"passive-read"};
+  toolStyles.search_memory_semantic = {...toolStyles.search_memory,label:"语义检索记忆",icon:"semantic-memory"};
   function renderTrace(document, trace) {
     return normalizeTrace(trace).map((row, index, rows) => {
       const details = document.createElement("details"); details.className = "agent-operation";

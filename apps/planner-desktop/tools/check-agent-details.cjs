@@ -35,6 +35,11 @@ app.whenReady().then(async () => {
       save:async value=>{const profile={baseUrl:value.baseUrl,model:value.model,dimensions:value.dimensions,hasKey:true,verified:false};window.savedProfiles[value.kind]=profile;return {ok:true,profile};},
       clear:async kind=>{delete window.savedProfiles[kind];return {ok:true};}
     }; true;`);
+    await evaluate(`window.ragFixture={building:false,ready:false,count:0};window.desktopAPI.rag={
+      status:async()=>window.ragFixture,
+      build:async()=>{window.ragFixture={building:true,completed:10,total:20};},
+      cancel:async()=>{window.ragFixture={building:false,ready:false,error:'构建已停止，可重试'};}
+    };true;`);
     await evaluate(settingsCode);
     await evaluate("document.getElementById('switchToAgent').click()");
   }
@@ -63,6 +68,14 @@ app.whenReady().then(async () => {
   try {
     await mount();
     await waitFor("!document.getElementById('agentSend').disabled");
+    await evaluate("document.getElementById('ragBuild').click()");
+    await waitFor("document.getElementById('ragStatus').textContent.includes('10 / 20')");
+    assert.equal(await evaluate("document.getElementById('ragBuild').disabled"),true);
+    await evaluate("document.getElementById('ragCancel').click()");
+    await waitFor("document.getElementById('ragStatus').textContent.includes('已停止')");
+    assert.equal(await evaluate("document.getElementById('ragBuild').disabled"),false);
+    await evaluate("window.desktopAPI.rag.build=async()=>{window.ragFixture={building:false,ready:true,count:5102,version:'fixture-version'};};document.getElementById('ragBuild').click()");
+    await waitFor("document.getElementById('ragStatus').textContent.includes('5102 个节点')");
     await waitFor("!document.querySelector('[data-save-profile=embedding]').disabled");
     await evaluate("window.desktopAPI.retrievalSettings.test=async()=>({ok:true,durationMs:12,detail:'返回有效向量'});document.querySelector('[data-test-profile=embedding]').click()");
     await waitFor("document.getElementById('embeddingStatus').textContent.includes('连接测试通过')");

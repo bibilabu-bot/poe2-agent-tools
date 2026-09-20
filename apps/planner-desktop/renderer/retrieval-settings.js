@@ -56,7 +56,7 @@
     }
     field(kind, "Key").value = "";
     field(kind, "Key").placeholder = profile?.hasKey ? "已安全保存；不会回显" : "请输入 Key";
-    status(kind, profile ? "已安全保存 · 未验证接口 · RAG 尚未接入" : "未配置");
+    status(kind, profile ? "已安全保存 · 未验证接口 · RAG 查询将使用此配置" : "未配置");
     if (kind === "embedding" && profile && Number(field(kind, "Dimensions").value) !== profile.dimensions) {
       status(kind, "原保存维度不在该模型预置范围内，已调整显示值；请确认后重新保存", true);
     }
@@ -72,7 +72,7 @@
       try {
         const result = await api.test({ kind, baseUrl: field(kind,"Url").value.trim(), model:field(kind,"Model").value.trim(),
           apiKey:field(kind,"Key").value, ...(kind === "embedding" ? {dimensions:Number(field(kind,"Dimensions").value)} : {}) });
-        status(kind, result.ok ? `连接测试通过 · ${result.durationMs} ms · ${result.detail}；配置未自动保存，RAG 尚未接入` : `连接测试失败：${result.error.message}`, !result.ok);
+        status(kind, result.ok ? `连接测试通过 · ${result.durationMs} ms · ${result.detail}；配置未自动保存` : `连接测试失败：${result.error.message}`, !result.ok);
       } catch { status(kind, "连接测试不可用，请完整重启桌面应用后重试", true); }
       finally { busy(kind, false); button.textContent = "连接测试"; }
     });
@@ -99,6 +99,26 @@
     finally { field(kind, "Key").value = ""; busy(kind, false); }
   }));
   for (const kind of ["embedding", "reranker"]) busy(kind, true);
+  if (window.desktopAPI?.rag) {
+    const section=document.createElement("section"); section.className="retrieval-settings"; section.id="ragSettings";
+    const heading=document.createElement("h2");heading.textContent="天赋知识库 · RAG";
+    const help=document.createElement("p");help.className="agent-help";
+    help.textContent="构建会将已校验的节点描述发送到向量服务（可能计费），向量保存在本机。查询候选会发给重排序服务；会话语义检索仅发送当前会话的摘要。首版不保证列全所有节点，不支持自动加点。";
+    const build=document.createElement("button");build.id="ragBuild";build.textContent="构建 / 更新天赋索引";
+    const cancel=document.createElement("button");cancel.id="ragCancel";cancel.textContent="停止构建";
+    const output=document.createElement("p");output.id="ragStatus";output.className="agent-status";output.setAttribute("role","status");
+    const actions=document.createElement("div");actions.className="agent-actions";actions.append(build,cancel);
+    section.append(heading,help,actions,output);document.querySelector(".settings-content").append(section);
+    let polling=false;
+    const refresh=async()=>{if(polling)return;polling=true;try{
+      const state=await window.desktopAPI.rag.status();build.disabled=state.building;cancel.disabled=!state.building;
+      output.textContent=state.building?`正在构建：${state.completed} / ${state.total} 条唯一文本`:state.error || (state.ready?`已就绪：${state.count} 个节点 · 版本 ${state.version?.slice(0,12)}`:"尚未构建，或向量配置已变更");
+    }catch{output.textContent="无法读取索引状态，请完整重启应用";}finally{polling=false;}};
+    build.addEventListener("click",async()=>{build.disabled=true;try{await window.desktopAPI.rag.build();await refresh();}catch{output.textContent="构建请求失败，请重试";build.disabled=false;}});
+    cancel.addEventListener("click",async()=>{try{await window.desktopAPI.rag.cancel();await refresh();}catch{output.textContent="停止请求失败，请重试";}});
+    setInterval(()=>{if(!document.getElementById("settingsView").hidden)void refresh();},1500);
+    void refresh();
+  }
   if (!api) {
     for (const kind of ["embedding", "reranker"]) status(kind, "设置安全桥不可用，请重启桌面应用", true);
     return;

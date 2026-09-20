@@ -13,6 +13,19 @@ const safeStorage = {
   decryptString: (value) => value.toString("utf8").replace(/^encrypted:/, ""),
 };
 
+test("failed decryption preserves encrypted credentials for recovery", async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "p2at-credentials-"));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const store = new AgentCredentialStore({ userDataPath: directory, safeStorage });
+  await store.save({ baseUrl: "https://example.com/v1", apiKey: "fixture-only" });
+  const original = await fs.readFile(store.filePath);
+  const wrongContext = new AgentCredentialStore({ userDataPath: directory,
+    safeStorage: { ...safeStorage, decryptString() { throw new Error("wrong encryption context"); } } });
+  await assert.rejects(() => wrongContext.load(), { code: "CREDENTIAL_CACHE_INVALID" });
+  assert.deepEqual(await fs.readFile(store.filePath), original);
+  assert.equal((await store.load()).apiKey, "fixture-only");
+});
+
 test("credential store persists only encrypted key material and restores it", async (t) => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "p2at-credentials-"));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));

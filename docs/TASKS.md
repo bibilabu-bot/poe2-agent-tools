@@ -51,6 +51,16 @@ Defaults are text-embedding-v4 / 1024 dimensions and qwen3.7-text-rerank. Saving
 not a connectivity test or RAG implementation. No implicit sharing of chat keys or
 upload of conversation/knowledge data. Task remains REVIEW.
 
+Owner-approved RAG follow-up (2026-09-20): read-only passive-node knowledge retrieval
+and current-conversation summary semantic retrieval. No attribute classification or
+fine-tuning. Explicit index construction uses verified source data and existing
+translation rules, hosted embedding and reranking, local resumable vectors and atomic
+publication. Tool metadata is followed by original-evidence reads; no allocation or
+Planner state mutation. Acceptance must ask the natural-language life-regeneration /
+energy-shield question and identify node 52 with its overflow and no-recharge clauses,
+without routing or answer hardcoding. See `docs/RAG_ACCEPTANCE.md`. Remains REVIEW;
+development environment only, bundled Python still deferred, no merge to main.
+
 ### P2AT-024A — Add a project-independent agent MVP
 
 - Status: `ACCEPTED`

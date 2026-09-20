@@ -45,8 +45,9 @@ class AgentCredentialStore {
       if (!apiKey || apiKey.length > 4096) throw new Error("invalid decrypted credential");
       return { baseUrl: value.baseUrl, apiKey };
     } catch (error) {
-      await this.clear().catch(() => {});
-      const failure = new Error("本地 API Key 缓存已损坏，请重新输入");
+      // A different OS encryption context can fail to decrypt valid credentials.
+      // Reading must never destroy the user's encrypted data.
+      const failure = new Error("无法读取本地 API Key 缓存；原文件已保留，请检查安全存储或重新保存");
       failure.code = "CREDENTIAL_CACHE_INVALID";
       failure.cause = error;
       throw failure;

@@ -3,6 +3,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { normalizeTrace, memoryPath, resultSections, formatToolDuration } = require("../renderer/agent-trace.js");
 
+test("RAG details expose candidate rerank and original evidence paths", () => {
+  const row = { name: "search_passive_nodes", ok: true, result: JSON.stringify({candidate_count:30,matches:[{id:"901"}]}) };
+  assert.match(memoryPath(row, []), /30 个候选 → 重排序 → 节点：901/);
+  assert.match(memoryPath({...row,name:"read_passive_nodes",result:JSON.stringify({nodes:[{id:"901"}],version:"v1"})}, []), /保留条件及限制/);
+});
+
 test("tool duration distinguishes sub-millisecond, seconds and absent legacy timing", () => {
   assert.equal(formatToolDuration(0), "<1 ms");
   assert.equal(formatToolDuration(0.453), "<1 ms");

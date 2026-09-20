@@ -21,6 +21,16 @@
 
 天赋图模块只接受调用者提供的节点、边以及显式的边/节点资格 predicate，不读取 Planner 可变全局状态。邻接表、多个起点和相邻节点都按字符串 ID 的 Unicode code unit 顺序排序；无权 BFS 因而在等长路径中稳定选择排序最先的起点和逐层排序最先的邻居。路径以当前 Planner 使用的“目标到有效起点”顺序返回。
 
+## 智能体只读知识检索（P2AT-026A，REVIEW）
+
+Electron 的 `passive-corpus.cjs` 从已校验资源复用现有翻译逻辑生成节点文档；
+`rag-manager.cjs` 管理独立索引子进程、进度与取消，不读取 Planner 的可变分配状态。
+Python `rag.py` 负责本地 SQLite 向量缓存、原子发布、去重候选的余弦召回、远端重排序
+以及 `search_passive_nodes` / `read_passive_nodes` / `search_memory_semantic` 工具。
+工具注册到既有 LangGraph 循环；完整会话原文仍由原记忆库拥有，语义检索仅索引摘要。
+模型与密钥继续通过独立安全设置注入，检索故障不阻断普通聊天。契约、预算与验收见
+`docs/RAG_ACCEPTANCE.md`；没有拓扑操作、自动加点或发行包内置 Python。
+
 ## 浏览器原型
 
 `apps/planner-web/src` 是迁移基准快照。`index.html` 可独立运行，并内嵌了当时的脚本；`planner.js` 是同一阶段保留的独立脚本副本。新功能优先进入桌面版，除非明确需要维持 Web 版。

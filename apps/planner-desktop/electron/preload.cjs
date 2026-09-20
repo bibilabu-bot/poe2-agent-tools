@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("desktopAPI", {
+  rag: Object.freeze({status:()=>ipcRenderer.invoke("rag:status"),build:()=>ipcRenderer.invoke("rag:build"),cancel:()=>ipcRenderer.invoke("rag:cancel")}),
   retrievalSettings: Object.freeze({
     test: request => ipcRenderer.invoke("settings:retrieval-test", request),
     status: () => ipcRenderer.invoke("settings:retrieval-status"),
