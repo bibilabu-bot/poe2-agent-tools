@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Callable
 
 from .context import ContextError
 from .core import AgentError, AgentRunner, BaseAgent, ChatAgent, ToolRegistry
@@ -81,7 +81,8 @@ class AgentService:
     async def list_models(self) -> list[str]:
         return await self._provider().list_models()
 
-    async def send(self, model: str, text: str, tools_enabled: bool) -> dict[str, Any]:
+    async def send(self, model: str, text: str, tools_enabled: bool,
+                   on_event: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
         if not model or len(model) > 256:
             raise AgentError("INVALID_MODEL", "Model ID is invalid")
         text = text.strip()
@@ -117,7 +118,8 @@ class AgentService:
         if getattr(self, "rag_unavailable", False):
             agent = BaseAgent("chat", agent.system_prompt +
                 " Retrieval is currently unavailable due to configuration/index failure. For passive-tree questions explicitly report this; never claim you searched or verified the tree. Ordinary chat is still available.")
-        runner = AgentRunner(self._provider(), registry, memory_context=memory.model_context if memory else None)
+        runner = AgentRunner(self._provider(), registry, memory_context=memory.model_context if memory else None,
+                             on_event=on_event)
         result = await runner.run(agent=agent, history=candidate, model=model, tools_enabled=bool(memory) or bool(self.rag) or tools_enabled)
         completed_history = [message for message in result.messages if message.get("role") != "system"]
         retained = _trim_history(completed_history)

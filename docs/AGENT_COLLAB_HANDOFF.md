@@ -5,6 +5,17 @@ Branch: `task/P2AT-026A-python-agent-runtime`
 Verified branch HEAD before this handoff: `baa751b263f7c312c6e14d96ae695444dd49874a`  
 Task status: `REVIEW`; do not merge `main`.
 
+## Streaming/timeout follow-up
+
+The formerly opaque wait is now request-correlated streaming with safe phase and tool
+events. The whole-run guard is 300 seconds because a valid RAG turn may include two
+90-second provider inactivity windows plus retrieval. A controlled paid reproduction of
+the exact broad question completed in 29.8 seconds: the first model phase began at 1.39s,
+its first text arrived only at 29.58s, and no RAG tool ran. Thus that reproduction's blank
+wait was upstream first-model latency amplified by the old non-streaming UI, not passive
+index/search latency. The original screenshot predates event telemetry and cannot be
+retrospectively timed more precisely.
+
 ## Immediate user issue — handle first
 
 The owner's latest message is **“什么情况”**, with a screenshot showing their live

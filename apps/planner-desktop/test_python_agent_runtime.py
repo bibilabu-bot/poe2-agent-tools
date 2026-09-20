@@ -9,7 +9,7 @@ from python_agent.core import AgentError, AgentRunner, ChatAgent, ModelProvider,
 from python_agent.tools import CalculatorTool
 from python_agent.context import ContextError, message_chars, select_context
 from python_agent.service import AgentService
-from python_agent.provider import MAX_RESPONSE_BYTES, OpenAICompatibleProvider, _parse_chat_event_stream, normalize_base_url
+from python_agent.provider import MAX_RESPONSE_BYTES, OpenAICompatibleProvider, _ResponsesStream, _parse_chat_event_stream, normalize_base_url
 
 
 class ProviderHandler(BaseHTTPRequestHandler):
@@ -59,7 +59,7 @@ class ScriptedProvider(ModelProvider):
     async def list_models(self):
         return ["mock"]
 
-    async def complete(self, *, model, messages, tools):
+    async def complete(self, *, model, messages, tools, on_event=None):
         self.requests.append({"model": model, "messages": list(messages), "tools": list(tools)})
         return next(self.replies)
 
@@ -280,6 +280,20 @@ class ContextSelectionTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PythonProviderTests(unittest.IsolatedAsyncioTestCase):
+    def test_responses_stream_assembles_text_and_function_arguments(self):
+        events = []
+        stream = _ResponsesStream(events.append)
+        stream.feed(None, json.dumps({"type": "response.output_text.delta", "delta": "你"}))
+        stream.feed(None, json.dumps({"type": "response.output_item.added", "output_index": 1,
+                                      "item": {"type": "function_call", "call_id": "c1", "name": "calculator", "arguments": ""}}))
+        stream.feed(None, json.dumps({"type": "response.function_call_arguments.delta", "output_index": 1, "delta": "{\"a\":"}))
+        stream.feed(None, json.dumps({"type": "response.function_call_arguments.delta", "output_index": 1, "delta": "2}"}))
+        stream.feed(None, json.dumps({"type": "response.completed", "response": {"output": []}}))
+        result = stream.finish()
+        self.assertEqual(result["output_text"], "你")
+        self.assertEqual(result["output"][0]["arguments"], '{"a":2}')
+        self.assertEqual(events, [{"type": "text_delta", "text": "你"}])
+
     @classmethod
     def setUpClass(cls):
         ProviderHandler.requests = []

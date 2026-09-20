@@ -17,11 +17,11 @@ class PythonAgentClient {
     this.memoryPath = memoryPath;
     this.onProgress = onProgress;
   }
-  async request(method, params = {}) {
+  async request(method, params = {}, options = {}) {
     this.#ensureProcess();
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      this.pending.set(id, { resolve, reject, onEvent: typeof options.onEvent === "function" ? options.onEvent : null, lastSeq: 0 });
       this.child.stdin.write(`${JSON.stringify({ id, method, params })}\n`, "utf8", (error) => {
         if (!error) return;
         this.pending.delete(id); reject(new PythonAgentError("PYTHON_RUNTIME_WRITE_FAILED", "无法向 Python 智能体发送请求"));
@@ -65,6 +65,16 @@ class PythonAgentClient {
       return;
     }
     const pending = this.pending.get(response.id); if (!pending) return;
+    if (response.event === "agent_run") {
+      if (!Number.isInteger(response.seq) || response.seq <= pending.lastSeq || response.seq > 100000) return;
+      if (!["phase", "text_delta", "tool_started", "tool_finished"].includes(response.type)) return;
+      if (response.type === "text_delta" && (typeof response.text !== "string" || response.text.length > 4096)) return;
+      if (response.type === "phase" && (typeof response.phase !== "string" || response.phase.length > 64)) return;
+      if (response.type.startsWith("tool_") && (typeof response.name !== "string" || response.name.length > 64)) return;
+      pending.lastSeq = response.seq;
+      pending.onEvent?.(response);
+      return;
+    }
     this.pending.delete(response.id);
     if (response.ok) pending.resolve(response.result);
     else pending.reject(new PythonAgentError(response.error?.code || "AGENT_FAILED", response.error?.message || "智能体运行失败"));

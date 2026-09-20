@@ -8,7 +8,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from .core import AgentError, ModelProvider, ModelReply, ToolCall
 
@@ -68,19 +68,20 @@ class OpenAICompatibleProvider(ModelProvider):
         model: str,
         messages: Sequence[Mapping[str, Any]],
         tools: Sequence[Mapping[str, Any]],
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> ModelReply:
         if self._wire_api == "responses":
-            return await self._complete_responses(model, messages, tools)
-        body: dict[str, Any] = {"model": model, "messages": list(messages), "stream": False}
+            return await self._complete_responses(model, messages, tools, on_event)
+        body: dict[str, Any] = {"model": model, "messages": list(messages), "stream": True}
         if tools:
             body.update({"tools": list(tools), "tool_choice": "auto"})
         try:
-            data = await self._request("/chat/completions", body)
+            data = await self._request_stream("/chat/completions", body, "chat", on_event)
         except AgentError as error:
             if error.code not in {"HTTP_404", "HTML_RESPONSE"}:
                 raise
             self._wire_api = "responses"
-            return await self._complete_responses(model, messages, tools)
+            return await self._complete_responses(model, messages, tools, on_event)
         try:
             message = data["choices"][0]["message"]
             calls = tuple(
@@ -99,14 +100,15 @@ class OpenAICompatibleProvider(ModelProvider):
         model: str,
         messages: Sequence[Mapping[str, Any]],
         tools: Sequence[Mapping[str, Any]],
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> ModelReply:
-        body: dict[str, Any] = {"model": model, "input": _responses_input(messages), "stream": False}
+        body: dict[str, Any] = {"model": model, "input": _responses_input(messages), "stream": True}
         if tools:
             body["tools"] = [
                 {"type": "function", **tool["function"]}
                 for tool in tools
             ]
-        data = await self._request("/responses", body)
+        data = await self._request_stream("/responses", body, "responses", on_event)
         output = data.get("output", []) if isinstance(data, dict) else []
         text = data.get("output_text", "") if isinstance(data, dict) else ""
         if not text:
@@ -124,36 +126,99 @@ class OpenAICompatibleProvider(ModelProvider):
         return ModelReply(text, calls)
 
     async def _request(self, path: str, body: Mapping[str, Any] | None = None) -> Any:
-        return await asyncio.to_thread(self._request_sync, path, body)
+        try:
+            return await asyncio.to_thread(self._request_sync, path, body)
+        except TimeoutError as error:
+            raise AgentError("PROVIDER_TIMEOUT", "Model service stopped responding before completion") from error
+
+    async def _request_stream(self, path: str, body: Mapping[str, Any], protocol: str,
+                              on_event: Callable[[dict[str, Any]], None] | None) -> Any:
+        try:
+            return await asyncio.to_thread(self._request_stream_sync, path, body, protocol, on_event)
+        except TimeoutError as error:
+            raise AgentError("PROVIDER_TIMEOUT", "Model service stopped responding before completion") from error
+
+    def _make_request(self, path: str, encoded: bytes | None) -> urllib.request.Request:
+        return urllib.request.Request(
+            f"{self.base_url}{path}", data=encoded,
+            method="POST" if encoded is not None else "GET",
+            headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json",
+                     "Accept": self.accept, "User-Agent": DESKTOP_USER_AGENT},
+        )
+
+    def _open(self, request: urllib.request.Request):
+        try:
+            return urllib.request.build_opener(_NoRedirect()).open(request, timeout=self.timeout)
+        except urllib.error.HTTPError as error:
+            if 300 <= error.code < 400:
+                raise AgentError("REDIRECT_BLOCKED", "Redirect blocked to protect the API Key") from error
+            raise AgentError(f"HTTP_{error.code}", f"Service request failed (HTTP {error.code})") from error
+        except (urllib.error.URLError, TimeoutError) as error:
+            raise AgentError("NETWORK_ERROR", "Unable to connect to the model service") from error
+
+    def _request_stream_sync(self, path: str, body: Mapping[str, Any], protocol: str,
+                             on_event: Callable[[dict[str, Any]], None] | None) -> Any:
+        encoded = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        if len(encoded) > MAX_REQUEST_BYTES:
+            raise AgentError("REQUEST_TOO_LARGE", "Request context exceeds the safe limit")
+        with self._open(self._make_request(path, encoded)) as response:
+            content_type = response.headers.get("Content-Type", "").lower()
+            if "text/event-stream" not in content_type:
+                raw = response.read(MAX_RESPONSE_BYTES + 1)
+                if len(raw) > MAX_RESPONSE_BYTES:
+                    raise AgentError("RESPONSE_TOO_LARGE", "Service response is too large")
+                try:
+                    text = raw.decode("utf-8", errors="strict")
+                    if text.lstrip().lower().startswith(("<!doctype html", "<html")):
+                        raise AgentError("HTML_RESPONSE", "Service returned HTML instead of an API response")
+                    return json.loads(text)
+                except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                    raise AgentError("INVALID_RESPONSE", "Service returned invalid JSON") from error
+            parser = _ChatStream(on_event) if protocol == "chat" else _ResponsesStream(on_event)
+            total = 0
+            event_name: str | None = None
+            data_lines: list[str] = []
+            while True:
+                raw_line = response.readline(MAX_RESPONSE_BYTES + 1)
+                if not raw_line:
+                    break
+                total += len(raw_line)
+                if total > MAX_RESPONSE_BYTES:
+                    raise AgentError("RESPONSE_TOO_LARGE", "Service response is too large")
+                try:
+                    line = raw_line.decode("utf-8", errors="strict").rstrip("\r\n")
+                except UnicodeDecodeError as error:
+                    raise AgentError("INVALID_RESPONSE", "Service returned invalid UTF-8 event data") from error
+                if not line:
+                    if data_lines:
+                        payload = "\n".join(data_lines)
+                        if payload == "[DONE]":
+                            parser.mark_done()
+                        else:
+                            parser.feed(event_name, payload)
+                    event_name, data_lines = None, []
+                elif line.startswith("event:"):
+                    event_name = line[6:].strip()
+                elif line.startswith("data:"):
+                    data_lines.append(line[5:].lstrip())
+            if data_lines:
+                payload = "\n".join(data_lines)
+                if payload == "[DONE]": parser.mark_done()
+                else: parser.feed(event_name, payload)
+            return parser.finish()
 
     def _request_sync(self, path: str, body: Mapping[str, Any] | None) -> Any:
         encoded = json.dumps(body, ensure_ascii=False).encode("utf-8") if body is not None else None
         if encoded and len(encoded) > MAX_REQUEST_BYTES:
             raise AgentError("REQUEST_TOO_LARGE", "Request context exceeds the safe limit")
-        request = urllib.request.Request(
-            f"{self.base_url}{path}",
-            data=encoded,
-            method="POST" if encoded is not None else "GET",
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-                "Accept": self.accept,
-                "User-Agent": DESKTOP_USER_AGENT,
-            },
-        )
-        opener = urllib.request.build_opener(_NoRedirect())
         try:
-            with opener.open(request, timeout=self.timeout) as response:
+            with self._open(self._make_request(path, encoded)) as response:
                 declared = int(response.headers.get("Content-Length", "0") or 0)
                 if declared > MAX_RESPONSE_BYTES:
                     raise AgentError("RESPONSE_TOO_LARGE", "Service response is too large")
                 raw = response.read(MAX_RESPONSE_BYTES + 1)
-        except urllib.error.HTTPError as error:
-            if 300 <= error.code < 400:
-                raise AgentError("REDIRECT_BLOCKED", "Redirect blocked to protect the API Key") from error
-            raise AgentError(f"HTTP_{error.code}", f"Service request failed (HTTP {error.code})") from error
-        except urllib.error.URLError as error:
-            raise AgentError("NETWORK_ERROR", "Unable to connect to the model service") from error
+        except AgentError:
+            raise
         if len(raw) > MAX_RESPONSE_BYTES:
             raise AgentError("RESPONSE_TOO_LARGE", "Service response is too large")
         text = raw.decode("utf-8", errors="strict")
@@ -170,6 +235,113 @@ class OpenAICompatibleProvider(ModelProvider):
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN201
         return None
+
+
+class _ChatStream:
+    def __init__(self, on_event: Callable[[dict[str, Any]], None] | None) -> None:
+        self.on_event = on_event
+        self.content: list[str] = []
+        self.calls: dict[int, dict[str, Any]] = {}
+        self.saw_event = False
+        self.completed = False
+
+    def mark_done(self) -> None:
+        self.completed = True
+
+    def feed(self, event_name: str | None, payload: str) -> None:
+        try:
+            event = json.loads(payload)
+        except json.JSONDecodeError as error:
+            raise AgentError("INVALID_RESPONSE", "Service returned invalid event data") from error
+        self.saw_event = True
+        if event_name == "error" or event.get("error") or event.get("type") in {"error", "response.failed"}:
+            raise AgentError("PROVIDER_STREAM_ERROR", "Service reported an error during streaming")
+        choices = event.get("choices", [])
+        if not choices:
+            return
+        if choices[0].get("finish_reason") is not None:
+            self.completed = True
+        message = choices[0].get("message")
+        if isinstance(message, dict):
+            text = message.get("content") or ""
+            if text:
+                self.content.append(text)
+                self._delta(text)
+            for index, call in enumerate(message.get("tool_calls", [])):
+                self.calls[index] = call
+            return
+        delta = choices[0].get("delta", {})
+        text = delta.get("content")
+        if isinstance(text, str) and text:
+            self.content.append(text)
+            self._delta(text)
+        for call in delta.get("tool_calls", []):
+            index = call.get("index", len(self.calls))
+            current = self.calls.setdefault(index, {"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+            if isinstance(call.get("id"), str): current["id"] = call["id"]
+            function = call.get("function", {})
+            if isinstance(function.get("name"), str): current["function"]["name"] += function["name"]
+            if isinstance(function.get("arguments"), str): current["function"]["arguments"] += function["arguments"]
+
+    def _delta(self, text: str) -> None:
+        if self.on_event:
+            for offset in range(0, len(text), 4096):
+                self.on_event({"type": "text_delta", "text": text[offset:offset + 4096]})
+
+    def finish(self) -> dict[str, Any]:
+        if not self.saw_event or not self.completed:
+            raise AgentError("PROVIDER_STREAM_ERROR", "Service stream ended before completion")
+        return {"choices": [{"message": {"role": "assistant", "content": "".join(self.content),
+                                           "tool_calls": [self.calls[key] for key in sorted(self.calls)]}}]}
+
+
+class _ResponsesStream:
+    def __init__(self, on_event: Callable[[dict[str, Any]], None] | None) -> None:
+        self.on_event = on_event
+        self.text: list[str] = []
+        self.calls: dict[str, dict[str, Any]] = {}
+        self.completed: dict[str, Any] | None = None
+        self.saw_event = False
+
+    def mark_done(self) -> None:
+        # Responses streams use response.completed as their authoritative terminator.
+        return
+
+    def feed(self, event_name: str | None, payload: str) -> None:
+        try:
+            event = json.loads(payload)
+        except json.JSONDecodeError as error:
+            raise AgentError("INVALID_RESPONSE", "Service returned invalid event data") from error
+        self.saw_event = True
+        kind = event.get("type") or event_name
+        if kind in {"error", "response.failed", "response.incomplete"} or event.get("error"):
+            raise AgentError("PROVIDER_STREAM_ERROR", "Service reported an error during streaming")
+        if kind == "response.output_text.delta" and isinstance(event.get("delta"), str):
+            self.text.append(event["delta"])
+            if self.on_event:
+                for offset in range(0, len(event["delta"]), 4096):
+                    self.on_event({"type": "text_delta", "text": event["delta"][offset:offset + 4096]})
+        elif kind == "response.output_item.added":
+            item = event.get("item", {})
+            if item.get("type") == "function_call":
+                key = str(event.get("output_index", len(self.calls)))
+                self.calls[key] = {"type": "function_call", "call_id": item.get("call_id", ""),
+                                   "name": item.get("name", ""), "arguments": item.get("arguments", "")}
+        elif kind == "response.function_call_arguments.delta":
+            key = str(event.get("output_index", "0"))
+            call = self.calls.setdefault(key, {"type": "function_call", "call_id": event.get("call_id", ""),
+                                               "name": event.get("name", ""), "arguments": ""})
+            if isinstance(event.get("delta"), str): call["arguments"] += event["delta"]
+        elif kind == "response.completed":
+            self.completed = event.get("response") if isinstance(event.get("response"), dict) else {}
+
+    def finish(self) -> dict[str, Any]:
+        if not self.saw_event or self.completed is None:
+            raise AgentError("PROVIDER_STREAM_ERROR", "Service stream ended before completion")
+        output = list(self.completed.get("output", []))
+        known = {item.get("call_id") for item in output if isinstance(item, dict)}
+        output.extend(call for call in self.calls.values() if call.get("call_id") not in known)
+        return {**self.completed, "output_text": "".join(self.text) or self.completed.get("output_text", ""), "output": output}
 
 
 def _parse_chat_event_stream(text: str) -> dict[str, Any]:

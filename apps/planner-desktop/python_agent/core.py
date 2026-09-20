@@ -47,6 +47,7 @@ class ModelProvider(ABC):
         model: str,
         messages: Sequence[Mapping[str, Any]],
         tools: Sequence[Mapping[str, Any]],
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> ModelReply:
         raise NotImplementedError
 
@@ -180,11 +181,13 @@ class AgentRunner:
         registry: ToolRegistry,
         limits: RunnerLimits | None = None,
         memory_context: Callable[[], dict[str, Any]] | None = None,
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self.provider = provider
         self.registry = registry
         self.limits = limits or RunnerLimits()
         self.memory_context = memory_context
+        self.on_event = on_event
         self._run_lock = asyncio.Lock()
         graph = StateGraph(RunState)
         graph.add_node("prepare_context", self._prepare_context)
@@ -229,6 +232,7 @@ class AgentRunner:
                              state["trace"], state["rounds"], state["tool_count"], state["context_report"])
 
     def _prepare_context(self, state: RunState) -> dict[str, Any]:
+        self._emit({"type": "phase", "phase": "preparing_context", "round": state["rounds"] + 1})
         instructions = list(state["instructions"])
         memory = self.memory_context() if self.memory_context else None
         memory_chars = 0
@@ -255,9 +259,11 @@ class AgentRunner:
     async def _model_step(self, state: RunState) -> dict[str, Any]:
         if state["rounds"] >= self.limits.max_model_rounds:
             raise AgentError("MODEL_ROUND_LIMIT", "Model-round limit exceeded")
+        self._emit({"type": "phase", "phase": "waiting_for_model", "round": state["rounds"] + 1})
         reply = await self.provider.complete(
             model=state["model"], messages=state["model_input"],
             tools=self.registry.definitions() if state["tools_enabled"] else [],
+            on_event=self.on_event,
         )
         content = reply.content[: self.limits.max_text_chars]
         calls = list(reply.tool_calls)
@@ -286,13 +292,17 @@ class AgentRunner:
         messages = list(state["messages"])
         trace = list(state["trace"])
         for call in state["calls"]:
+            self._emit({"type": "tool_started", "name": call.name[:64]})
             started = time.monotonic()
             result, ok = await self._execute_tool(call)
+            duration_ms = round((time.monotonic() - started) * 1000, 3)
             result_text = _bounded_json(result, self.limits.max_tool_result_chars)
             trace.append({"callId": call.call_id, "name": call.name[:64],
                           "arguments": call.arguments,
-                          "durationMs": round((time.monotonic() - started) * 1000, 3),
+                          "durationMs": duration_ms,
                           "ok": ok, "result": result_text})
+            self._emit({"type": "tool_finished", "name": call.name[:64], "ok": ok,
+                        "durationMs": duration_ms})
             messages.append({"role": "tool", "tool_call_id": call.call_id, "content": result_text})
         return {"messages": messages, "trace": trace,
                 "tool_count": state["tool_count"] + len(state["calls"]), "calls": []}
@@ -310,6 +320,10 @@ class AgentRunner:
             return {"error": {"code": error.code, "message": str(error)[:500]}}, False
         except Exception:
             return {"error": {"code": "TOOL_EXECUTION_FAILED", "message": "Tool execution failed safely"}}, False
+
+    def _emit(self, event: dict[str, Any]) -> None:
+        if self.on_event:
+            self.on_event(event)
 
 
 def _bounded_json(value: Any, limit: int) -> str:

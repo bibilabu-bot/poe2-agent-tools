@@ -65,6 +65,36 @@ test("Electron bridge starts the isolated Python runtime and correlates requests
   assert.deepEqual(await client.request("status"), first);
 });
 
+test("real Python process streams text and tool phases before the final committed result", async (context) => {
+  let requestCount = 0;
+  const server = http.createServer(async (request, response) => {
+    for await (const _chunk of request) {}
+    requestCount += 1;
+    response.writeHead(200, { "content-type": "text/event-stream; charset=utf-8" });
+    if (requestCount === 1) {
+      response.write('data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"calculator","arguments":"{\\"operator\\":\\"add\\","}}]}}]}\n\n');
+      response.write('data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"a\\":2,\\"b\\":3}"}}]}}]}\n\n');
+    } else {
+      response.write('data: {"choices":[{"delta":{"content":"答"}}]}\n\n');
+      await new Promise(resolve => setTimeout(resolve, 20));
+      response.write('data: {"choices":[{"delta":{"content":"案：5"}}]}\n\n');
+    }
+    response.end('data: [DONE]\n\n');
+  });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise(resolve => server.close(resolve)));
+  const client = new PythonAgentClient();
+  context.after(() => client.terminate());
+  await client.request("configure", { baseUrl: `http://127.0.0.1:${server.address().port}/v1`, apiKey: "synthetic-only" });
+  const events = [];
+  const result = await client.request("send", { model: "mock", text: "2+3", toolsEnabled: true }, { onEvent: event => events.push(event) });
+  assert.equal(result.text, "答案：5");
+  assert.equal(result.trace[0].name, "calculator");
+  assert.deepEqual(events.filter(event => event.type === "text_delta").map(event => event.text), ["答", "案：5"]);
+  assert.ok(events.some(event => event.type === "tool_started" && event.name === "calculator"));
+  assert.ok(events.every((event, index) => index === 0 || event.seq > events[index - 1].seq));
+});
+
 test("real Python process preserves completed UTF-8 history across cancel and rejects partial SSE errors", async (context) => {
   const observed = [];
   let releaseCancelledStart;

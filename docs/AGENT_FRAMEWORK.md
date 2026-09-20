@@ -86,7 +86,31 @@ are visible; this is not successful chat/tool acceptance. Node 155/155 (no skips
 Python 15/15, syntax, source-lock and jewel checks passed. A new success demo video
 is deferred until the configured service allows real conversation requests.
 
-The runner makes at most 6 model requests and 12 tool calls per run. It truncates model text at 32,000 characters, bounds tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service's working cache trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters; this no longer deletes the corresponding SQLite archive. Provider requests are limited to 512 KiB, responses to 2 MiB, provider requests time out after 90 seconds and the whole run after 120 seconds. One session permits only one active run.
+The runner makes at most 6 model requests and 12 tool calls per run. It truncates model text at 32,000 characters, bounds tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service's working cache trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters; this no longer deletes the corresponding SQLite archive. Provider requests are limited to 512 KiB and responses to 2 MiB. Provider network inactivity times out after 90 seconds and the whole run has a 300-second wall-clock guard, allowing an initial model request, bounded retrieval and a final model request. One session permits only one active run.
+
+### Streaming and timeout diagnostics (2026-09-20)
+
+Chat Completions and Responses requests now use bounded provider streaming. Python
+incrementally parses UTF-8 SSE, assembles fragmented tool calls, and emits only safe
+operational phases, text deltas and tool start/finish events over the request-correlated
+JSON-lines channel. Electron validates each event before forwarding it to the initiating
+trusted renderer. No model hidden reasoning, request body, provider header or credential
+is included.
+
+Streaming does not move the commit boundary. Python history, SQLite turns and notebook,
+Electron recovery history and renderer local storage update only after the complete
+LangGraph run succeeds. Cancellation, timeout, malformed/truncated SSE and explicit
+provider errors remove the temporary answer and discard the unfinished turn. Chat streams
+must end with `[DONE]` or a finish reason; Responses streams must emit
+`response.completed`. Whole-run timeout errors include the last safe operational phase.
+
+A one-run diagnostic of the exact broad question `你能查询流放之路2的天赋树吗`
+against the saved `kimi-k3` configuration completed in 29.8 seconds. Context preparation
+reached the first model request at 1.39 seconds, the first text delta did not arrive until
+29.58 seconds, and the rest arrived in about 0.2 seconds. No retrieval tool ran. This
+locates that reproduction's blank wait in upstream first-model response latency, not
+embedding, reranking or the local passive index. The earlier screenshot's exact provider
+timing cannot be reconstructed because the old protocol stored no intermediate events.
 
 ### History context selection (2026-09-20)
 

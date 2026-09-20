@@ -66,6 +66,13 @@
     const item = document.createElement("div"); item.className = `agent-message ${role}`; item.textContent = text; list.append(item); scrollToLatest();
     const entry = { kind: "message", role, text, persistent }; timeline.push(entry); return entry;
   }
+  function addStreamingMessage() {
+    const list = byId("agentMessages");
+    list.querySelector(".agent-empty")?.remove();
+    const item = document.createElement("div"); item.className = "agent-message assistant streaming";
+    item.textContent = ""; item.hidden = true; list.append(item);
+    return item;
+  }
   function formatDuration(ms) { const seconds = Math.max(0, Math.floor(ms / 1000)); return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`; }
   function addActivity({ durationMs = 0, steps = [], trace = [], state = "done", persistent = true } = {}) {
     const element = document.createElement("div");
@@ -238,6 +245,26 @@
     const requestConversation = conversationId; const userEntry = addMessage("user", text, false); input.value = ""; running = true; updateControls(); showTrace([]);
     const startedAt = Date.now();
     const activity = addActivity({ steps: [`已发送到 ${model}`, "正在等待模型回复…"], state: "running", persistent: false });
+    const streamingMessage = addStreamingMessage();
+    let streamedText = "", lastSequence = 0;
+    const phaseText = {
+      preparing_context: "正在准备会话上下文…",
+      waiting_for_model: "正在接收模型流式回复…",
+    };
+    const unsubscribe = api.onRunEvent?.((progress) => {
+      if (requestConversation !== conversationId || !running || !Number.isInteger(progress?.seq) || progress.seq <= lastSequence) return;
+      lastSequence = progress.seq;
+      if (progress.type === "text_delta" && typeof progress.text === "string") {
+        streamedText = (streamedText + progress.text).slice(0, 32000);
+        streamingMessage.textContent = streamedText; streamingMessage.hidden = !streamedText; scrollToLatest();
+      } else if (progress.type === "phase" && phaseText[progress.phase]) {
+        activity.entry.steps[activity.entry.steps.length - 1] = phaseText[progress.phase]; activity.render();
+      } else if (progress.type === "tool_started" && typeof progress.name === "string") {
+        activity.entry.steps[activity.entry.steps.length - 1] = `正在执行工具：${progress.name}`; activity.render();
+      } else if (progress.type === "tool_finished" && typeof progress.name === "string") {
+        activity.entry.steps[activity.entry.steps.length - 1] = `${progress.ok ? "已完成" : "工具失败"}：${progress.name}；正在等待模型继续回复…`; activity.render();
+      }
+    });
     const timer = setInterval(() => { activity.entry.durationMs = Date.now() - startedAt; activity.render(); }, 1000);
     let result;
     try {
@@ -245,13 +272,15 @@
     } catch {
       result = { ok: false, error: { message: "桌面与智能体通信失败，请重试；若持续失败请重新启动应用" } };
     }
-    clearInterval(timer); activity.entry.durationMs = Date.now() - startedAt; running = false; updateControls();
+    unsubscribe?.(); clearInterval(timer); activity.entry.durationMs = Date.now() - startedAt; running = false; updateControls();
     if (requestConversation !== conversationId || result.stale) return;
     if (!result.ok) {
+      streamingMessage.remove();
       activity.entry.state = "error"; activity.entry.steps[activity.entry.steps.length - 1] = `失败：${result.error.message}`; activity.render();
       addMessage("error", result.error.message, false); return;
     }
     activity.entry.state = "done";
+    streamingMessage.remove();
     activity.entry.trace = window.AgentTrace.normalizeTrace(result.trace);
     activity.entry.steps = [`已发送到 ${model}`, ...(result.trace || []).map((item) => `${item.ok ? "已完成" : "工具失败"}：${item.name}`), "已收到模型回复"];
     activity.entry.persistent = true; userEntry.persistent = true; activity.render();

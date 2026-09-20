@@ -2,7 +2,9 @@
 
 const { PythonAgentClient, PythonAgentError } = require("./python-agent-client.cjs");
 const { normalizeTrace } = require("../renderer/agent-trace.js");
-const RUN_TIMEOUT_MS = 120_000;
+// A tool round can legitimately contain two 90-second provider requests plus
+// bounded retrieval. Keep a finite wall-clock guard without cutting that path short.
+const RUN_TIMEOUT_MS = 300_000;
 
 function safeError(error) {
   const known = error instanceof PythonAgentError || ["SECURE_STORAGE_UNAVAILABLE", "CREDENTIAL_CACHE_INVALID"].includes(error?.code);
@@ -75,11 +77,11 @@ class AgentService {
     catch (error) { return { ok: false, error: safeError(error), ...this.status() }; }
     finally { if (this.active === operationToken) this.active = null; }
   }
-  async send(value) {
+  async send(value, onEvent = null) {
     if (this.active) return { ok: false, error: { code: "RUN_IN_PROGRESS", message: "当前会话已有回复正在运行" } };
-    const generation = this.generation; const runToken = {}; this.active = runToken;
+    const generation = this.generation; const runToken = { lastPhase: "starting", startedAt: Date.now() }; this.active = runToken;
     const timeout = setTimeout(() => {
-      runToken.failure = new PythonAgentError("RUN_TIMEOUT", "智能体运行超时，已停止");
+      runToken.failure = new PythonAgentError("RUN_TIMEOUT", `智能体运行超时，已停止（最后阶段：${phaseLabel(runToken.lastPhase)}）`);
       if (this.active === runToken) this.client.terminate(runToken.failure);
     }, this.runTimeoutMs);
     const checkActive = () => {
@@ -102,7 +104,12 @@ class AgentService {
         }
         checkActive();
       }
-      const result = await this.client.request("send", value || {});
+      const result = await this.client.request("send", value || {}, { onEvent: (event) => {
+        if (this.active !== runToken || generation !== this.generation) return;
+        if (event.type === "phase") runToken.lastPhase = event.phase;
+        else if (event.type === "tool_started") runToken.lastPhase = `tool:${event.name}`;
+        onEvent?.({ ...event, elapsedMs: Date.now() - runToken.startedAt });
+      } });
       checkActive();
       if (generation !== this.generation) return { ok: false, stale: true, error: { code: "STALE_RUN", message: "会话已变化，已忽略迟到响应" } };
       this.history = Array.isArray(result.history) ? structuredClone(result.history) : this.history;
@@ -116,6 +123,14 @@ class AgentService {
     await this.client.request("configure", this.config);
     if (this.history.length) await this.client.request("restore", { history: this.history });
   }
+}
+
+function phaseLabel(phase) {
+  if (phase === "starting") return "启动";
+  if (phase === "preparing_context") return "准备上下文";
+  if (phase === "waiting_for_model") return "等待模型流式响应";
+  if (typeof phase === "string" && phase.startsWith("tool:")) return `执行工具 ${phase.slice(5)}`;
+  return "未知";
 }
 
 function validateConfigure(value) {
@@ -132,7 +147,12 @@ function createAgentIpcHandlers(service, isTrustedSender, credentialStore = null
     status: async (event) => { guard(event); return service.status(); },
     configure: async (event, value) => { guard(event); return mutate(async () => { try { const config = validateConfigure(value); await service.configure(config); if (credentialStore) { await credentialStore.save(config); service.setCredentialStored(true); } return { ok: true, ...service.status() }; } catch (error) { await service.clearConfig(); return { ok: false, error: safeError(error), ...service.status() }; } }); },
     clear: async (event) => { guard(event); return mutate(async () => { await service.clearConfig(); try { if (credentialStore) await credentialStore.clear(); return { ok: true, ...service.status() }; } catch (error) { service.setCredentialStored(true); return { ok: false, error: safeError(error), ...service.status() }; } }); },
-    models: async (event) => { guard(event); return service.models(); }, send: async (event, value) => { guard(event); return service.send(value || {}); },
+    models: async (event) => { guard(event); return service.models(); }, send: async (event, value) => {
+      guard(event);
+      return service.send(value || {}, (progress) => {
+        if (isTrustedSender(event) && !event.sender?.isDestroyed?.()) event.sender.send("agent:run-event", progress);
+      });
+    },
     cancel: async (event) => { guard(event); service.cancel(); return { ok: true }; }, reset: async (event) => { guard(event); return service.reset(); },
     restore: async (event, value) => { guard(event); try { return await service.restoreConversation(value?.messages); } catch (error) { return { ok: false, error: safeError(error) }; } },
   };

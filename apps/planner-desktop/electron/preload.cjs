@@ -20,6 +20,12 @@ contextBridge.exposeInMainWorld("desktopAPI", {
     clearConfig: () => ipcRenderer.invoke("agent:clear-config"),
     listModels: () => ipcRenderer.invoke("agent:list-models"),
     send: (request) => ipcRenderer.invoke("agent:send", request),
+    onRunEvent: (listener) => {
+      if (typeof listener !== "function") return () => {};
+      const handler = (_event, value) => listener(value);
+      ipcRenderer.on("agent:run-event", handler);
+      return () => ipcRenderer.removeListener("agent:run-event", handler);
+    },
     cancel: () => ipcRenderer.invoke("agent:cancel"),
     reset: () => ipcRenderer.invoke("agent:reset"),
     restoreConversation: (messages) => ipcRenderer.invoke("agent:restore-conversation", { messages })
