@@ -1174,19 +1174,26 @@ function searchTypeMatches(n) {
   return true;
 }
 
+let exactSearchStatus="";
 function recomputeSearchMatches() {
   const q=String($("#search")?.value||"").trim().toLowerCase();
+  const exact=$("#searchMode")?.value==="id";
+  exactSearchStatus="";
   searchMatches=[]; searchMatchIds.clear(); searchMatchIndex=-1;
   if(!q) { searchHighlightActive=false; updateSearchUI(); scheduleDraw(); return; }
 
-  for(const n of nodes) {
+  const candidate=exact ? byId.get(q) : null;
+  if(exact) exactSearchStatus=candidate ? "节点当前不可见" : "找不到该节点 ID";
+  for(const n of exact ? (candidate ? [candidate] : []) : nodes) {
+    if(exact && (isAsc(n) ? (!showAsc || (!showSmall && kind(n)==="small")) : !visibleNode(n))) continue;
     if(isMasteryVisual(n) || isLegacyStartArtifact(n)) continue;
     if(isInstillExclusiveNode(n) && !instillNodeVisible(n)) continue;
     if(isAsc(n) && n.asc!==selectedAscendancyId) continue;
     if(isConditionalReveal(n) && !conditionalNodeVisible(n)) continue;
-    if(!searchTypeMatches(n)) continue;
-    if(nodeSearchText(n).includes(q)) {
+    if(!exact && !searchTypeMatches(n)) continue;
+    if(exact || nodeSearchText(n).includes(q)) {
       searchMatches.push(n); searchMatchIds.add(idOf(n));
+      exactSearchStatus="";
     }
   }
   searchHighlightActive=searchMatches.length>0;
@@ -1195,7 +1202,7 @@ function recomputeSearchMatches() {
 }
 
 function updateSearchUI() {
-  if($("#searchCount")) $("#searchCount").textContent=searchMatches.length?`${searchMatches.length} 个命中`:"无命中";
+  if($("#searchCount")) $("#searchCount").textContent=searchMatches.length?`${searchMatches.length} 个命中`:(exactSearchStatus||"无命中");
   if($("#searchPos")) $("#searchPos").textContent=searchMatches.length?`${searchMatchIndex+1}/${searchMatches.length}`:"0/0";
 }
 
@@ -1324,6 +1331,7 @@ function nearestInstillOverlay(sx,sy) {
 
 function showInstillOverlayTip(ev,rec) {
   const r=wrap.getBoundingClientRect(), tip=$("#tip");
+  delete tip.dataset.nodeId;
   tip.innerHTML="";
 
   const b=document.createElement("b");
@@ -1374,9 +1382,7 @@ function showInstillOverlayTip(ev,rec) {
     : "点击：选择该隐藏天赋";
   tip.append(p);
 
-  tip.style.left=Math.min(W-350,Math.max(8,ev.clientX-r.left+12))+"px";
-  tip.style.top=Math.min(H-175,Math.max(8,ev.clientY-r.top+10))+"px";
-  tip.style.display="block";
+  positionNodeTip(ev,tip,r);
 }
 
 function toggleInstillOverlaySelection(rec) {
@@ -2234,7 +2240,7 @@ function drawSpriteNode(n,lod) {
     ctx.strokeStyle="rgba(94,221,255,.98)";ctx.lineWidth=2.6/camera.scale;ctx.stroke();
   }
 
-  if(showLabels && lod==="near" && (kind(n)==="notable"||kind(n)==="keystone"||isInstillExclusiveNode(n)||(selected===n && !isClassStart(n)))) {
+  if(shouldDrawNodeLabel(n,lod)) {
     const fontSize=12/camera.scale;
     ctx.font=`600 ${fontSize}px "Microsoft YaHei","PingFang SC","Noto Sans CJK SC","Segoe UI",sans-serif`;
     ctx.textAlign="center";
@@ -2255,6 +2261,11 @@ function lodLevel() {
   if(camera.scale<.045) return "far";
   if(camera.scale<.13) return "mid";
   return "near";
+}
+
+function shouldDrawNodeLabel(n,lod) {
+  return showLabels && lod==="near" && kind(n)!=="notable"
+    && (kind(n)==="keystone"||isInstillExclusiveNode(n)||(selected===n && !isClassStart(n)));
 }
 
 function draw() {
@@ -3400,6 +3411,13 @@ function showNodeInfo(n) {
 
 function showTip(ev,n) {
   const r=wrap.getBoundingClientRect(), tip=$("#tip");
+  const sameNode=tip.style.display==="block" && tip.dataset.nodeId===idOf(n);
+  const scrollTop=sameNode ? tip.scrollTop : 0;
+  tip.dataset.nodeId=idOf(n);
+  if(!sameNode) {
+    tip.dataset.anchorX=String(ev.clientX);
+    tip.dataset.anchorY=String(ev.clientY);
+  }
   tip.innerHTML="";
 
   const enName=String(n.name||"(unnamed)");
@@ -3422,16 +3440,16 @@ function showTip(ev,n) {
     : `${nodeTypeLabel(n)} · ID ${id} · ${nodeWeaponState(id)==="general"?"通用":nodeWeaponState(id)==="ws1"?"武器I":nodeWeaponState(id)==="ws2"?"武器II":nodeWeaponState(id)==="both"?"武器I+II":nodeAllocated(n)?"已分配":"未分配"}${isHiddenConditional(n)?(constraintSatisfied(n)?" · 条件已显现":" · 条件隐藏"):""}`;
   tip.append(d);
 
-  if(n.stats?.[0]) {
-    const stat=n.stats[0];
+  for(const stat of n.stats||[]) {
     const result=translateStatResult(stat,n);
     const zh=result.value;
     const s=document.createElement("div");
+    s.className="tip-stat";
     if(languageMode==="en") {
-      s.textContent=stat;
+      s.textContent=cleanStatDisplay(stat);
     } else if(languageMode==="bi" && result.translated) {
       const z=document.createElement("div"); z.textContent=zh; s.append(z);
-      const e=document.createElement("div"); e.className="bi-en"; e.textContent=stat; s.append(e);
+      const e=document.createElement("div"); e.className="bi-en"; e.textContent=cleanStatDisplay(stat); s.append(e);
     } else {
       s.textContent=result.translated ? zh : `${cleanStatDisplay(stat)}\n〔暂无可靠中文〕`;
     }
@@ -3464,15 +3482,24 @@ function showTip(ev,n) {
   }
   if(p.textContent) tip.append(p);
 
-  tip.style.left=Math.min(W-350,Math.max(8,ev.clientX-r.left+12))+"px";
-  tip.style.top=Math.min(H-145,Math.max(8,ev.clientY-r.top+10))+"px";
+  positionNodeTip({clientX:Number(tip.dataset.anchorX),clientY:Number(tip.dataset.anchorY)},tip,r);
+  tip.scrollTop=scrollTop;
+}
+
+function positionNodeTip(ev,tip,r) {
+  const width=Math.min(r.width,window.innerWidth-r.left);
+  const height=Math.min(r.height,window.innerHeight-r.top);
+  tip.style.maxWidth=Math.max(1,Math.min(330,width-16))+"px";
+  tip.style.maxHeight=Math.max(1,height-16)+"px";
   tip.style.display="block";
+  tip.style.left=Math.max(8,Math.min(width-tip.offsetWidth-8,ev.clientX-r.left+12))+"px";
+  tip.style.top=Math.max(8,Math.min(height-tip.offsetHeight-8,ev.clientY-r.top+10))+"px";
 }
 
 function searchNode() {
   recomputeSearchMatches();
   if(searchMatches.length) focusNode(searchMatches[0]);
-  else $("#nodeInfo").textContent="没有找到匹配节点。";
+  else $("#nodeInfo").textContent=exactSearchStatus||"没有找到匹配节点。";
 }
 
 function escapeHtml(v) {
@@ -4058,6 +4085,12 @@ function bindUI() {
 
   $("#find").addEventListener("click",searchNode);
   $("#search").addEventListener("input",recomputeSearchMatches);
+  $("#searchMode").addEventListener("change",e=>{
+    const exact=e.target.value==="id";
+    $("#search").placeholder=exact ? "输入完整节点 ID，例如 54814" : "暴击 / Projectile / 护甲";
+    $("#searchType").disabled=exact;
+    recomputeSearchMatches();
+  });
   $("#search").addEventListener("keydown",e=>{if(e.key==="Enter"){if(e.shiftKey)stepSearch(-1);else if(searchMatches.length)stepSearch(1);else searchNode();}});
   $("#searchPrev").addEventListener("click",()=>stepSearch(-1));
   $("#searchNext").addEventListener("click",()=>stepSearch(1));
@@ -4108,6 +4141,9 @@ function bindUI() {
 }
 
 function bindCanvas() {
+  let tipHideTimer=null;
+  const cancelTipHide=()=>{clearTimeout(tipHideTimer);tipHideTimer=null;};
+  $("#tip").addEventListener("pointerenter",cancelTipHide);
   canvas.addEventListener("wheel",e=>{
     if(!tree)return;
     e.preventDefault();
@@ -4127,6 +4163,7 @@ function bindCanvas() {
   });
 
   canvas.addEventListener("pointermove",e=>{
+    cancelTipHide();
     const r=canvas.getBoundingClientRect();
     const sx=e.clientX-r.left,sy=e.clientY-r.top;
     if(dragging) {
@@ -4161,7 +4198,10 @@ function bindCanvas() {
       setPreview(n);
     }
     if(n){canvas.style.cursor=hiddenNodeLocked(n)?"help":nodeAllocated(n)?"pointer":"crosshair";showTip(e,n);}
-    else{canvas.style.cursor="grab";$("#tip").style.display="none";}
+    else{
+      canvas.style.cursor="grab";
+      tipHideTimer=setTimeout(()=>{$("#tip").style.display="none";},200);
+    }
   });
 
   canvas.addEventListener("pointerup",e=>{
@@ -4182,13 +4222,15 @@ function bindCanvas() {
     allocateTarget(n);
   });
 
-  canvas.addEventListener("pointerleave",()=>{
+  canvas.addEventListener("pointerleave",e=>{
     dragging=false;
+    if($("#tip").contains(e.relatedTarget)) return;
     hovered=null;
     hoveredInstill=null;
     setPreview(null);
     $("#tip").style.display="none";
   });
+  $("#tip").addEventListener("pointerleave",()=>{$("#tip").style.display="none";});
 }
 
 async function load() {

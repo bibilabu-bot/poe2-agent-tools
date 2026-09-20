@@ -5,6 +5,42 @@ Branch: `task/P2AT-026A-python-agent-runtime`
 Verified branch HEAD before this handoff: `baa751b263f7c312c6e14d96ae695444dd49874a`  
 Task status: `REVIEW`; do not merge `main`.
 
+## Owner-approved urgent Planner UI follow-up (2026-09-20)
+
+Controller dispatched three bounded UI corrections while agent diagnosis is paused:
+
+- Search now offers text or exact node-ID mode. Exact lookup uses the ID map, ignores
+  the text category filter, and distinguishes missing IDs from currently invisible
+  nodes. It does not reveal nodes or change allocation restrictions.
+- Notable names never receive persistent Canvas labels, including selected,
+  search-highlighted and instill-exclusive notables. Keystone and other categories
+  retain their prior label policy.
+- Node tooltips render every stat, including multiline conditions and drawbacks,
+  through existing localization and textContent. Viewport-bounded tooltips scroll,
+  and moving from canvas onto the tooltip preserves it for reading.
+
+Repeatable checks: `npm run test:planner-node-ui` runs search/label regressions and
+an isolated Electron rendering fixture. The fixture verifies hashes of existing
+public game-data cache files, runs the production tooltip/translation functions,
+and checks node 54814 in English, Chinese and bilingual modes at 800x600.
+All three modes contain both Presence area 30% and Spirit 4%. It also checks
+80 two-line stats, the final item, scrolling, viewport bounds and inert HTML.
+Native Chromium input moves gradually from a node into its fixed-position tooltip
+and wheels the overflow successfully. The test briefly shows its own isolated window
+without focusing it, then destroys only that test window. Ascendancy small nodes
+also respect the existing small-node visibility toggle during exact ID lookup.
+This is real Chromium rendering with public data, not a live user-app restart.
+
+Existing localization returns “该装备精魂提高 4%” for the Spirit stat; this wording
+predates the correction. Translation engine/source policy was intentionally unchanged
+and the English/bilingual views retain the exact “4% increased Spirit” evidence.
+No model/embedding calls, credentials, Build schema or allocation changes are involved.
+Prior agent commits remain preserved; status remains REVIEW.
+Validation: desktop Node tests 186/186, zero skips with locked official-tree evidence;
+Python 39/39; syntax checks and the real-rendering fixture passed. Independent review
+initially found hover accessibility and hidden ascendancy-small-node cases; both were
+fixed and covered, and re-review found no remaining blockers.
+
 ## Streaming/timeout follow-up
 
 The formerly opaque wait is now request-correlated streaming with safe phase and tool

@@ -105,7 +105,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .instill-item.selected .instill-badge{color:#e5f7ff;border-color:#69bedd;background:#23536a}
 .instill-stat{margin-top:5px;color:#b7c8d0;font-size:11px;line-height:1.4;white-space:pre-line}
 .stat{white-space:pre-line}
-.tip{white-space:normal}
+.tip{white-space:normal;box-sizing:border-box;overflow:auto;overflow-wrap:anywhere;pointer-events:auto;overscroll-behavior:contain}
+.tip-stat{white-space:pre-line;margin-top:4px}
 
 
 .point-big{display:flex;align-items:baseline;gap:3px;font-size:22px;font-weight:800;color:#e5bd6e}
@@ -273,7 +274,8 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
 
   <section class="section">
     <div class="h">SEARCH / 全树高亮</div>
-    <div style="display:grid;grid-template-columns:1fr auto;gap:7px"><input id="search" type="text" placeholder="暴击 / Projectile / 护甲 / ID" disabled><button id="find" disabled>定位</button></div>
+    <label for="searchMode">查找方式</label><select id="searchMode" disabled><option value="text">文字搜索</option><option value="id">节点 ID（精确）</option></select>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:7px"><input id="search" type="text" placeholder="暴击 / Projectile / 护甲" disabled><button id="find" disabled>定位</button></div>
     <div class="search-controls"><select id="searchType" disabled><option value="all">全部类型</option><option value="notable">核心天赋</option><option value="keystone">关键天赋</option><option value="jewel">珠宝插槽</option><option value="hidden">隐藏天赋</option><option value="asc">升华</option></select><button id="searchPrev" disabled>←</button><span id="searchPos">0/0</span><button id="searchNext" disabled>→</button><button id="clearSearch" disabled>清除</button></div>
     <div id="searchCount" class="note">无命中</div>
   </section>
