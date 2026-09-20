@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, safeStorage } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, safeStorage, Menu } = require("electron");
+const { installEditContextMenu } = require("./edit-context-menu.cjs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const fs = require("node:fs/promises");
@@ -175,6 +176,7 @@ function createWindow() {
       sandbox: false
     }
   });
+  installEditContextMenu(win, Menu);
   win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
   win.webContents.on("will-navigate", (event, url) => { if (url !== plannerPageUrl) event.preventDefault(); });

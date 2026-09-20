@@ -283,6 +283,12 @@ a re-save warning rather than claiming the displayed correction is already saved
 Rendered UI tests cover preset selection, dimension changes and custom-ID saving;
 the three credential/settings tests and syntax checks also pass.
 
+Native editing follow-up: editable inputs receive an Electron context menu using
+native editing roles. Password fields disable cut/copy while allowing paste when
+Chromium reports it available. No clipboard read or logging is introduced. Two menu
+unit checks, syntax checking and both rendered UI fixtures passed. User clipboard
+contents were not accessed during verification.
+
 ## Run and review
 
 From `apps/planner-desktop`:
