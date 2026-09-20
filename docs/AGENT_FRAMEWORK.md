@@ -274,6 +274,15 @@ draft preservation and settings saves. Node 167/167 (zero skips), Python 29/29,
 both rendered Electron UI fixtures and syntax checks passed. Settings rendering
 was visually inspected with synthetic data. No real retrieval-service call was made.
 
+Model-picker follow-up: embedding and reranker settings offer explicit preset
+dropdowns plus custom IDs. The list is labelled as presets, not live account
+discovery; selecting a model never rewrites the endpoint or key. Embedding dimension
+options follow known text-model capabilities (Alibaba synchronous embedding API
+documentation, checked 2026-09-20). Previously stored incompatible dimensions show
+a re-save warning rather than claiming the displayed correction is already saved.
+Rendered UI tests cover preset selection, dimension changes and custom-ID saving;
+the three credential/settings tests and syntax checks also pass.
+
 ## Run and review
 
 From `apps/planner-desktop`:

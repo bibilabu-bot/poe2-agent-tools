@@ -2,6 +2,46 @@
 (() => {
   const api = window.desktopAPI?.retrievalSettings;
   const field = (kind, name) => document.getElementById(kind + name);
+  // Official text-model presets, not an account-specific /models response.
+  const dimensions = {
+    "text-embedding-v4": [64,128,256,512,768,1024,1536,2048],
+    "text-embedding-v3": [64,128,256,512,768,1024],
+    "text-embedding-v2": [1536], "text-embedding-v1": [1536],
+    "qwen3.7-text-embedding": [256,512,768,1024,1536,2048,2560],
+    "qwen3.7-text-embedding-flash": [256,512,768,1024]
+  };
+  function syncDimensions(preferred = Number(field("embedding", "Dimensions").value)) {
+    const model = field("embedding", "Model").value;
+    const values = Object.hasOwn(dimensions, model) ? dimensions[model] : [64,128,256,512,768,1024,1536,2048,2560];
+    const select = field("embedding", "Dimensions");
+    select.replaceChildren(...values.map(value => new Option(String(value), String(value))));
+    select.value = String(values.includes(preferred) ? preferred : values.includes(1024) ? 1024 : values[0]);
+  }
+  function syncModel(kind) {
+    const input = field(kind, "Model"), select = field(kind, "ModelSelect");
+    select.value = [...select.options].some(option => option.value === input.value) ? input.value : "custom";
+    input.hidden = select.value !== "custom";
+    field(kind, "CustomLabel").hidden = input.hidden;
+    if (kind === "embedding") syncDimensions();
+  }
+  for (const kind of ["embedding", "reranker"]) {
+    const input = field(kind, "Model"), select = document.createElement("select");
+    select.id = kind + "ModelSelect";
+    const models = kind === "embedding" ? Object.keys(dimensions) : ["qwen3.7-text-rerank", "qwen3-rerank", "gte-rerank-v2", "qwen3-vl-rerank"];
+    select.append(...models.map(model => new Option(model, model)), new Option("自定义模型 ID…", "custom"));
+    document.querySelector(`label[for="${kind}Model"]`).htmlFor = select.id;
+    const label = document.createElement("label"); label.id = kind + "CustomLabel"; label.htmlFor = input.id; label.textContent = "自定义模型 ID";
+    input.before(select, label);
+    const hint = document.createElement("p"); hint.className = "agent-help";
+    hint.textContent = "预置模型列表，非账号实时可用列表；更换模型不会自动修改 API 地址，请确认服务支持。";
+    input.after(hint);
+    select.addEventListener("change", () => {
+      if (select.value === "custom") { input.hidden = false; label.hidden = false; input.focus(); }
+      else { input.value = select.value; syncModel(kind); }
+    });
+    if (kind === "embedding") input.addEventListener("change", () => syncDimensions());
+    syncModel(kind);
+  }
   const status = (kind, text, error = false) => {
     field(kind, "Status").textContent = text;
     field(kind, "Status").className = `agent-status${error ? " error" : ""}`;
@@ -11,11 +51,15 @@
     if (profile) {
       field(kind, "Url").value = profile.baseUrl;
       field(kind, "Model").value = profile.model;
-      if (kind === "embedding") field(kind, "Dimensions").value = profile.dimensions;
+      syncModel(kind);
+      if (kind === "embedding") syncDimensions(profile.dimensions);
     }
     field(kind, "Key").value = "";
     field(kind, "Key").placeholder = profile?.hasKey ? "已安全保存；不会回显" : "请输入 Key";
     status(kind, profile ? "已安全保存 · 未验证接口 · RAG 尚未接入" : "未配置");
+    if (kind === "embedding" && profile && Number(field(kind, "Dimensions").value) !== profile.dimensions) {
+      status(kind, "原保存维度不在该模型预置范围内，已调整显示值；请确认后重新保存", true);
+    }
   };
   document.querySelectorAll("[data-save-profile]").forEach(button => button.addEventListener("click", async () => {
     const kind = button.dataset.saveProfile;

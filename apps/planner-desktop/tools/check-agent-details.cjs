@@ -64,6 +64,18 @@ app.whenReady().then(async () => {
     await mount();
     await waitFor("!document.getElementById('agentSend').disabled");
     await waitFor("!document.querySelector('[data-save-profile=embedding]').disabled");
+    assert.equal(await evaluate("document.getElementById('embeddingModelSelect').value"), "text-embedding-v4");
+    await evaluate("document.getElementById('embeddingModelSelect').value='text-embedding-v2';document.getElementById('embeddingModelSelect').dispatchEvent(new Event('change'))");
+    assert.deepEqual(await evaluate("[...document.getElementById('embeddingDimensions').options].map(o=>o.value)"), ["1536"]);
+    assert.equal(await evaluate("document.getElementById('embeddingModel').value"), "text-embedding-v2");
+    await evaluate("document.getElementById('rerankerModelSelect').value='custom';document.getElementById('rerankerModelSelect').dispatchEvent(new Event('change'));document.getElementById('rerankerModel').value='custom-reranker'");
+    assert.equal(await evaluate("document.getElementById('rerankerModel').hidden"), false);
+    await evaluate("document.querySelector('[data-save-profile=reranker]').click()");
+    await waitFor("document.getElementById('rerankerStatus').textContent.includes('已安全保存')");
+    assert.equal(await evaluate("document.getElementById('rerankerModelSelect').value"), "custom");
+    assert.equal(await evaluate("window.savedProfiles.reranker.model"), "custom-reranker");
+    await evaluate("document.querySelector('[data-clear-profile=reranker]').click()");
+    await waitFor("document.getElementById('rerankerStatus').textContent==='未配置'");
     await evaluate("document.querySelector('#agentView [data-page=settings]').click();document.getElementById('agentInput').value='未发送草稿'");
     assert.equal(await evaluate("!document.getElementById('settingsView').hidden && document.getElementById('agentView').hidden && document.getElementById('plannerView').hidden"),true);
     assert.equal(await evaluate("document.getElementById('settingsView').contains(document.getElementById('agentModel')) && !document.getElementById('agentView').querySelector('.agent-settings')"),true);
