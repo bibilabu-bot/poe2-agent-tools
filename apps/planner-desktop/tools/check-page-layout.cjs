@@ -13,6 +13,7 @@ app.whenReady().then(async()=>{
   try{
     await win.loadURL("data:text/html;charset=utf-8,"+encodeURIComponent(html));
     const run=code=>win.webContents.executeJavaScript(code);
+    win.webContents.debugger.attach("1.3");
     for(const file of ["agent-trace.js","layout-shell.js","agent-panel.js"])await run(fs.readFileSync(path.join(renderer,file),"utf8"));
     await run(`window.plannerLayoutShell.mount(document);var wrap=document.querySelector('#stage'),canvas=document.querySelector('#treeCanvas'),W,H,DPR,camera={x:123,y:456,scale:0.8};var scheduleDraw=()=>{};${extract("resize")} ${extract("screenToWorld")} new ResizeObserver(resize).observe(wrap);window.addEventListener('resize',resize);document.querySelector('#status').textContent='PoE2 · 导航验证';document.querySelector('#desktopBridgeStatus').hidden=true;`);
     const wait=()=>new Promise(r=>setTimeout(r,240));
@@ -26,6 +27,19 @@ app.whenReady().then(async()=>{
         headers.push(await run(`(()=>{const nav=document.querySelector('#${page}View nav[aria-label="页面切换"]');return [...nav.children].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height]})})()`));
       }
       assert.deepEqual(headers[1],headers[0]);assert.deepEqual(headers[2],headers[0]);
+      if(process.argv.includes("--settings")){
+        const bounds=await run(`(()=>{const s=document.querySelector('.settings-scroll'),r=s.getBoundingClientRect();s.scrollTop=0;s.focus();return {right:r.right,width:innerWidth,top:r.top,scrollable:s.scrollHeight>s.clientHeight,nested:[...s.querySelectorAll('*')].filter(e=>['auto','scroll'].includes(getComputedStyle(e).overflowY)&&e.scrollHeight>e.clientHeight).length}})()`);
+        assert.equal(bounds.right,bounds.width);assert.equal(bounds.top,72);assert.equal(bounds.scrollable,true);assert.equal(bounds.nested,0);
+        await win.webContents.debugger.sendCommand("Input.dispatchKeyEvent",{type:"keyDown",key:"PageDown",code:"PageDown",windowsVirtualKeyCode:34});
+        await win.webContents.debugger.sendCommand("Input.dispatchKeyEvent",{type:"keyUp",key:"PageDown",code:"PageDown",windowsVirtualKeyCode:34});await wait();
+        assert.ok(await run(`document.querySelector('.settings-scroll').scrollTop`)>0,"keyboard scroll");
+        await run(`document.querySelector('.settings-scroll').scrollTop=0`);
+        await win.webContents.debugger.sendCommand("Input.dispatchMouseEvent",{type:"mouseWheel",x:width-20,y:height-50,deltaX:0,deltaY:460});await wait();
+        assert.ok(await run(`document.querySelector('.settings-scroll').scrollTop`)>0,"mouse scroll at window edge");
+        assert.equal(await run(`document.querySelector('#settingsView .agent-top').getBoundingClientRect().y`),0);
+        fs.writeFileSync(path.join(output,`settings-${width}.png`),(await win.webContents.capturePage()).toPNG());
+        console.log("SETTINGS_SCROLL",JSON.stringify({width,...bounds}));
+      }
       await run(`document.querySelector('#settingsView [data-page="planner"]').click();document.querySelector('#search').value='preserved';`);
       for(const state of ["open","closed"]){
         await run(`document.querySelector('#tool-trigger-search').click()`);await wait();

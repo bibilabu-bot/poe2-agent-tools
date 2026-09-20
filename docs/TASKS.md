@@ -20,7 +20,7 @@ independent commit on the existing isolated branch. No allocation/data contract 
 
 ### P2AT-027B — Move Settings scrolling to the window edge
 
-- Status: `READY`
+- Status: `REVIEW`
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-027A
 - Scope: full-width single Settings page scroll owner, centered readable inner form.

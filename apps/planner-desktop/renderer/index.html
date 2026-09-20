@@ -392,7 +392,8 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
     <div><h1 id="settingsTitle">设置</h1><p>聊天、向量化与重排序分别配置；Key 仅通过系统安全存储保存在本机。</p></div>
     <nav class="agent-nav" aria-label="页面切换"><button data-page="planner">天赋树</button><button data-page="agent">智能体</button><button class="active" aria-current="page">设置</button></nav>
   </header>
-  <main class="settings-content">
+  <main class="settings-scroll" tabindex="0" aria-label="模型设置内容">
+  <div class="settings-content">
     <div id="chatSettingsHost"></div>
     <section class="retrieval-settings" data-profile="embedding">
       <h2>向量化 · Embedding</h2><p class="agent-help">将天赋描述、查询及当前会话摘要转换为向量。保存不发送资料，构建索引或语义查询时才调用。</p>
@@ -409,6 +410,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
       <label for="rerankerKey">API Key（留空保留同地址已存 Key）</label><input id="rerankerKey" type="password" autocomplete="off">
       <div class="agent-actions"><button data-save-profile="reranker">保存配置</button><button data-clear-profile="reranker">清除配置及 Key</button></div><p id="rerankerStatus" class="agent-status" role="status">未配置</p>
     </section>
+  </div>
   </main>
 </section>
 

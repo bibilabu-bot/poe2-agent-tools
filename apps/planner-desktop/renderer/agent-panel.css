@@ -32,7 +32,9 @@
 .agent-view ::-webkit-scrollbar-thumb{background:#555a63;border:2px solid #101216;border-radius:8px}
 .agent-view ::-webkit-scrollbar-thumb:hover{background:#747b87}
 .agent-layout{grid-template-columns:minmax(0,1fr)}
-.settings-content{overflow:auto;min-height:0;width:min(900px,100%);margin:0 auto;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px}
+.settings-view{overflow:hidden}
+.settings-scroll{overflow:auto;min-height:0;width:100%;overscroll-behavior:contain}
+.settings-content{width:min(900px,100%);margin:0 auto;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px}
 .settings-content .agent-settings{border:0;border-radius:0;background:transparent}
 .settings-content .agent-settings summary{padding:0 0 16px;font-size:17px}
 .settings-content .agent-settings-body{padding:0}
