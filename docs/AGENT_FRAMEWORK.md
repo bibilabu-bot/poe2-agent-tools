@@ -215,6 +215,15 @@ Verification: pure trace tests, real-subprocess argument/duration assertions, an
 reload restoration and inert HTML inside tool results. The Electron UI tests own
 their exit status explicitly so closing a window cannot hide assertion failures.
 
+Readability follow-up: `read_memory` metadata and its nested JSON text are displayed
+separately. Complete offset-zero records are parsed and formatted with two-space
+indentation; partial pages remain labeled literal fragments. No blanket backslash
+replacement occurs: paths/quotes retain their original semantics, and wire/storage
+records are unchanged. Production UI and regression checks: Node 163/163 (zero skips),
+Python 28/28, both rendered UI fixtures, and independent review passed. The live
+window was refreshed without a model request, confirming indentation and absence of
+the outer JSON-string escaping.
+
 ## Run and review
 
 From `apps/planner-desktop`:

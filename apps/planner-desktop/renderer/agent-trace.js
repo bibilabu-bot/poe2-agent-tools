@@ -67,6 +67,26 @@
     if (row.name === "update_notebook") return `笔记本 → 修订 ${result.revision ?? "未知"}；第 ${result.updated_in_turn ?? "未知"} 轮暂存，整轮成功后提交`;
     return "";
   }
+  function resultSections(row) {
+    const fallback = [["返回结果", row.result]];
+    let result;
+    try { result = JSON.parse(row.result); } catch { return fallback; }
+    if (row.name !== "read_memory" || result?.format !== "json_text_fragment" || typeof result.text !== "string") return fallback;
+    const { text, ...metadata } = result;
+    let label = "记忆原文片段（尚未拼接完整，不强行解析）", content = text;
+    if (result.offset === 0 && result.complete === true) {
+      try {
+        content = JSON.stringify(JSON.parse(text), null, 2);
+        label = "记忆原文（已解析，缩进展示）";
+      } catch { label = "记忆原文（无法解析，保留原始文本）"; }
+    }
+    // Reformat only for display; preserve literal backslashes and the stored wire record.
+    const header = JSON.stringify(metadata, null, 2);
+    const marker = "\n[展示已截断，不影响原始记忆]";
+    const limit = Math.max(0, 8000 - header.length);
+    if (content.length > limit) content = limit >= marker.length ? content.slice(0, limit - marker.length) + marker : marker.slice(0, limit);
+    return [["返回元数据", header], [label, content]];
+  }
   function renderTrace(document, trace) {
     return normalizeTrace(trace).map((row, index, rows) => {
       const details = document.createElement("details"); details.className = "agent-operation";
@@ -74,7 +94,7 @@
       summary.textContent = `#${row.sequence} ${row.ok ? "已完成" : "失败"} · ${row.name} · ${row.durationMs === null ? "耗时未记录" : `${row.durationMs} ms`}`;
       details.append(summary);
       const chain = memoryPath(row, rows.slice(0, index));
-      for (const [label, text] of [["调用 ID", row.callId], ["记忆链路", chain], ["传参", row.arguments], ["返回结果", row.result]]) {
+      for (const [label, text] of [["调用 ID", row.callId], ["记忆链路", chain], ["传参", row.arguments], ...resultSections(row)]) {
         if (!text && label !== "传参" && label !== "返回结果") continue;
         const title = document.createElement("div"); title.className = "agent-operation-label"; title.textContent = label;
         const pre = document.createElement("pre"); pre.textContent = text || "（展示预算已用尽）";
@@ -83,5 +103,5 @@
       return details;
     });
   }
-  return { normalizeTrace, memoryPath, renderTrace };
+  return { normalizeTrace, memoryPath, resultSections, renderTrace };
 });

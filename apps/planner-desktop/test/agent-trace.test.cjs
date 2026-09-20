@@ -1,7 +1,31 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { normalizeTrace, memoryPath } = require("../renderer/agent-trace.js");
+const { normalizeTrace, memoryPath, resultSections } = require("../renderer/agent-trace.js");
+
+test("complete memory renders indented JSON without outer escaping or modifying wire data", () => {
+  const records = [{ turn_id: 14, messages: [{ role: "user", content: '中文🙂 C:\\notes\\a.txt\n他说"你好"' }] }];
+  const result = JSON.stringify({ format: "json_text_fragment", offset: 0, complete: true, text: JSON.stringify(records) });
+  const row = normalizeTrace([{ name: "read_memory", result, ok: true }])[0];
+  const original = row.result;
+  const sections = resultSections(row);
+  assert.equal(sections.length, 2);
+  assert.match(sections[1][0], /已解析/);
+  assert.match(sections[1][1], /\n  \{\n    "turn_id": 14,/);
+  assert.deepEqual(JSON.parse(sections[1][1]), records);
+  assert.ok(!sections[1][1].includes('\\"turn_id\\"'));
+  assert.equal(row.result, original);
+});
+
+test("partial or malformed memory remains a clearly labeled literal fragment", () => {
+  for (const [complete, offset] of [[false, 0], [true, 1500]]) {
+    const text = '[{"turn_id":14,"messages":';
+    const sections = resultSections({ name: "read_memory", result: JSON.stringify({ format: "json_text_fragment", text, complete, offset }) });
+    assert.match(sections[1][0], /片段/);
+    assert.equal(sections[1][1], text);
+  }
+  assert.equal(resultSections({ name: "read_memory", result: "truncated" })[0][1], "truncated");
+});
 
 test("trace preserves arguments, timing and paged-memory result shape", () => {
   const trace = normalizeTrace([{ name: "read_memory", ok: true, callId: "r", durationMs: 3,

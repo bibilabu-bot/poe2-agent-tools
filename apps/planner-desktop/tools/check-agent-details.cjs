@@ -13,6 +13,8 @@ app.whenReady().then(async () => {
   const css = await fs.readFile(path.join(renderer, "agent-panel.css"), "utf8");
   const traceCode = await fs.readFile(path.join(renderer, "agent-trace.js"), "utf8");
   const panelCode = await fs.readFile(path.join(renderer, "agent-panel.js"), "utf8");
+  const memoryResult = JSON.stringify({ turn_ids: [7, 8], offset: 0, complete: true, format: "json_text_fragment",
+    text: JSON.stringify([{ turn_id: 7, messages: [{ role: "user", content: "<img src=x onerror=alert(1)>" }] }, { turn_id: 8, messages: [{ role: "assistant", content: "中文🙂" }] }]) });
   const isolated = session.fromPartition(`details-test-${Date.now()}`);
   await isolated.protocol.handle("https", () => new Response(html + `<style>${css}</style>`, { headers: { "content-type": "text/html; charset=utf-8" } }));
   const window = new BrowserWindow({ show: false, webPreferences: { session: isolated, sandbox: true, contextIsolation: true } });
@@ -24,7 +26,7 @@ app.whenReady().then(async () => {
       listModels: async () => ({ok:true,models:['mock']}), restoreConversation: async () => ({ok:true}),
       send: async () => ({ok:true,text:'演示完成',trace:[
         {name:'search_memory',callId:'s1',ok:true,durationMs:2,arguments:'{"query":"琥珀"}',result:'{"matches":[{"turn_id":7}],"metadata_only":true}'},
-        {name:'read_memory',callId:'r1',ok:true,durationMs:4,arguments:'{"start_turn_id":7,"count":2}',result:'{"turn_ids":[7,8],"offset":0,"complete":true,"text":"<img src=x onerror=alert(1)>"}'}]})
+        {name:'read_memory',callId:'r1',ok:true,durationMs:4,arguments:'{"start_turn_id":7,"count":2}',result:${JSON.stringify(memoryResult)}}]})
     } }; true;`);
     await evaluate(traceCode + "; true;"); await evaluate(panelCode);
     await evaluate("document.getElementById('switchToAgent').click()");
@@ -47,6 +49,8 @@ app.whenReady().then(async () => {
       return {open:d.open, visible:p.getBoundingClientRect().height>0, text:d.textContent, injected:d.querySelectorAll('img').length}; })()`);
     assert.equal(first.open, true); assert.equal(first.visible, true); assert.equal(first.injected, 0);
     assert.match(first.text, /"start_turn_id": 7/); assert.match(first.text, /搜索 #1/); assert.match(first.text, /4 ms/);
+    assert.match(first.text, /已解析，缩进展示/); assert.match(first.text, /\n    "turn_id": 7,/);
+    assert.ok(!first.text.includes('\\"turn_id\\"'));
     await evaluate("document.querySelectorAll('.agent-operation summary')[1].click()");
     assert.equal(await evaluate("document.querySelectorAll('.agent-operation')[1].open"), false);
     await mount();
