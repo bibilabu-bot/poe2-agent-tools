@@ -15,6 +15,7 @@ from typing import Any, Mapping
 
 from .context import validate_turn
 from .core import AgentError, BaseTool
+from .session_display import redact
 
 MAX_DIRECTORY_CHARS = 60_000
 MAX_NOTEBOOK_CHARS = 8_000
@@ -60,6 +61,12 @@ class MemoryStore:
                 turn_id INTEGER NOT NULL, created_at TEXT NOT NULL, summary TEXT NOT NULL,
                 messages TEXT NOT NULL, search_text TEXT NOT NULL, chars INTEGER NOT NULL,
                 PRIMARY KEY(conversation_id, turn_id));
+            CREATE TABLE IF NOT EXISTS conversation_metadata (
+                conversation_id TEXT PRIMARY KEY REFERENCES conversations(id), created_at TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS turn_display (
+                conversation_id TEXT NOT NULL, turn_id INTEGER NOT NULL, details TEXT NOT NULL,
+                PRIMARY KEY(conversation_id,turn_id),
+                FOREIGN KEY(conversation_id,turn_id) REFERENCES turns(conversation_id,turn_id));
         """)
 
     def activate(self, endpoint: str, *, new: bool = False) -> str:
@@ -73,7 +80,51 @@ class MemoryStore:
                             (conversation_id, endpoint, encode(empty_notebook())))
             self.db.execute("INSERT OR REPLACE INTO active_conversations VALUES (?,?)",
                             (endpoint, conversation_id))
+            self.db.execute("INSERT INTO conversation_metadata VALUES (?,?)",
+                            (conversation_id, datetime.now(timezone.utc).isoformat()))
         return conversation_id
+
+    def _check_owner(self, endpoint: str, conversation_id: str) -> None:
+        if not isinstance(conversation_id, str) or not self.db.execute(
+                "SELECT 1 FROM conversations WHERE id=? AND endpoint=?", (conversation_id, endpoint)).fetchone():
+            raise AgentError("SESSION_NOT_FOUND", "会话不属于当前服务")
+
+    def select(self, endpoint: str, conversation_id: str) -> None:
+        self._check_owner(endpoint, conversation_id)
+        with self.db:
+            self.db.execute("INSERT OR REPLACE INTO active_conversations VALUES (?,?)", (endpoint, conversation_id))
+
+    def list_conversations(self, endpoint: str, secret: str = "") -> list[dict[str, Any]]:
+        rows = self.db.execute("""
+            SELECT c.id, COALESCE((SELECT MAX(created_at) FROM turns WHERE conversation_id=c.id),m.created_at,'') updated_at,
+                   (SELECT messages FROM turns WHERE conversation_id=c.id ORDER BY turn_id LIMIT 1) first_messages
+            FROM conversations c LEFT JOIN conversation_metadata m ON c.id=m.conversation_id
+            WHERE c.endpoint=? ORDER BY updated_at DESC,c.id
+        """, (endpoint,))
+        result = []
+        for row in rows:
+            text = json.loads(row["first_messages"])[0]["content"] if row["first_messages"] else "新会话"
+            title = redact(text, secret)
+            result.append({"id": row["id"], "title": " ".join(title.split())[:48], "updatedAt": row["updated_at"]})
+        return result
+
+    def display_history(self, endpoint: str, conversation_id: str, before: int | None = None) -> dict[str, Any]:
+        self._check_owner(endpoint, conversation_id)
+        if before is not None and (type(before) is not int or before < 1):
+            raise AgentError("INVALID_SESSION_CURSOR", "无效历史页码")
+        rows = self.db.execute("""
+            SELECT t.turn_id,t.messages,d.details FROM turns t LEFT JOIN turn_display d
+            ON t.conversation_id=d.conversation_id AND t.turn_id=d.turn_id
+            WHERE t.conversation_id=? AND (? IS NULL OR t.turn_id<?) ORDER BY t.turn_id DESC LIMIT 21
+        """, (conversation_id, before, before)).fetchall()
+        turns = []
+        for row in reversed(rows[:20]):
+            messages = json.loads(row["messages"])
+            turns.append({"turnId": row["turn_id"], "user": messages[0]["content"],
+                          "assistant": messages[-1]["content"],
+                          "details": json.loads(row["details"]) if row["details"] else None})
+        return {"conversationId": conversation_id, "turns": turns,
+                "before": turns[0]["turnId"] if len(rows) > 20 else None}
 
     def directory(self, conversation_id: str) -> list[dict[str, Any]]:
         return [dict(row) for row in self.db.execute(
@@ -93,9 +144,11 @@ class MemoryStore:
         return [message for row in reversed(rows) for message in json.loads(row[0])]
 
     def commit(self, conversation_id: str, turn_id: int, messages: list[dict[str, Any]],
-               notebook: dict[str, Any]) -> None:
+               notebook: dict[str, Any], details: dict[str, Any] | None = None) -> None:
         with self.db:
             self._insert_turn(conversation_id, turn_id, messages, notebook)
+            if details is not None:
+                self.db.execute("INSERT INTO turn_display VALUES (?,?,?)", (conversation_id, turn_id, encode(details)))
 
     def import_turns(self, conversation_id: str, turns: list[list[dict[str, Any]]]) -> None:
         """Import the legacy display cache atomically, including validation failures."""

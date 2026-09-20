@@ -68,3 +68,33 @@
   .page-nav,.agent-nav{gap:4px}
   .page-nav button,.agent-nav button{width:62px;font-size:12px}
 }
+
+/* Session navigation is independent from the centered conversation column. */
+#agentView .agent-layout{max-width:none;margin:0;padding:0;gap:0;grid-template-columns:240px minmax(0,1fr);overflow:hidden;position:relative}
+.session-sidebar{min-height:0;overflow:auto;padding:14px 10px;border-right:1px solid #2b2e33;background:#0d0f12}
+#sessionToggle{width:100%;text-align:left;background:transparent;border-color:transparent;color:#aaa}
+#agentNewChat{width:100%;margin:12px 0}
+#sessionHint{padding:4px 8px 12px}
+#sessionList{display:flex;flex-direction:column;gap:4px}
+#sessionList button{text-align:left;border-color:transparent;background:transparent;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+#agentView .agent-chat{border:0;border-radius:0;background:transparent;min-height:0;min-width:0}
+#agentView .agent-chat-head{border:0;padding:12px 24px}
+#agentView .agent-messages{min-height:0;padding:24px max(24px,calc((100% - 850px)/2));gap:20px}
+#agentView .agent-message{max-width:100%}
+#agentView .agent-message.assistant{border:0;background:transparent;padding:0}
+#agentView .agent-message.user{border:0;background:#24262b}
+#agentView .agent-composer{border:0;width:min(900px,100%);margin:auto;padding:16px 24px}
+#agentView .agent-composer textarea{min-width:0}
+#agentView .agent-layout.sessions-collapsed{grid-template-columns:64px minmax(0,1fr)}
+.sessions-collapsed .session-sidebar{padding-inline:4px}
+.sessions-collapsed #sessionToggle{font-size:11px;text-align:center;padding:8px 2px;white-space:normal}
+@media(max-width:700px){
+  #agentView{overflow:hidden}
+  #agentView .agent-layout{grid-template-columns:64px minmax(0,1fr)}
+  #agentView .session-sidebar{z-index:8;width:240px}
+  #agentView .sessions-collapsed .session-sidebar{width:64px}
+  #agentView .agent-chat-head{padding:10px}
+  #agentView .agent-messages{padding:14px}
+  #agentView .agent-composer{padding:10px;grid-template-columns:minmax(0,1fr)}
+  #agentView .agent-composer>div{justify-content:flex-end}
+}

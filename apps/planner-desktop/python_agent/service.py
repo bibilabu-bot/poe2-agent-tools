@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any, Callable
 
 from .context import ContextError
@@ -10,6 +11,7 @@ from .core import AgentError, AgentRunner, BaseAgent, ChatAgent, ToolRegistry
 from .memory import MemorySession, MemoryStore
 from .provider import OpenAICompatibleProvider
 from .tools import CalculatorTool
+from .session_display import redact
 
 MAX_INPUT_CHARS = 12_000
 MAX_HISTORY_MESSAGES = 60
@@ -23,6 +25,7 @@ class AgentService:
         self.memory_store = MemoryStore(memory_path) if memory_path else None
         self.conversation_id: str | None = None
         self.rag = None
+        self.running = False
 
     def configure(self, base_url: str, api_key: str) -> dict[str, Any]:
         self.clear()
@@ -41,10 +44,35 @@ class AgentService:
         return self.status()
 
     def reset(self) -> dict[str, bool]:
+        self._idle()
         self.history = []
         if self.memory_store and self.provider:
             self.conversation_id = self.memory_store.activate(self.provider.base_url, new=True)
         return {"ok": True}
+
+    def _idle(self) -> None:
+        if self.running:
+            raise AgentError("RUN_IN_PROGRESS", "请先停止当前回复，再切换会话")
+
+    def sessions(self) -> dict[str, Any]:
+        self._idle()
+        if not self.memory_store or not self.conversation_id:
+            raise AgentError("MEMORY_UNAVAILABLE", "持久会话暂不可用")
+        return {"selectedId": self.conversation_id,
+                "sessions": self.memory_store.list_conversations(self._provider().base_url, getattr(self.provider, "_api_key", ""))}
+
+    def select_session(self, conversation_id: str) -> dict[str, Any]:
+        self._idle()
+        self.sessions()
+        self.memory_store.select(self._provider().base_url, conversation_id)
+        self.conversation_id = conversation_id
+        self.history = _trim_history(self.memory_store.recent_history(conversation_id))
+        return self.sessions()
+
+    def session_history(self, conversation_id: str, before: int | None = None) -> dict[str, Any]:
+        self._idle()
+        self.sessions()
+        return redact(self.memory_store.display_history(self._provider().base_url, conversation_id, before), getattr(self.provider, "_api_key", ""))
 
     def restore(self, history: Any) -> dict[str, Any]:
         if self.memory_store and self.conversation_id and self.memory_store.directory(self.conversation_id):
@@ -66,7 +94,7 @@ class AgentService:
                     raise AgentError("INVALID_HISTORY", "History must begin with a user message")
                 turns[-1].append(message)
             try:
-                self.memory_store.import_turns(self.conversation_id, turns)
+                self.memory_store.import_turns(self.conversation_id, redact(turns, getattr(self.provider, "_api_key", "")))
             except ContextError as error:
                 raise AgentError("INVALID_HISTORY", str(error)) from error
         self.history = restored
@@ -83,6 +111,16 @@ class AgentService:
 
     async def send(self, model: str, text: str, tools_enabled: bool,
                    on_event: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+        self._idle()
+        self.running = True
+        try:
+            return await self._send(model, text, tools_enabled, on_event)
+        finally:
+            self.running = False
+
+    async def _send(self, model: str, text: str, tools_enabled: bool,
+                    on_event: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+        started = time.monotonic()
         if not model or len(model) > 256:
             raise AgentError("INVALID_MODEL", "Model ID is invalid")
         text = text.strip()
@@ -125,7 +163,11 @@ class AgentService:
         retained = _trim_history(completed_history)
         if memory:
             current = completed_history[len(self.history):]
-            self.memory_store.commit(self.conversation_id, memory.current_turn, current, memory.notebook)
+            secret = getattr(self.provider, "_api_key", "")
+            self.memory_store.commit(self.conversation_id, memory.current_turn, redact(current, secret),
+                                     redact(memory.notebook, secret),
+                                     {"durationMs": round((time.monotonic()-started)*1000),
+                                      "trace": redact(result.trace, secret)})
         self.history = retained
         return {"text": result.text, "trace": result.trace, "rounds": result.rounds, "toolCalls": result.tool_calls, "history": self.history, "context": result.context_report}
 

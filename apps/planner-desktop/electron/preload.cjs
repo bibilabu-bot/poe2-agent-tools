@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld("desktopAPI", {
     },
     cancel: () => ipcRenderer.invoke("agent:cancel"),
     reset: () => ipcRenderer.invoke("agent:reset"),
-    restoreConversation: (messages) => ipcRenderer.invoke("agent:restore-conversation", { messages })
+    restoreConversation: (messages) => ipcRenderer.invoke("agent:restore-conversation", { messages }),
+    listSessions: () => ipcRenderer.invoke("agent:sessions"),
+    selectSession: (conversationId) => ipcRenderer.invoke("agent:select-session", { conversationId }),
+    sessionHistory: (conversationId, before = null) => ipcRenderer.invoke("agent:session-history", { conversationId, before })
   })
 });

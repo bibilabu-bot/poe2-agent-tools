@@ -13,6 +13,77 @@
   const CONVERSATION_KEY = "p2at.agent.conversation.v1";
   let configured = false, running = false, conversationId = 0, configRevision = 0;
   let timeline = [], connectedBaseUrl = null;
+  let selectedSession = null, historyBefore = null, sessionBusy = false;
+  let sessionReady = !api?.listSessions;
+  let sessionRows = [];
+  function sessionHint(text) { byId("sessionHint").textContent = text; }
+  function clearSessionDisplay() {
+    sessionReady=false; historyBefore=null; timeline=[];
+    byId("agentOlderHistory").hidden=true;
+    byId("agentMessages").replaceChildren(Object.assign(document.createElement("div"),{className:"agent-empty",textContent:"正在读取所选会话…"}));
+  }
+  function sessionLoadFailed(error) {
+    sessionReady=false; sessionHint(error.message); byId("sessionRetry").hidden=false;
+    byId("agentMessages").replaceChildren(Object.assign(document.createElement("div"),{className:"agent-empty",textContent:"会话读取失败。为避免串线，已暂停发送；请重新读取会话。"}));
+  }
+  function renderSessions() {
+    byId("sessionList").replaceChildren(...sessionRows.map(row => {
+      const button = document.createElement("button"); button.textContent = row.title || "新会话";
+      button.title = row.title || "新会话"; button.classList.toggle("active", row.id === selectedSession);
+      if (row.id === selectedSession) button.setAttribute("aria-current", "true");
+      button.disabled = running || sessionBusy;
+      button.addEventListener("click", () => changeSession(row.id)); return button;
+    }));
+  }
+  async function loadSessionHistory(older = false) {
+    const id = selectedSession;
+    const result = await api.sessionHistory(id, older ? historyBefore : null);
+    if (id !== selectedSession) return;
+    if (!result.ok) throw new Error(result.error?.message || "会话读取失败");
+    const list = byId("agentMessages"), oldNodes = older ? [...list.childNodes] : [];
+    const oldHeight = list.scrollHeight, oldTop = list.scrollTop;
+    list.replaceChildren(); if (!older) timeline = [];
+    for (const turn of result.turns) {
+      addMessage("user", turn.user);
+      if (turn.details) addActivity({ durationMs: turn.details.durationMs || 0, trace: turn.details.trace,
+        steps: ["已完成回复"], state: "done" });
+      addMessage("assistant", turn.assistant);
+    }
+    if (older) list.append(...oldNodes);
+    if (!list.childNodes.length) list.append(Object.assign(document.createElement("div"), {className:"agent-empty",textContent:"这是一个独立的新会话。输入消息开始。"}));
+    historyBefore = result.before; byId("agentOlderHistory").hidden = !historyBefore;
+    sessionReady=true; byId("sessionRetry").hidden=true;
+    if (older) { if (scrollFrame !== null) cancelAnimationFrame(scrollFrame); scrollFrame=null; list.scrollTop=oldTop+list.scrollHeight-oldHeight; }
+  }
+  async function refreshSessions() {
+    const result = await api.listSessions();
+    if (!result.ok) throw new Error(result.error?.message || "会话列表读取失败");
+    selectedSession = result.selectedId; sessionRows = result.sessions; renderSessions();
+    sessionHint(running ? "请先停止回复，再切换会话。" : "仅显示当前服务的本地会话。");
+  }
+  async function changeSession(id) {
+    if (running || sessionBusy) { sessionHint("请先停止回复，再切换会话。"); return; }
+    sessionBusy = true; updateControls();
+    try {
+      const result = await api.selectSession(id); if (!result.ok) throw new Error(result.error?.message || "切换失败");
+      conversationId += 1; selectedSession = id; clearSessionDisplay(); byId("agentInput").value = ""; showTrace([]);
+      await refreshSessions(); await loadSessionHistory();
+    } catch(error) { if (!sessionReady) sessionLoadFailed(error); else sessionHint(error.message); }
+    finally { sessionBusy = false; updateControls(); }
+  }
+  byId("sessionToggle").addEventListener("click", () => {
+    const open = byId("sessionOverview").hidden;
+    byId("sessionOverview").hidden = !open; byId("sessionToggle").setAttribute("aria-expanded", String(open));
+    agentView.querySelector(".agent-layout").classList.toggle("sessions-collapsed", !open);
+  });
+  if (window.innerWidth <= 700) byId("sessionToggle").click();
+  byId("agentOlderHistory").addEventListener("click", async () => {
+    if (running || sessionBusy) return;
+    sessionBusy = true; updateControls();
+    try { await loadSessionHistory(true); } catch(error) { sessionHint(error.message); }
+    finally { sessionBusy=false; updateControls(); }
+  });
+  byId("sessionRetry").addEventListener("click", () => { if (!running && !sessionBusy) restoreConversation(); });
   let scrollFrame = null;
   function scrollToLatest() {
     if (scrollFrame !== null) return;
@@ -54,10 +125,14 @@
   function updateControls() {
     byId("agentLoadModels").disabled = !configured || running;
     byId("agentModelSelect").disabled = !configured || running || byId("agentModelSelect").options.length <= 1;
-    byId("agentInput").disabled = !configured || running;
-    byId("agentSend").disabled = !configured || running;
+    byId("agentInput").disabled = !configured || running || sessionBusy || !sessionReady;
+    byId("agentSend").disabled = !configured || running || sessionBusy || !sessionReady;
+    byId("agentNewChat").disabled = !configured || running || sessionBusy;
+    byId("agentOlderHistory").disabled = running || sessionBusy;
+    renderSessions();
+    if (running) sessionHint("请先停止回复，再切换会话。");
     byId("agentStop").disabled = !running;
-    for (const id of ["agentBaseUrl", "agentApiKey", "agentConnect", "agentClearConfig", "agentModel"]) byId(id).disabled = running;
+    for (const id of ["agentBaseUrl", "agentApiKey", "agentConnect", "agentClearConfig", "agentModel"]) byId(id).disabled = running || sessionBusy;
     byId("agentRunState").textContent = running ? "正在运行…" : "空闲";
   }
   function addMessage(role, text, persistent = true) {
@@ -101,6 +176,11 @@
     render(); byId("agentMessages").append(element); return { entry, render };
   }
   function saveConversation() {
+    if (api?.listSessions) {
+      sessionBusy=true; updateControls();
+      refreshSessions().catch(error => sessionHint(error.message)).finally(() => { sessionBusy=false; updateControls(); });
+      return;
+    }
     const rows = timeline.filter((item) => item.persistent).slice(-90);
     while (rows.length) {
       const serialized = JSON.stringify({ version: 1, baseUrl: connectedBaseUrl, timeline: rows });
@@ -113,6 +193,23 @@
     }
   }
   async function restoreConversation() {
+    if (api?.listSessions) {
+      const status=await api.getStatus(); if (!status.configured) return;
+      sessionBusy=true; clearSessionDisplay(); updateControls();
+      try {
+        await refreshSessions();
+        const page=await api.sessionHistory(selectedSession);
+        if (!page.ok) throw new Error(page.error?.message || "会话读取失败");
+        // Only an untouched initial archive can receive the old display-cache import.
+        if (sessionRows.length===1 && !page.turns.length) await restoreLegacyConversation();
+        await refreshSessions(); await loadSessionHistory();
+      } catch(error) { sessionLoadFailed(error); }
+      finally { sessionBusy=false; updateControls(); }
+      return;
+    }
+    return restoreLegacyConversation();
+  }
+  async function restoreLegacyConversation() {
     let saved;
     try { saved = JSON.parse(localStorage.getItem(CONVERSATION_KEY) || "null"); } catch { saved = null; }
     if (saved?.version !== 1 || typeof saved.baseUrl !== "string" || !Array.isArray(saved.timeline) || !api) return;
@@ -131,7 +228,7 @@
       if (valid) { restored.push(user, { ...activity, durationMs: duration, steps: [...steps], trace: window.AgentTrace.normalizeTrace(activity.trace) }, assistant); history.push({ role: "user", content: user.text }, { role: "assistant", content: assistant.text }); }
     }
     const result = valid ? await api.restoreConversation(history) : { ok: false };
-    if (!result.ok) { try { localStorage.removeItem(CONVERSATION_KEY); } catch {} return; }
+    if (!result.ok) { sessionHint("旧界面记录未导入，原记录已保留。"); return; }
     byId("agentMessages").replaceChildren(); timeline = [];
     for (const item of restored) {
       if (item.kind === "message") addMessage(item.role, item.text);
@@ -163,6 +260,7 @@
     if (api) await api.clearConfig();
     if (revision !== configRevision) return;
     timeline = []; byId("agentMessages").replaceChildren(Object.assign(document.createElement("div"), { className: "agent-empty", textContent: "切换服务后将开始独立会话。" }));
+    selectedSession=null; sessionRows=[]; renderSessions(); byId("agentOlderHistory").hidden=true;
     resetModelOptions(); setModelStatus("尚未获取模型；也可以手动填写模型 ID");
     if (configured) await newConversation(false);
     configured = false; setStatus("API 地址已改变；旧 Key 已清除，请重新连接", "error"); updateControls();
@@ -188,6 +286,7 @@
     configRevision += 1;
     const result = api ? await api.clearConfig() : { ok: false, error: { message: "桌面安全桥不可用" } };
     configured = false; byId("agentApiKey").value = ""; await newConversation(false);
+    selectedSession=null; sessionRows=[]; renderSessions(); timeline=[]; byId("agentMessages").replaceChildren(); byId("agentOlderHistory").hidden=true;
     if (!result.ok) { setStatus(`${result.error.message}；本地缓存可能仍存在`, "error"); updateControls(); return; }
     await refreshStatus();
   });
@@ -223,6 +322,17 @@
   });
   byId("agentModel").addEventListener("change", (event) => rememberModel(event.target.value.trim()));
   async function newConversation(clearUi = true) {
+    if (running || sessionBusy) { sessionHint("请先停止回复，再新建会话。"); return; }
+    if (api?.listSessions && clearUi) {
+      sessionBusy=true; updateControls();
+      try {
+        const result=await api.reset(); if (!result.ok) throw new Error(result.error?.message || "新建失败");
+        conversationId+=1; clearSessionDisplay(); byId("agentInput").value=""; showTrace([]);
+        await refreshSessions(); await loadSessionHistory();
+      } catch(error) { if (!sessionReady) sessionLoadFailed(error); else sessionHint(error.message); }
+      finally { sessionBusy=false; updateControls(); }
+      return;
+    }
     conversationId += 1; showTrace([]);
     if (api) await api.reset();
     if (clearUi) {
@@ -233,7 +343,7 @@
   byId("agentNewChat").addEventListener("click", () => newConversation(true));
   byId("agentStop").addEventListener("click", () => api?.cancel());
   byId("agentComposer").addEventListener("submit", async (event) => {
-    event.preventDefault(); if (!configured || running) return;
+    event.preventDefault(); if (!configured || running || sessionBusy || !sessionReady) return;
     const input = byId("agentInput"), text = input.value.trim(), model = byId("agentModel").value.trim();
     if (!text) return;
     if (!model) {

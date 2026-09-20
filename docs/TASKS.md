@@ -32,7 +32,7 @@ independent commit. No real paid requests.
 
 ### P2AT-027C — Restore independent sessions and simplify chat layout
 
-- Status: `READY`
+- Status: `REVIEW`
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-027A, P2AT-027B, P2AT-026A SQLite memory
 - Scope: collapsible session overview, persisted selection/list, central chat/composer.

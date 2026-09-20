@@ -70,7 +70,7 @@ class RagTests(unittest.IsolatedAsyncioTestCase):
         store=MemoryStore(":memory:")
         try:
             first=store.activate("https://one.example")
-            second=store.activate("https://two.example")
+            second=store.activate("https://one.example",new=True)
             for conversation,text in [(first,"shield recovery"),(second,"private other conversation")]:
                 store.commit(conversation,1,[{"role":"user","content":text},{"role":"assistant","content":"noted"}],store.notebook(conversation))
             tool=RagTool(self.index,"search_memory_semantic",MemorySession(store,first))

@@ -46,6 +46,12 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
         return service.clear()
     if method == "reset":
         return service.reset()
+    if method == "sessions":
+        return service.sessions()
+    if method == "select_session":
+        return service.select_session(params.get("conversationId"))
+    if method == "session_history":
+        return service.session_history(params.get("conversationId"), params.get("before"))
     if method == "restore":
         return service.restore(params.get("history"))
     if method == "models":

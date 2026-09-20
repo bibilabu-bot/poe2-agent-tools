@@ -61,6 +61,40 @@ test("service delegates configuration, models, and chat to Python", async () => 
   assert.ok(!JSON.stringify(service.status()).includes("secret"));
 });
 
+test("session switching blocks concurrent sends and ignores late session results", async () => {
+  const client=new MockPythonClient(),original=client.request.bind(client);
+  let release;
+  client.request=async(method,params)=>method==="select_session"?new Promise(resolve=>{release=resolve;}):original(method,params);
+  const service=new AgentService({client});
+  await service.configure({baseUrl:"https://example.com/v1",apiKey:"synthetic"});
+  const pending=service.sessionOperation("select_session",{conversationId:"first"});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal((await service.send({model:"m",text:"blocked"})).error.code,"RUN_IN_PROGRESS");
+  assert.equal((await service.reset()).error.code,"RUN_IN_PROGRESS");
+  service.cancel();
+  release({selectedId:"first",sessions:[]});
+  assert.equal((await pending).error.code,"CANCELLED");
+  assert.equal(service.active,null);
+});
+
+test("cancelled run cannot forward late events into a switched session", async () => {
+  const client=new MockPythonClient(),original=client.request.bind(client);
+  let release,progress;
+  client.request=async(method,params,options)=>{
+    if(method==="send") { progress=options.onEvent; return new Promise(resolve=>{release=resolve;}); }
+    if(method==="select_session")return {selectedId:"second",sessions:[]};
+    return original(method,params);
+  };
+  const service=new AgentService({client}),events=[];
+  await service.configure({baseUrl:"https://example.com/v1",apiKey:"synthetic"});
+  const pending=service.send({model:"m",text:"first"},event=>events.push(event));
+  await new Promise(resolve=>setImmediate(resolve));
+  progress({type:"text_delta",text:"first",seq:1});service.cancel();
+  assert.equal((await service.sessionOperation("select_session",{conversationId:"second"})).ok,true);
+  progress({type:"text_delta",text:"late",seq:2});release({text:"late",history:[{role:"assistant",content:"late"}]});
+  assert.equal((await pending).ok,false);assert.equal(events.length,1);assert.deepEqual(service.history,[]);
+});
+
 test("desktop model discovery uses the Electron transport compatibility path", async () => {
   const client = new MockPythonClient();
   const calls = [];

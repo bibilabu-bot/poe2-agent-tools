@@ -341,6 +341,15 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
     </nav>
   </header>
   <div class="agent-layout">
+    <aside class="session-sidebar" aria-label="会话概览">
+      <button id="sessionToggle" aria-expanded="true" aria-controls="sessionOverview">会话概览</button>
+      <div id="sessionOverview">
+        <button id="agentNewChat">＋ 新会话</button>
+        <p id="sessionHint" class="agent-help" role="status">连接服务后显示本地会话。</p>
+        <button id="sessionRetry" hidden>重新读取会话</button>
+        <nav id="sessionList" aria-label="本地会话"></nav>
+      </div>
+    </aside>
     <details class="agent-settings">
       <summary>模型与连接设置</summary>
       <div class="agent-settings-body">
@@ -370,7 +379,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
     <main class="agent-chat">
       <div class="agent-chat-head">
         <div><b id="agentChatTarget">未连接服务</b><span id="agentRunState">空闲</span></div>
-        <button id="agentNewChat">新会话</button>
+        <button id="agentOlderHistory" hidden>加载更早记录</button>
       </div>
       <div id="agentMessages" class="agent-messages" role="log" aria-live="polite">
         <div class="agent-empty">连接服务后即可普通聊天。可询问“123 × 456 等于多少？”验证真实工具闭环。</div>

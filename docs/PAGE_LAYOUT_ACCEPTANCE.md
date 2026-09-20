@@ -34,3 +34,63 @@ scrolling at the window edge, and header top remains zero. All checks pass; scre
 are `docs/assets/screenshots/p2at-027/settings-{1366,600,360}.png`.
 Independent read-only review reports no issues. Synthetic/no-network fixture only;
 no credentials read and no real connection/model requests made. REVIEW.
+
+## P2AT-027C
+
+Baseline: `a8374d7557f9409ec2193b3b4d00c5fb38c3070c`.
+The left collapsible session list uses actual SQLite conversation IDs, existing
+endpoint ownership and active-conversation selection. Titles are first-user excerpts
+(48 characters after credential redaction); order uses most recent completed turn or
+new-session creation time. No title model call, deletion, sync or parallel generation.
+The center chat removes large card borders, retaining streaming, stop, tool details
+and the bottom composer. Session switching clears drafts explicitly.
+
+### Backward-compatible storage
+
+The migration only creates `conversation_metadata` and `turn_display` if absent.
+It does not alter, drop, rewrite or prune conversations, turns, notebooks or selected
+IDs. The first synthetic test creates the old schema directly, upgrades it and compares
+original message/notebook bytes, restores selection after reopening and checks all IDs.
+New completed turns and display details commit atomically; failure/length/cancel never
+create completed archive entries. New persisted records redact configured credentials
+and credential-shaped fields; existing archive bytes remain untouched, with redaction
+applied when displaying them. Title redaction precedes truncation.
+
+History display pages contain 20 complete turns with an explicit older-page cursor;
+the UI exposes Load earlier records, rather than dropping old archives at 30 turns.
+The model's bounded working context remains unchanged; its full directory, notebook,
+keyword and semantic memory tools bind to the selected conversation. New sessions keep
+old sessions; process restart restores the selected ID from SQLite. No index rebuilding.
+
+The legacy localStorage cache is retained. Its validated pair import is only eligible
+for an untouched single initial archive, avoiding stale-cache injection into a newly
+created conversation. Old SQLite turns have no historical run-detail payload unless it
+was previously stored elsewhere; these are shown as original user/assistant messages,
+without fabricated timing/tool logs. New run details are durable in SQLite.
+
+### Failure boundaries and evidence
+
+Renderer disables selection/new-session while running; main process independently
+rejects overlaps. Request/generation guards discard late results/events. Once a backend
+switch succeeds, the old view is immediately cleared; a history-read failure disables
+sending, displays a clear error and exposes retry. Successful reload restores readiness.
+
+- Full desktop tests pass: Node 193/193 (zero skips), Python 43/43, including four new session regressions.
+- `npm run test:agent-sessions`: production renderer/preload, actual Electron service,
+  Python and temporary SQLite with localhost-only synthetic SSE. Covers two independent
+  sessions, context separation, restart/selection, length rejection, cancel, disabled
+  switching, no cross-session display, and injected read failure after successful select.
+- `npm run test:agent-ui`: tool detail expand/collapse/reload, inert HTML, error visibility,
+  dark scrollbars and streaming follow-bottom behavior still pass.
+- `npx electron tools/check-page-layout.cjs --settings`: prior A/B regression passes.
+- Node tests independently cover late cancelled run events after selection and mutually
+  exclusive session operations; semantic-memory test now uses two IDs on the same endpoint.
+- Independent frontend/backend reviews found and verified fixes for history-read UI
+  mismatch and legacy/long-key redaction. No remaining blocking findings.
+- Screenshots: `docs/assets/screenshots/p2at-027/sessions-desktop.png` and
+  `sessions-narrow.png`, generated from synthetic sessions only.
+
+No private user database, API configuration, conversations or Build allocations were
+read/reset. No real hosted chat/embedding/reranker requests. No upstream data, indexing,
+Planner semantics or main branch changes. Existing accumulated dependencies remain
+REVIEW pending controller acceptance; this delivery does not imply their acceptance.
