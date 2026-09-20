@@ -25,7 +25,7 @@ app.whenReady().then(async () => {
       getStatus: async () => ({configured:true, baseUrl:'https://test.example',targetHost:'test.example'}),
       listModels: async () => ({ok:true,models:['mock']}), restoreConversation: async () => ({ok:true}),
       send: async () => ({ok:true,text:'演示完成',trace:[
-        {name:'search_memory',callId:'s1',ok:true,durationMs:2,arguments:'{"query":"琥珀"}',result:'{"matches":[{"turn_id":7}],"metadata_only":true}'},
+        {name:'search_memory',callId:'s1',ok:true,durationMs:0,arguments:'{"query":"琥珀"}',result:'{"matches":[{"turn_id":7}],"metadata_only":true}'},
         {name:'read_memory',callId:'r1',ok:true,durationMs:4,arguments:'{"start_turn_id":7,"count":2}',result:${JSON.stringify(memoryResult)}}]})
     } }; true;`);
     await evaluate(traceCode + "; true;"); await evaluate(panelCode);
@@ -60,11 +60,14 @@ app.whenReady().then(async () => {
     await waitFor("document.querySelectorAll('.agent-operation').length === 2");
     await checkMinimalLayout();
     assert.equal(await evaluate("[...document.querySelectorAll('.agent-operation')].every(d=>!d.open)"), true);
+    assert.match(await evaluate("document.querySelector('.agent-operation summary').textContent"), /已搜索记忆 · <1 ms/);
+    assert.equal(await evaluate("[...document.querySelectorAll('.agent-operation summary')].some(s=>/#\\d/.test(s.textContent))"), false);
+    assert.deepEqual(await evaluate("[...document.querySelectorAll('.agent-operation-icon')].map(s=>s.dataset.icon)"), ["search", "book"]);
     await evaluate("document.querySelectorAll('.agent-operation summary')[1].click()");
     const first = await evaluate(`(() => { const d=document.querySelectorAll('.agent-operation')[1], p=d.querySelector('pre');
       return {open:d.open, visible:p.getBoundingClientRect().height>0, text:d.textContent, injected:d.querySelectorAll('img').length}; })()`);
     assert.equal(first.open, true); assert.equal(first.visible, true); assert.equal(first.injected, 0);
-    assert.match(first.text, /"start_turn_id": 7/); assert.match(first.text, /搜索 #1/); assert.match(first.text, /4 ms/);
+    assert.match(first.text, /"start_turn_id": 7/); assert.match(first.text, /前序搜索/); assert.match(first.text, /4 ms/);
     assert.match(first.text, /已解析，缩进展示/); assert.match(first.text, /\n    "turn_id": 7,/);
     assert.ok(!first.text.includes('\\"turn_id\\"'));
     await checkMinimalLayout();
@@ -74,6 +77,12 @@ app.whenReady().then(async () => {
     await waitFor("document.querySelectorAll('.agent-operation').length === 2");
     assert.match(await evaluate("document.querySelectorAll('.agent-operation')[1].textContent"), /"count": 2/);
     await checkMinimalLayout();
+    const iconVariants = await evaluate(`window.AgentTrace.renderTrace(document,
+      ['search_memory','read_memory','update_notebook','calculator','unknown_tool','__proto__'].map(name=>({name,ok:true,result:'{}'})))
+      .map(d=>({icon:d.querySelector('svg').dataset.icon,path:d.querySelector('path').getAttribute('d'),hidden:d.querySelector('svg').getAttribute('aria-hidden')}))`);
+    assert.deepEqual(iconVariants.map(v=>v.icon), ["search", "book", "pencil", "calculator", "tool", "tool"]);
+    assert.equal(new Set(iconVariants.slice(0, 5).map(v=>v.path)).size, 5);
+    assert.ok(iconVariants.every(v=>v.hidden === "true"));
     console.log("PASS: production panel expands/collapses parameters, results, timing and memory links; reload restores details; HTML stays inert");
   } finally { window.destroy(); await isolated.clearStorageData(); }
 }).then(() => app.exit(0), error => { console.error(error.stack); app.exit(1); });

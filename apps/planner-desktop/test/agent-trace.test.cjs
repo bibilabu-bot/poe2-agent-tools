@@ -1,7 +1,15 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { normalizeTrace, memoryPath, resultSections } = require("../renderer/agent-trace.js");
+const { normalizeTrace, memoryPath, resultSections, formatToolDuration } = require("../renderer/agent-trace.js");
+
+test("tool duration distinguishes sub-millisecond, seconds and absent legacy timing", () => {
+  assert.equal(formatToolDuration(0), "<1 ms");
+  assert.equal(formatToolDuration(0.453), "<1 ms");
+  assert.equal(formatToolDuration(4), "4 ms");
+  assert.equal(formatToolDuration(1540), "1.54 秒");
+  assert.equal(formatToolDuration(null), "耗时未记录");
+});
 
 test("complete memory renders indented JSON without outer escaping or modifying wire data", () => {
   const records = [{ turn_id: 14, messages: [{ role: "user", content: '中文🙂 C:\\notes\\a.txt\n他说"你好"' }] }];
@@ -51,9 +59,9 @@ test("memory links only identify overlap with actual earlier search results", ()
     { name: "search_memory", ok: true, result: '{"matches":[{"turn_id":7}],"metadata_only":true}' },
     { name: "read_memory", ok: true, result: '{"turn_ids":[7,8],"offset":0,"complete":true}' },
   ]);
-  assert.match(memoryPath(rows[1], [rows[0]]), /搜索 #1/);
+  assert.match(memoryPath(rows[1], [rows[0]]), /前序搜索的命中轮次/);
   assert.match(memoryPath(rows[1], [rows[0]]), /不代表模型决策因果/);
-  assert.doesNotMatch(memoryPath(rows[1], [{ ...rows[0], ok: false }]), /搜索 #1/);
+  assert.doesNotMatch(memoryPath(rows[1], [{ ...rows[0], ok: false }]), /前序搜索/);
 });
 test("legacy and oversized traces degrade explicitly within display bounds", () => {
   const legacy = normalizeTrace([{ name: "calculator", result: "12", ok: true }])[0];

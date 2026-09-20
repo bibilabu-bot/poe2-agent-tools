@@ -291,7 +291,7 @@ class AgentRunner:
             result_text = _bounded_json(result, self.limits.max_tool_result_chars)
             trace.append({"callId": call.call_id, "name": call.name[:64],
                           "arguments": call.arguments,
-                          "durationMs": round((time.monotonic() - started) * 1000),
+                          "durationMs": round((time.monotonic() - started) * 1000, 3),
                           "ok": ok, "result": result_text})
             messages.append({"role": "tool", "tool_call_id": call.call_id, "content": result_text})
         return {"messages": messages, "trace": trace,

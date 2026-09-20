@@ -108,7 +108,7 @@ if (expectedTool && !completed.toolTrace.includes(expectedTool)) {
 if (expectedTool) {
   const expanded = await evaluate(`(() => {
     const activity = [...document.querySelectorAll('#agentMessages .agent-activity')].at(-1);
-    const details = [...activity.querySelectorAll('details.agent-operation')].find(d => d.querySelector('summary').textContent.includes(${JSON.stringify(expectedTool)}));
+    const details = [...activity.querySelectorAll('details.agent-operation')].find(d => d.dataset.tool === ${JSON.stringify(expectedTool)});
     if (!details || details.open) return false;
     details.querySelector('summary').click();
     return details.open && details.querySelector('pre').getBoundingClientRect().height > 0 && details.textContent.includes('传参');

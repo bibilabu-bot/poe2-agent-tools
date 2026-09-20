@@ -61,8 +61,8 @@
       const ids = Array.isArray(result.turn_ids) ? result.turn_ids.filter(Number.isInteger) : [];
       const sources = previous.filter(r => r.ok && r.name === "search_memory").filter(r => {
         try { return JSON.parse(r.result).matches.some(m => ids.includes(m.turn_id)); } catch { return false; }
-      }).map(r => `#${r.sequence}`);
-      return `读取原文 → 轮次：${ids.join("、") || "无"}；offset=${result.offset ?? 0}；${result.complete ? "范围已读完" : `还有下一页 offset=${result.next_offset}`}${sources.length ? `；与前序搜索 ${sources.join("、")} 的命中轮次重合（不代表模型决策因果）` : "；直接按轮次读取"}`;
+      });
+      return `读取原文 → 轮次：${ids.join("、") || "无"}；offset=${result.offset ?? 0}；${result.complete ? "范围已读完" : `还有下一页 offset=${result.next_offset}`}${sources.length ? "；与前序搜索的命中轮次重合（不代表模型决策因果）" : "；直接按轮次读取"}`;
     }
     if (row.name === "update_notebook") return `笔记本 → 修订 ${result.revision ?? "未知"}；第 ${result.updated_in_turn ?? "未知"} 轮暂存，整轮成功后提交`;
     return "";
@@ -87,14 +87,37 @@
     if (content.length > limit) content = limit >= marker.length ? content.slice(0, limit - marker.length) + marker : marker.slice(0, limit);
     return [["返回元数据", header], [label, content]];
   }
+  function formatToolDuration(ms) {
+    if (!Number.isFinite(ms) || ms < 0) return "耗时未记录";
+    if (ms < 1) return "<1 ms";
+    if (ms < 1000) return `${Number(ms.toFixed(1))} ms`;
+    return `${Number((ms / 1000).toFixed(2))} 秒`;
+  }
+  const toolStyles = {
+    search_memory: { label: "搜索记忆", icon: "search", path: "M21 21l-4.5-4.5M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0" },
+    read_memory: { label: "读取记忆", icon: "book", path: "M12 6v15M12 6C9 3 5 3 2 4v16c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 2Z" },
+    update_notebook: { label: "更新笔记", icon: "pencil", path: "M14 5l5 5M4 20l5-1L21 7a3.5 3.5 0 0 0-5-5L4 14v6ZM4 20h16" },
+    calculator: { label: "运行计算器", icon: "calculator", path: "M5 2h14v20H5ZM8 5h8v4H8ZM8 13h2m4 0h2m-8 4h2m4 0h2" },
+  };
+  const defaultStyle = { label: "运行工具", icon: "tool", path: "m8 5-6 7 6 7m8-14 6 7-6 7" };
   function renderTrace(document, trace) {
     return normalizeTrace(trace).map((row, index, rows) => {
       const details = document.createElement("details"); details.className = "agent-operation";
+      details.dataset.tool = row.name;
       const summary = document.createElement("summary");
-      summary.textContent = `#${row.sequence} ${row.ok ? "已完成" : "失败"} · ${row.name} · ${row.durationMs === null ? "耗时未记录" : `${row.durationMs} ms`}`;
+      const style = Object.hasOwn(toolStyles, row.name) ? toolStyles[row.name] : defaultStyle;
+      const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      for (const [key, value] of Object.entries({ viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.6", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", focusable: "false", class: "agent-operation-icon" })) icon.setAttribute(key, value);
+      icon.dataset.icon = style.icon;
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("d", style.path); icon.append(path);
+      const label = document.createElement("span"); label.textContent = row.ok ? `已${style.label}` : `${style.label}失败`;
+      const duration = document.createElement("span"); duration.className = "agent-operation-duration";
+      duration.textContent = ` · ${formatToolDuration(row.durationMs)}`;
+      duration.title = "仅工具执行耗时，不含模型等待；整轮耗时见“已处理”";
+      summary.append(icon, label, duration);
       details.append(summary);
       const chain = memoryPath(row, rows.slice(0, index));
-      for (const [label, text] of [["调用 ID", row.callId], ["记忆链路", chain], ["传参", row.arguments], ...resultSections(row)]) {
+      for (const [label, text] of [["工具名称", row.name], ["调用 ID", row.callId], ["记忆链路", chain], ["传参", row.arguments], ...resultSections(row)]) {
         if (!text && label !== "传参" && label !== "返回结果") continue;
         const title = document.createElement("div"); title.className = "agent-operation-label"; title.textContent = label;
         const pre = document.createElement("pre"); pre.textContent = text || "（展示预算已用尽）";
@@ -103,5 +126,5 @@
       return details;
     });
   }
-  return { normalizeTrace, memoryPath, resultSections, renderTrace };
+  return { normalizeTrace, memoryPath, resultSections, formatToolDuration, renderTrace };
 });

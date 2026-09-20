@@ -2,6 +2,7 @@ import asyncio
 import json
 import threading
 import unittest
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from python_agent.core import AgentError, AgentRunner, ChatAgent, ModelProvider, ModelReply, RunnerLimits, ToolCall, ToolRegistry
@@ -64,6 +65,19 @@ class ScriptedProvider(ModelProvider):
 
 
 class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_tool_duration_retains_submillisecond_precision(self):
+        provider = ScriptedProvider([
+            ModelReply(tool_calls=(ToolCall("c", "calculator", '{"operator":"multiply","a":2,"b":3}'),)),
+            ModelReply("6"),
+        ])
+        runner = AgentRunner(provider, ToolRegistry([CalculatorTool()]))
+        # Replace this module's time reference, not the asyncio event loop's clock.
+        with patch("python_agent.core.time") as clock:
+            clock.monotonic.side_effect = [100.0, 100.000453]
+            result = await runner.run(agent=ChatAgent(), history=[{"role": "user", "content": "calculate"}], model="mock")
+        self.assertTrue(result.trace[0]["ok"])
+        self.assertEqual(result.trace[0]["durationMs"], 0.453)
+
     async def test_graph_round_limit_does_not_make_extra_request(self):
         reply = ModelReply(tool_calls=(ToolCall("c", "missing", "{}"),))
         provider = ScriptedProvider([reply, reply, ModelReply("must not run")])

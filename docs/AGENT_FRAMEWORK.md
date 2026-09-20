@@ -233,6 +233,18 @@ fixture checks verify no checklist DOM rows and transparent/zero-border computed
 styles before expansion, after expansion and after reload. Node 163/163, Python
 28/28, rendered UI fixtures and independent review passed.
 
+Timing/icon follow-up: tool execution duration retains three decimal places in
+milliseconds instead of integer rounding. Durations below one millisecond
+(including legacy stored zeroes) display as `<1 ms`; missing durations display as
+unrecorded. The duration tooltip distinguishes local tool execution from model
+waiting and overall turn time. Visible sequence badges are removed, while internal
+ordering remains intact. Static, monochrome SVG icons distinguish memory search,
+memory reading, notebook edits, calculation and unknown tools. Chinese summary
+labels accompany decorative icons; expanded details retain the original tool name.
+Node 164/164 (zero skips), Python 29/29, rendered UI fixtures and independent review
+passed. The live renderer confirmed search/book icons, `<1 ms` labels and zero
+borders without sending another model request.
+
 ## Run and review
 
 From `apps/planner-desktop`:
