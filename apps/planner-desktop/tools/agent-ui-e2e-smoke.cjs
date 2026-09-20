@@ -55,6 +55,9 @@ const ready = await waitFor(`(() => {
 if (process.env.P2AT_UI_SMOKE_MODEL) {
   await evaluate(`document.getElementById('agentModel').value = ${JSON.stringify(process.env.P2AT_UI_SMOKE_MODEL)}`);
 }
+if (process.env.P2AT_UI_REQUIRE_TOOL === "1") {
+  await evaluate("document.getElementById('agentToolsEnabled').checked = true; true");
+}
 if (restoredText) {
   await waitFor(`(() => [...document.querySelectorAll('#agentMessages .agent-message')].some((item) => item.textContent.includes(${JSON.stringify(restoredText)})))()`);
 }

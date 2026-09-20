@@ -6,6 +6,51 @@ const http = require("node:http");
 const { PythonAgentClient } = require("../electron/python-agent-client.cjs");
 const { AgentService } = require("../electron/agent-service.cjs");
 
+test("real process selects 100k historical characters without dropping stored turns or current tools", async (context) => {
+  const observed = [];
+  const server = http.createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    observed.push(body);
+    const hasTool = body.messages.at(-1).role === "tool";
+    const message = !hasTool && body.tools?.length
+      ? { content: "", tool_calls: [{ id: "calc-1", type: "function", function: { name: "calculator", arguments: '{"operator":"multiply","a":3,"b":4}' } }] }
+      : { content: "12" };
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify({ choices: [{ message }] }));
+  });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise(resolve => server.close(resolve)));
+  const client = new PythonAgentClient();
+  context.after(() => client.terminate());
+  const config = { baseUrl: `http://127.0.0.1:${server.address().port}/v1`, apiKey: "synthetic-only" };
+  await client.request("configure", config);
+  const history = [{ role: "user", content: "old omitted" }, { role: "assistant", content: "old answer" }];
+  for (let i = 0; i < 4; i++) history.push({ role: "user", content: String(i) }, { role: "assistant", content: "中".repeat(24_999) });
+  await client.request("restore", { history });
+  const result = await client.request("send", { model: "mock", text: "本轮🙂", toolsEnabled: true });
+  assert.equal(result.context.historyChars, 100_000);
+  assert.equal(result.context.omittedTurns, 1);
+  assert.equal(result.trace[0].ok, true);
+  assert.deepEqual(result.history.slice(0, history.length), history);
+  assert.equal(observed.length, 2);
+  for (const body of observed) {
+    assert.equal(body.messages[0].role, "system");
+    assert.ok(!body.messages.some(message => message.content === "old omitted"));
+    assert.ok(body.messages.some(message => message.content === "本轮🙂"));
+    assert.equal(body.messages.filter(message => message.content === "中".repeat(24_999)).length, 4);
+  }
+  assert.equal(observed[1].messages.at(-1).tool_call_id, "calc-1");
+  client.terminate();
+  await client.request("configure", config);
+  await client.request("restore", { history: result.history });
+  const next = await client.request("send", { model: "mock", text: "继续", toolsEnabled: false });
+  assert.equal(next.context.omittedTurns, 2);
+  assert.ok(observed.at(-1).messages.some(message => message.content === "本轮🙂"));
+  assert.deepEqual(next.history.slice(0, history.length), history);
+});
+
 test("Electron bridge starts the isolated Python runtime and correlates requests", async (context) => {
   const client = new PythonAgentClient();
   context.after(() => client.terminate());

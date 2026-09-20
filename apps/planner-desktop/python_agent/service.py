@@ -59,11 +59,11 @@ class AgentService:
         text = text.strip()
         if not text or len(text) > MAX_INPUT_CHARS:
             raise AgentError("INVALID_INPUT", f"Message must contain 1-{MAX_INPUT_CHARS} characters")
-        candidate = _trim_history([*self.history, {"role": "user", "content": text}])
+        candidate = [*self.history, {"role": "user", "content": text}]
         runner = AgentRunner(self._provider(), ToolRegistry([CalculatorTool()]))
         result = await runner.run(agent=ChatAgent(), history=candidate, model=model, tools_enabled=tools_enabled)
         self.history = _trim_history([message for message in result.messages if message.get("role") != "system"])
-        return {"text": result.text, "trace": result.trace, "rounds": result.rounds, "toolCalls": result.tool_calls, "history": self.history}
+        return {"text": result.text, "trace": result.trace, "rounds": result.rounds, "toolCalls": result.tool_calls, "history": self.history, "context": result.context_report}
 
     def _provider(self) -> OpenAICompatibleProvider:
         if self.provider is None:

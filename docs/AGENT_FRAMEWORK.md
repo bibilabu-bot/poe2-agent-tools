@@ -42,7 +42,8 @@ Future Planner integration must add a reviewed tool to `ToolRegistry`; it must n
 
 ## Loop and limits
 
-The Python runner uses LangGraph `StateGraph`: `START → model → (tools → model | END)`.
+The Python runner uses LangGraph `StateGraph`: `START → prepare_context → model`,
+with `model → tools → prepare_context` or `model → END`.
 Each invocation owns a fresh `RunState`; nodes return explicit replacement values (no
 implicit message append reducer). The existing HTTP provider and tool registry remain
 injected dependencies, outside state. Ambient LangSmith tracing is explicitly disabled
@@ -84,7 +85,41 @@ are visible; this is not successful chat/tool acceptance. Node 155/155 (no skips
 Python 15/15, syntax, source-lock and jewel checks passed. A new success demo video
 is deferred until the configured service allows real conversation requests.
 
-The runner makes at most 6 model requests and 12 tool calls per run. It retains at most 80 runner messages, truncates model text at 32,000 characters, tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters. Provider requests are limited to 512 KiB, responses to 2 MiB, provider requests time out after 90 seconds and the whole run after 120 seconds. One session permits only one active run.
+The runner makes at most 6 model requests and 12 tool calls per run. It truncates model text at 32,000 characters, bounds tool-call arguments at 16 KiB and each tool result at 8,000 characters. Input is limited to 12,000 characters. The service's separate archive retention trims only complete user/tool protocol turns and retains at most 60 conversation messages / 256,000 serialized characters. Provider requests are limited to 512 KiB, responses to 2 MiB, provider requests time out after 90 seconds and the whole run after 120 seconds. One session permits only one active run.
+
+### History context selection (2026-09-20)
+
+`python_agent/context.py` selects a contiguous suffix of complete historical turns
+within 100,000 Unicode code points. Counted fields are message content and tool
+call IDs, function names, arguments and result call IDs; role labels and JSON framing
+are excluded. Spaces, punctuation and emoji code points count. This is not a token
+estimate or a grapheme-cluster counter.
+
+The current user turn (including all model/tool messages accumulated during that
+run), system instructions and tool definitions do not consume the history budget.
+Every model request passes through `prepare_context`; no raw message-count slicing
+remains. A successful current turn becomes history for the next invocation. Tool
+call/result pairing is validated, and an oversized latest historical turn causes
+the entire historical suffix to be omitted rather than cherry-picking older turns.
+
+Selection does not mutate or overwrite the stored history. The runner returns the
+original history plus the completed current turn, never just its selected model
+input. The existing, independent archive/local-profile limits remain in effect;
+this is not unlimited archival storage. A content-free RPC report records the
+policy, history/current character counts, selected and omitted turn counts.
+The unchanged 512 KiB transport limit applies to the full serialized request;
+exceeding it fails explicitly without committing the turn. Model token-window
+limits remain provider-enforced; 100,000 characters are not guaranteed to fit every
+model. No automatic summarization, semantic retrieval or intent classifier is added.
+
+Verification: Node 156/156 (zero skips with canonical tree evidence), Python 20/20,
+rendered error checks, syntax, upstream lock and jewel fixture passed. A real Python
+subprocess sent exactly 100,000 historical code points plus the full active tool
+turn, retained omitted history in its returned checkpoint, and restored it after
+restart. Live `kimi-k3` returned a successful calculator trace and `56088` through
+the existing Electron bridge. Model choice to answer without a tool is not counted
+as tool-loop acceptance; an independent fresh-runtime conversation verified the
+actual tool call. No credential was printed or exported.
 
 Text without tool calls finishes the run. Tool calls are validated and executed sequentially, appended with the exact call ID, then returned to the model. Unknown tools, malformed JSON/schema arguments and execution errors become controlled tool results. Cancellation and timeouts propagate through provider and tool signals. No automatic paid retry is performed.
 

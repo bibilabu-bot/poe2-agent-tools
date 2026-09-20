@@ -6,6 +6,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from python_agent.core import AgentError, AgentRunner, ChatAgent, ModelProvider, ModelReply, RunnerLimits, ToolCall, ToolRegistry
 from python_agent.tools import CalculatorTool
+from python_agent.context import ContextError, message_chars, select_context
+from python_agent.service import AgentService
 from python_agent.provider import MAX_RESPONSE_BYTES, OpenAICompatibleProvider, _parse_chat_event_stream, normalize_base_url
 
 
@@ -67,7 +69,7 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
         provider = ScriptedProvider([reply, reply, ModelReply("must not run")])
         runner = AgentRunner(provider, ToolRegistry(), RunnerLimits(max_model_rounds=2))
         with self.assertRaises(AgentError) as caught:
-            await runner.run(agent=ChatAgent(), history=[], model="mock")
+            await runner.run(agent=ChatAgent(), history=[{"role": "user", "content": "go"}], model="mock")
         self.assertEqual(caught.exception.code, "MODEL_ROUND_LIMIT")
         self.assertEqual(len(provider.requests), 2)
 
@@ -91,7 +93,7 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
             ModelReply("12"),
         ])
         runner = AgentRunner(provider, ToolRegistry([CalculatorTool()]))
-        self.assertEqual(set(runner.graph.nodes), {"__start__", "model", "tools"})
+        self.assertEqual(set(runner.graph.nodes), {"__start__", "prepare_context", "model", "tools"})
         result = await runner.run(agent=ChatAgent(), history=history, model="mock")
         self.assertEqual(result.tool_calls, 2)
         self.assertEqual([entry["callId"] for entry in result.trace], ["0", "1"])
@@ -140,7 +142,7 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
             ModelReply("handled"),
         ])
         result = await AgentRunner(provider, ToolRegistry()).run(
-            agent=ChatAgent(), history=[], model="mock"
+            agent=ChatAgent(), history=[{"role": "user", "content": "go"}], model="mock"
         )
         self.assertFalse(result.trace[0]["ok"])
         self.assertIn("UNKNOWN_TOOL", result.trace[0]["result"])
@@ -178,6 +180,89 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
                 'data: {"message":"upstream failed"}\n'
                 'data: [DONE]\n'
             )
+
+
+class ContextSelectionTests(unittest.IsolatedAsyncioTestCase):
+    @staticmethod
+    def turn(text):
+        return [{"role": "user", "content": text}, {"role": "assistant", "content": "ok"}]
+
+    def test_exact_unicode_limit_and_current_exemption(self):
+        history = self.turn("中😀" * 49_999)
+        current = [{"role": "user", "content": "本" * 110_000}]
+        instructions = [{"role": "system", "content": "rule"}]
+        selected = select_context(history, current, instructions)
+        self.assertEqual(selected.report["historyChars"], 100_000)
+        self.assertEqual(selected.report["currentChars"], 110_000)
+        self.assertEqual(selected.messages, instructions + history + current)
+        self.assertEqual(select_context(history, current, history_limit=99_999).messages, current)
+
+    def test_contiguous_suffix_not_cherry_picked_and_not_mutated(self):
+        history = self.turn("old") + self.turn("x" * 100) + self.turn("recent")
+        original = json.loads(json.dumps(history))
+        selected = select_context(history, [], history_limit=20)
+        self.assertEqual(selected.messages, self.turn("recent"))
+        self.assertEqual(selected.report["omittedTurns"], 2)
+        selected.messages[0]["content"] = "changed"
+        self.assertEqual(history, original)
+
+    def test_tool_payload_count_and_atomic_selection(self):
+        turn = [{"role": "user", "content": "compute"},
+                {"role": "assistant", "content": "", "tool_calls": [
+                    {"id": "c", "function": {"name": "calculator", "arguments": "{}"}}]},
+                {"role": "tool", "tool_call_id": "c", "content": "123"},
+                {"role": "assistant", "content": "done"}]
+        size = sum(message_chars(m) for m in turn)
+        self.assertEqual(size, 28)
+        self.assertEqual(select_context(turn, [], history_limit=size).messages, turn)
+        self.assertEqual(select_context(turn, [], history_limit=size - 1).messages, [])
+        with self.assertRaises(ContextError):
+            select_context([turn[0], turn[2], turn[3]], [])
+        with self.assertRaises(ContextError):
+            select_context([], turn[:2])
+        for malformed in ("bad", [None], [{"id": "c", "function": "bad"}]):
+            with self.subTest(malformed=malformed), self.assertRaises(ContextError):
+                select_context([], [turn[0], {"role": "assistant", "content": "", "tool_calls": malformed}])
+        with self.assertRaises(ContextError):
+            select_context(self.turn("question") + [{"role": "assistant", "content": "extra"}], [])
+
+    async def test_graph_reselects_without_losing_archive_or_current_tools(self):
+        history = self.turn("old" * 100) + self.turn("new")
+        current = {"role": "user", "content": "calculate"}
+        provider = ScriptedProvider([
+            ModelReply(tool_calls=(ToolCall("c", "calculator", '{"operator":"multiply","a":3,"b":4}'),)),
+            ModelReply("12")])
+        runner = AgentRunner(provider, ToolRegistry([CalculatorTool()]), RunnerLimits(max_history_chars=5))
+        result = await runner.run(agent=ChatAgent(), history=[*history, current], model="mock")
+        self.assertEqual(result.context_report["historyChars"], 5)
+        self.assertGreater(result.context_report["currentChars"], 5)
+        for request in provider.requests:
+            self.assertEqual(request["messages"][0]["role"], "system")
+            self.assertNotIn(history[0], request["messages"])
+            self.assertIn(current, request["messages"])
+        self.assertEqual(provider.requests[1]["messages"][-1]["tool_call_id"], "c")
+        self.assertEqual(result.messages[1:1 + len(history)], history)
+
+    async def test_completed_current_becomes_history_next_run_and_failure_not_committed(self):
+        service = AgentService()
+        history = self.turn("a" * 60_000) + self.turn("b" * 39_996)
+        service.history = history
+        provider = ScriptedProvider([ModelReply("answer"), ModelReply("next")])
+        service.provider = provider
+        first = await service.send("mock", "current", False)
+        self.assertEqual(first["context"]["historyChars"], 100_000)
+        self.assertEqual(first["history"][:4], history)
+        second = await service.send("mock", "again", False)
+        self.assertEqual(second["context"]["omittedTurns"], 1)
+        self.assertIn({"role": "user", "content": "current"}, provider.requests[1]["messages"])
+        committed = list(service.history)
+        class FailingProvider(ScriptedProvider):
+            async def complete(self, **kwargs):
+                raise AgentError("PROVIDER_STREAM_ERROR", "partial stream failed")
+        service.provider = FailingProvider([])
+        with self.assertRaises(AgentError):
+            await service.send("mock", "failed", False)
+        self.assertEqual(service.history, committed)
 
 
 class PythonProviderTests(unittest.IsolatedAsyncioTestCase):
@@ -219,6 +304,14 @@ class PythonProviderTests(unittest.IsolatedAsyncioTestCase):
             await provider._request("/redirect")
         with self.assertRaisesRegex(AgentError, "too large"):
             await provider._request("/oversized")
+        # Current-turn exemption is not an exemption from whole-request byte safety.
+        before = len(ProviderHandler.requests)
+        current = [{"role": "user", "content": "😀" * 140_000}]
+        selection = select_context([], current)
+        with self.assertRaises(AgentError) as caught:
+            await provider.complete(model="mock", messages=selection.messages, tools=[])
+        self.assertEqual(caught.exception.code, "REQUEST_TOO_LARGE")
+        self.assertEqual(len(ProviderHandler.requests), before)
 
     async def test_url_policy_rejects_plaintext_remote_and_private_literals(self):
         with self.assertRaises(AgentError):

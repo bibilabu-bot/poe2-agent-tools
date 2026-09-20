@@ -12,6 +12,8 @@ from typing import Any, Mapping, Sequence, TypedDict
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
 
+from .context import ContextError, HISTORY_CONTEXT_CHARS, select_context
+
 
 class AgentError(Exception):
     def __init__(self, code: str, message: str) -> None:
@@ -138,7 +140,7 @@ class ToolRegistry:
 class RunnerLimits:
     max_model_rounds: int = 6
     max_tool_calls: int = 12
-    max_messages: int = 80
+    max_history_chars: int = HISTORY_CONTEXT_CHARS
     max_text_chars: int = 32_000
     max_tool_result_chars: int = 8_000
 
@@ -150,12 +152,17 @@ class RunResult:
     trace: list[dict[str, Any]] = field(default_factory=list)
     rounds: int = 0
     tool_calls: int = 0
+    context_report: dict[str, Any] = field(default_factory=dict)
 
 
 class RunState(TypedDict):
     """Per-invocation working state; credentials and durable history stay outside."""
 
     messages: list[dict[str, Any]]
+    history: list[dict[str, Any]]
+    instructions: list[dict[str, Any]]
+    model_input: list[dict[str, Any]]
+    context_report: dict[str, Any]
     trace: list[dict[str, Any]]
     calls: list[ToolCall]
     text: str
@@ -177,11 +184,13 @@ class AgentRunner:
         self.limits = limits or RunnerLimits()
         self._run_lock = asyncio.Lock()
         graph = StateGraph(RunState)
+        graph.add_node("prepare_context", self._prepare_context)
         graph.add_node("model", self._model_step)
         graph.add_node("tools", self._tools_step)
-        graph.add_edge(START, "model")
+        graph.add_edge(START, "prepare_context")
+        graph.add_edge("prepare_context", "model")
         graph.add_conditional_edges("model", self._next_step, {"tools": "tools", "done": END})
-        graph.add_edge("tools", "model")
+        graph.add_edge("tools", "prepare_context")
         self.graph = graph.compile()
 
     async def run(
@@ -196,8 +205,14 @@ class AgentRunner:
             raise AgentError("RUN_IN_PROGRESS", "A response is already running")
 
         async with self._run_lock:
+            # Caller supplies committed history followed by the current user message.
+            boundary = next((i for i in range(len(history) - 1, -1, -1)
+                             if history[i].get("role") == "user"), len(history))
             initial: RunState = {
-                "messages": agent.initial_messages(history)[-self.limits.max_messages :],
+                "messages": [dict(message) for message in history[boundary:]],
+                "history": [dict(message) for message in history[:boundary]],
+                "instructions": agent.initial_messages([]),
+                "model_input": [], "context_report": {},
                 "trace": [], "calls": [], "text": "", "rounds": 0,
                 "tool_count": 0, "model": model, "tools_enabled": tools_enabled,
             }
@@ -205,16 +220,24 @@ class AgentRunner:
             # No checkpointer/retry: service commits only a fully successful turn.
             with tracing_context(enabled=False):
                 state = await self.graph.ainvoke(
-                    initial, {"recursion_limit": 2 * self.limits.max_model_rounds + 2}
+                    initial, {"recursion_limit": 3 * self.limits.max_model_rounds + 3}
                 )
-            return RunResult(state["text"], state["messages"], state["trace"],
-                             state["rounds"], state["tool_count"])
+            return RunResult(state["text"], [*state["instructions"], *state["history"], *state["messages"]],
+                             state["trace"], state["rounds"], state["tool_count"], state["context_report"])
+
+    def _prepare_context(self, state: RunState) -> dict[str, Any]:
+        try:
+            selected = select_context(state["history"], state["messages"], state["instructions"],
+                                      history_limit=self.limits.max_history_chars)
+        except ContextError as error:
+            raise AgentError("INVALID_HISTORY", str(error)) from error
+        return {"model_input": selected.messages, "context_report": selected.report}
 
     async def _model_step(self, state: RunState) -> dict[str, Any]:
         if state["rounds"] >= self.limits.max_model_rounds:
             raise AgentError("MODEL_ROUND_LIMIT", "Model-round limit exceeded")
         reply = await self.provider.complete(
-            model=state["model"], messages=state["messages"],
+            model=state["model"], messages=state["model_input"],
             tools=self.registry.definitions() if state["tools_enabled"] else [],
         )
         content = reply.content[: self.limits.max_text_chars]
@@ -249,7 +272,7 @@ class AgentRunner:
             trace.append({"callId": call.call_id, "name": call.name[:64],
                           "ok": ok, "result": result_text})
             messages.append({"role": "tool", "tool_call_id": call.call_id, "content": result_text})
-        return {"messages": messages[-self.limits.max_messages :], "trace": trace,
+        return {"messages": messages, "trace": trace,
                 "tool_count": state["tool_count"] + len(state["calls"]), "calls": []}
 
     async def _execute_tool(self, call: ToolCall) -> tuple[Any, bool]:
