@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from collections import deque
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
@@ -93,6 +94,21 @@ class MemoryStore:
         self._check_owner(endpoint, conversation_id)
         with self.db:
             self.db.execute("INSERT OR REPLACE INTO active_conversations VALUES (?,?)", (endpoint, conversation_id))
+
+    def selection_history(self, endpoint: str, conversation_id: str) -> list[dict[str, Any]]:
+        """Validate the entire target archive without publishing an active selection."""
+        self._check_owner(endpoint, conversation_id)
+        recent = deque(maxlen=30)
+        for expected, row in enumerate(self.db.execute(
+                "SELECT turn_id,messages FROM turns WHERE conversation_id=? ORDER BY turn_id", (conversation_id,)), 1):
+            turn = json.loads(row["messages"])
+            if row["turn_id"] != expected or not isinstance(turn, list):
+                raise AgentError("INVALID_HISTORY", "目标会话历史损坏，未切换会话")
+            validate_turn(turn, completed=True)
+            recent.append(turn)
+        if not isinstance(self.notebook(conversation_id), dict):
+            raise AgentError("INVALID_HISTORY", "目标会话笔记损坏，未切换会话")
+        return [message for turn in recent for message in turn]
 
     def list_conversations(self, endpoint: str, secret: str = "") -> list[dict[str, Any]]:
         rows = self.db.execute("""

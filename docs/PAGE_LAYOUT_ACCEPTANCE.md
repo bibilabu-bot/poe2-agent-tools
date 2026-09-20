@@ -1,5 +1,31 @@
 # Page layout follow-ups — REVIEW
 
+## P2AT-027C atomic selection correction
+
+Baseline: `1294e3fd1220c1ffc65a7ccf53865fc33f0a7139`. Controller review found
+that selection persisted its ID before parsing target history. A corrupt second turn
+could leave B selected with A's in-memory history. Selection now verifies endpoint,
+all target turn JSON/sequence/completion, notebook, bounded candidate working history,
+display read and response data before publishing the durable ID and in-memory pair.
+No fallible history/response reads follow publication; failures preserve old state.
+
+Frontend enters an unconfirmed, non-sendable state before dispatching selection.
+Any error (including one returned after a backend mutation) keeps sending disabled;
+retry re-reads backend selection and its history before restoring readiness.
+
+Regression: `test_failed_selection_keeps_memory_database_restart_and_next_send_on_a`
+uses actual synthetic SQLite with A-private and B's normal first/corrupt second turn,
+plus unfinished-turn and injected display/list read errors. It verifies old ID/history,
+durable selection, restart and subsequent provider inputs/archive ownership.
+`npx electron tools/check-agent-sessions.cjs --atomic-selection` exercises production
+Python/service/preload/renderer against a temporary SQLite and local mock SSE: corrupt
+second turn, select success followed by response error, retry, next send and restart.
+Both pass. Screenshot: `docs/assets/screenshots/p2at-027/sessions-atomic-failure.png`.
+Full npm test and syntax checks pass (Node 193, Python 44). Independent frontend
+and backend reviews approve; candidate-response list failure is injected on the second
+list call so the test reaches the new pre-publication read rather than the initial guard.
+No user archive or paid endpoint accessed. Remains REVIEW pending controller acceptance.
+
 Branch: `task/P2AT-026A-python-agent-runtime`; never merge main from executor.
 
 ## P2AT-027A

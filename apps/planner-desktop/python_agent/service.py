@@ -64,10 +64,19 @@ class AgentService:
     def select_session(self, conversation_id: str) -> dict[str, Any]:
         self._idle()
         self.sessions()
-        self.memory_store.select(self._provider().base_url, conversation_id)
+        endpoint = self._provider().base_url
+        try:
+            history = _trim_history(self.memory_store.selection_history(endpoint, conversation_id))
+            # Prepare every fallible response/display read before publishing either ID.
+            self.memory_store.display_history(endpoint, conversation_id)
+            result = {"selectedId": conversation_id,
+                      "sessions": self.memory_store.list_conversations(endpoint, getattr(self.provider, "_api_key", ""))}
+        except (ValueError, TypeError, KeyError) as error:
+            raise AgentError("INVALID_HISTORY", "目标会话记录损坏，未切换会话") from error
+        self.memory_store.select(endpoint, conversation_id)
         self.conversation_id = conversation_id
-        self.history = _trim_history(self.memory_store.recent_history(conversation_id))
-        return self.sessions()
+        self.history = history
+        return result
 
     def session_history(self, conversation_id: str, before: int | None = None) -> dict[str, Any]:
         self._idle()

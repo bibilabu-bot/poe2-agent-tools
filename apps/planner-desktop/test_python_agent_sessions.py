@@ -3,6 +3,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from python_agent.core import AgentError
@@ -63,6 +64,51 @@ class SessionTests(unittest.TestCase):
 
 
 class SessionRunTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_selection_keeps_memory_database_restart_and_next_send_on_a(self):
+        for corruption in ("second_json", "second_unfinished", "display_read", "list_read"):
+            with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as folder:
+                filename=str(Path(folder)/"sessions.sqlite3")
+                service=AgentService(filename)
+                endpoint="http://127.0.0.1:9999/v1"
+                service.configure(endpoint,"synthetic")
+                store=service.memory_store
+                a=service.conversation_id
+                pair=lambda text:[{"role":"user","content":text},{"role":"assistant","content":text+"-response"}]
+                store.commit(a,1,pair("A-private"),{**empty_notebook(),"goal":"A-notebook"})
+                service.reset(); b=service.conversation_id
+                store.commit(b,1,pair("B-first"),empty_notebook())
+                store.commit(b,2,pair("B-second"),{**empty_notebook(),"goal":"B-notebook"})
+                service.select_session(a)
+                if corruption.startswith("second"):
+                    broken="not-json" if corruption=="second_json" else json.dumps([{"role":"user","content":"unfinished"}])
+                    store.db.execute("UPDATE turns SET messages=? WHERE conversation_id=? AND turn_id=2",(broken,b));store.db.commit()
+                target="display_history" if corruption=="display_read" else "list_conversations"
+                if corruption.endswith("read"):
+                    failure=ValueError("synthetic read failure")
+                    effect=[store.list_conversations(endpoint),failure] if corruption=="list_read" else failure
+                    with patch.object(store,target,side_effect=effect):
+                        with self.assertRaises((AgentError,ValueError)): service.select_session(b)
+                else:
+                    with self.assertRaises(AgentError): service.select_session(b)
+                self.assertEqual(service.conversation_id,a)
+                self.assertEqual(service.history,pair("A-private"))
+                self.assertEqual(store.activate(endpoint),a)
+                store.db.close()
+                restarted=AgentService(filename)
+                try:
+                    restarted.configure(endpoint,"synthetic")
+                    self.assertEqual(restarted.conversation_id,a)
+                    self.assertEqual(restarted.history,pair("A-private"))
+                    provider=ScriptedProvider([ModelReply("A-next-response")])
+                    restarted.provider=provider
+                    await restarted.send("mock","A-next",False)
+                    request=json.dumps(provider.requests,ensure_ascii=False)
+                    self.assertIn("A-private",request);self.assertIn("A-notebook",request)
+                    self.assertNotIn("B-first",request);self.assertNotIn("B-notebook",request)
+                    self.assertEqual(len(restarted.memory_store.directory(a)),2)
+                    self.assertEqual(len(restarted.memory_store.directory(b)),2)
+                finally: restarted.memory_store.db.close()
+
     async def test_import_redacts_new_records_and_legacy_titles(self):
         service=AgentService(":memory:")
         service.configure("http://127.0.0.1:9999/v1","SYNTHETIC_CONFIG_SECRET")

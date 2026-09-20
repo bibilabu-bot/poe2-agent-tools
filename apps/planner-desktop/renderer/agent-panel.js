@@ -63,12 +63,12 @@
   }
   async function changeSession(id) {
     if (running || sessionBusy) { sessionHint("请先停止回复，再切换会话。"); return; }
-    sessionBusy = true; updateControls();
+    sessionBusy = true; clearSessionDisplay(); updateControls();
     try {
       const result = await api.selectSession(id); if (!result.ok) throw new Error(result.error?.message || "切换失败");
       conversationId += 1; selectedSession = id; clearSessionDisplay(); byId("agentInput").value = ""; showTrace([]);
       await refreshSessions(); await loadSessionHistory();
-    } catch(error) { if (!sessionReady) sessionLoadFailed(error); else sessionHint(error.message); }
+    } catch(error) { sessionLoadFailed(error); }
     finally { sessionBusy = false; updateControls(); }
   }
   byId("sessionToggle").addEventListener("click", () => {
