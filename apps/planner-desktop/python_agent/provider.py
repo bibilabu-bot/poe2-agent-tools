@@ -83,6 +83,7 @@ class OpenAICompatibleProvider(ModelProvider):
             self._wire_api = "responses"
             return await self._complete_responses(model, messages, tools, on_event)
         try:
+            _check_chat_finish(data["choices"][0].get("finish_reason"))
             message = data["choices"][0]["message"]
             calls = tuple(
                 ToolCall(call["id"], call["function"]["name"], call["function"]["arguments"])
@@ -109,6 +110,7 @@ class OpenAICompatibleProvider(ModelProvider):
                 for tool in tools
             ]
         data = await self._request_stream("/responses", body, "responses", on_event)
+        _check_response_status(data)
         output = data.get("output", []) if isinstance(data, dict) else []
         text = data.get("output_text", "") if isinstance(data, dict) else ""
         if not text:
@@ -197,6 +199,8 @@ class OpenAICompatibleProvider(ModelProvider):
                         else:
                             parser.feed(event_name, payload)
                     event_name, data_lines = None, []
+                    if parser.is_terminal:
+                        return parser.finish()
                 elif line.startswith("event:"):
                     event_name = line[6:].strip()
                 elif line.startswith("data:"):
@@ -237,6 +241,20 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _check_chat_finish(reason: Any) -> None:
+    # Missing finish_reason remains compatible with legacy JSON / [DONE] relays.
+    if reason is not None and reason not in ("stop", "tool_calls"):
+        raise AgentError("PROVIDER_INCOMPLETE", "Model response ended without successful completion")
+
+
+def _check_response_status(response: Any) -> None:
+    if not isinstance(response, dict):
+        raise AgentError("INVALID_RESPONSE", "Service returned an invalid response")
+    if (response.get("status") not in (None, "completed")
+            or response.get("incomplete_details") or response.get("error")):
+        raise AgentError("PROVIDER_INCOMPLETE", "Model response ended without successful completion")
+
+
 class _ChatStream:
     def __init__(self, on_event: Callable[[dict[str, Any]], None] | None) -> None:
         self.on_event = on_event
@@ -247,6 +265,10 @@ class _ChatStream:
 
     def mark_done(self) -> None:
         self.completed = True
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.completed
 
     def feed(self, event_name: str | None, payload: str) -> None:
         try:
@@ -260,6 +282,7 @@ class _ChatStream:
         if not choices:
             return
         if choices[0].get("finish_reason") is not None:
+            _check_chat_finish(choices[0]["finish_reason"])
             self.completed = True
         message = choices[0].get("message")
         if isinstance(message, dict):
@@ -307,6 +330,10 @@ class _ResponsesStream:
         # Responses streams use response.completed as their authoritative terminator.
         return
 
+    @property
+    def is_terminal(self) -> bool:
+        return self.completed is not None
+
     def feed(self, event_name: str | None, payload: str) -> None:
         try:
             event = json.loads(payload)
@@ -314,7 +341,9 @@ class _ResponsesStream:
             raise AgentError("INVALID_RESPONSE", "Service returned invalid event data") from error
         self.saw_event = True
         kind = event.get("type") or event_name
-        if kind in {"error", "response.failed", "response.incomplete"} or event.get("error"):
+        if kind == "response.incomplete":
+            raise AgentError("PROVIDER_INCOMPLETE", "Model response ended without successful completion")
+        if kind in {"error", "response.failed"} or event.get("error"):
             raise AgentError("PROVIDER_STREAM_ERROR", "Service reported an error during streaming")
         if kind == "response.output_text.delta" and isinstance(event.get("delta"), str):
             self.text.append(event["delta"])
@@ -333,7 +362,8 @@ class _ResponsesStream:
                                                "name": event.get("name", ""), "arguments": ""})
             if isinstance(event.get("delta"), str): call["arguments"] += event["delta"]
         elif kind == "response.completed":
-            self.completed = event.get("response") if isinstance(event.get("response"), dict) else {}
+            _check_response_status(event.get("response"))
+            self.completed = event["response"]
 
     def finish(self) -> dict[str, Any]:
         if not self.saw_event or self.completed is None:
@@ -377,6 +407,7 @@ def _parse_chat_event_stream(text: str) -> dict[str, Any]:
         choices = event.get("choices", []) if isinstance(event, dict) else []
         if not choices:
             continue
+        _check_chat_finish(choices[0].get("finish_reason"))
         if isinstance(choices[0].get("message"), dict):
             return event
         delta = choices[0].get("delta", {})

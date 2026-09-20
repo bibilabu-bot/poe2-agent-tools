@@ -1,6 +1,8 @@
 import asyncio
 import json
 import threading
+import tempfile
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -277,6 +279,98 @@ class ContextSelectionTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(AgentError):
             await service.send("mock", "failed", False)
         self.assertEqual(service.history, committed)
+
+
+class StreamTerminationTests(unittest.IsolatedAsyncioTestCase):
+    async def run_stream(self, wire, protocol, expected_error=None):
+        closed = threading.Event()
+
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def log_message(self, *_args):
+                pass
+
+            def do_POST(self):
+                self.rfile.read(int(self.headers.get("Content-Length", "0")))
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Connection", "keep-alive")
+                self.end_headers()
+                self.wfile.write(wire.encode("utf-8"))
+                self.wfile.flush()
+                # Never send HTTP EOF. Only the client's close can complete this.
+                self.connection.settimeout(2)
+                try:
+                    if self.connection.recv(1) == b"":
+                        closed.set()
+                except OSError:
+                    pass
+                self.close_connection = True
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                service = AgentService(str(Path(temp) / "memory.sqlite3"))
+                service.configure(f"http://127.0.0.1:{server.server_port}/v1", "synthetic")
+                service.provider.timeout = 0.5
+                if protocol == "responses":
+                    service.provider._wire_api = "responses"
+                service.restore([{"role": "user", "content": "seed"},
+                                 {"role": "assistant", "content": "saved"}])
+                history = list(service.history)
+                before = list(service.memory_store.db.iterdump())
+                try:
+                    if expected_error:
+                        with self.assertRaises(AgentError) as failed:
+                            await service.send("mock", "unfinished", False)
+                        self.assertEqual(failed.exception.code, expected_error)
+                        self.assertEqual(service.history, history)
+                        self.assertEqual(list(service.memory_store.db.iterdump()), before)
+                    else:
+                        result = await service.send("mock", "success", False)
+                        self.assertEqual(result["text"], "hello")
+                        self.assertEqual(len(service.memory_store.directory(service.conversation_id)), 2)
+                    self.assertTrue(await asyncio.to_thread(closed.wait, 1),
+                                    "client must release the connection without server EOF")
+                finally:
+                    service.memory_store.db.close()
+        finally:
+            await asyncio.to_thread(server.shutdown)
+            server.server_close()
+            thread.join()
+
+    async def test_success_markers_close_connection_without_http_eof(self):
+        delta = 'data: {"choices":[{"delta":{"content":"hello"}}]}\n\n'
+        for ending in ('data: [DONE]\n\n',
+                       'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'):
+            with self.subTest(ending=ending):
+                await self.run_stream(delta + ending, "chat")
+        await self.run_stream(
+            'data: {"type":"response.output_text.delta","delta":"hello"}\n\n'
+            'data: {"type":"response.completed","response":{"status":"completed","output":[]}}\n\n',
+            "responses")
+
+    async def test_incomplete_and_failed_streams_never_commit(self):
+        delta = 'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'
+        for reason in ("length", "content_filter", "unknown"):
+            with self.subTest(reason=reason):
+                await self.run_stream(delta + "data: " + json.dumps(
+                    {"choices": [{"delta": {}, "finish_reason": reason}]}
+                ) + "\n\ndata: [DONE]\n\n", "chat", "PROVIDER_INCOMPLETE")
+        for kind, response, code in (
+            ("response.incomplete", {"status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}}, "PROVIDER_INCOMPLETE"),
+            ("response.incomplete", {"status": "incomplete", "incomplete_details": {"reason": "content_filter"}}, "PROVIDER_INCOMPLETE"),
+            ("response.failed", {"status": "failed"}, "PROVIDER_STREAM_ERROR"),
+            ("response.completed", {"status": "incomplete"}, "PROVIDER_INCOMPLETE"),
+        ):
+            with self.subTest(kind=kind, response=response):
+                await self.run_stream(
+                    'data: {"type":"response.output_text.delta","delta":"partial"}\n\n'
+                    + "data: " + json.dumps({"type": kind, "response": response}) + "\n\n",
+                    "responses", code)
 
 
 class PythonProviderTests(unittest.IsolatedAsyncioTestCase):

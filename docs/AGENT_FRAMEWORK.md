@@ -104,6 +104,20 @@ provider errors remove the temporary answer and discard the unfinished turn. Cha
 must end with `[DONE]` or a finish reason; Responses streams must emit
 `response.completed`. Whole-run timeout errors include the last safe operational phase.
 
+Termination correction: the reader returns inside the response context immediately at
+Chat `[DONE]` / successful `stop` or `tool_calls`, or Responses `response.completed`,
+closing the connection without waiting for HTTP EOF. Chat `length`, `content_filter`
+and unknown finish reasons fail with `PROVIDER_INCOMPLETE`; Responses incomplete,
+failed or contradictory completion status also fail. Explicit non-success statuses in
+JSON fallback responses are rejected as well. Legacy JSON responses lacking status
+and Chat relays using only `[DONE]` remain supported.
+
+Real HTTP regression fixtures deliberately keep the connection open after the terminal
+event. They assert client-side connection closure and successful completion; failure
+fixtures assert both in-memory history and the entire SQLite dump remain unchanged
+after partial text followed by length limits, filtering or failure. These checks use
+synthetic local services and no paid provider calls. Status remains REVIEW.
+
 A one-run diagnostic of the exact broad question `你能查询流放之路2的天赋树吗`
 against the saved `kimi-k3` configuration completed in 29.8 seconds. Context preparation
 reached the first model request at 1.39 seconds, the first text delta did not arrive until
