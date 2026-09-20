@@ -44,6 +44,13 @@ This is a focused timeline addition, not a Planner/UI redesign; status remains R
 
 Delivered boundaries: Electron remains the trusted renderer/credential/process boundary. It launches a hidden isolated Python process with explicit UTF-8 stdin/stdout handling and communicates through request-ID-correlated JSON lines. The existing Electron `net.fetch` adapter remains responsible only for `/models` discovery so the migrated build preserves the accepted Windows proxy/TLS behavior; Python owns agent execution, conversation, tools and completion protocols. Cancellation terminates the runtime process so blocked standard-library HTTP work cannot survive in the background; the next request restores the connection configuration and only fully completed bounded conversation checkpoints. Completed user/assistant turns plus bounded operational steps and elapsed time persist in the local renderer profile and are bound to the exact normalized API endpoint; credentials remain separately encrypted and hidden reasoning is never stored or displayed. Interrupted, malformed, cross-endpoint and partial SSE turns are never restored or committed. Explicit SSE error events fail the run. Automated tests use no real credential or paid request; a separately authorized local acceptance smoke may use the user's cached configuration without printing the key. This remains a development-environment migration: packaging a bundled Python executable for release remains follow-up work, and the task stays `REVIEW`.
 
+Owner-approved settings follow-up (2026-09-20): add a Settings page alongside
+Planner and Agent, relocate existing chat configuration without remounting chat or
+Planner, and store independent embedding/reranker profiles with OS-encrypted keys.
+Defaults are text-embedding-v4 / 1024 dimensions and qwen3.7-text-rerank. Saving is
+not a connectivity test or RAG implementation. No implicit sharing of chat keys or
+upload of conversation/knowledge data. Task remains REVIEW.
+
 ### P2AT-024A — Add a project-independent agent MVP
 
 - Status: `ACCEPTED`

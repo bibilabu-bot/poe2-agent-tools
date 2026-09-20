@@ -13,11 +13,12 @@ app.whenReady().then(async () => {
   const css = await fs.readFile(path.join(renderer, "agent-panel.css"), "utf8");
   const traceCode = await fs.readFile(path.join(renderer, "agent-trace.js"), "utf8");
   const panelCode = await fs.readFile(path.join(renderer, "agent-panel.js"), "utf8");
+  const settingsCode = await fs.readFile(path.join(renderer, "retrieval-settings.js"), "utf8");
   const memoryResult = JSON.stringify({ turn_ids: [7, 8], offset: 0, complete: true, format: "json_text_fragment",
     text: JSON.stringify([{ turn_id: 7, messages: [{ role: "user", content: "<img src=x onerror=alert(1)>" }] }, { turn_id: 8, messages: [{ role: "assistant", content: "中文🙂" }] }]) });
   const isolated = session.fromPartition(`details-test-${Date.now()}`);
   await isolated.protocol.handle("https", () => new Response(html + `<style>${css}</style>`, { headers: { "content-type": "text/html; charset=utf-8" } }));
-  const window = new BrowserWindow({ show: false, webPreferences: { session: isolated, sandbox: true, contextIsolation: true } });
+  const window = new BrowserWindow({ show: false, width:1200, height:900, webPreferences: { backgroundThrottling:false, session: isolated, sandbox: true, contextIsolation: true } });
   const evaluate = code => window.webContents.executeJavaScript(code);
   async function mount() {
     await window.loadURL("https://agent-details.test/");
@@ -29,6 +30,12 @@ app.whenReady().then(async () => {
         {name:'read_memory',callId:'r1',ok:true,durationMs:4,arguments:'{"start_turn_id":7,"count":2}',result:${JSON.stringify(memoryResult)}}]})
     } }; true;`);
     await evaluate(traceCode + "; true;"); await evaluate(panelCode);
+    await evaluate(`window.savedProfiles={};window.desktopAPI.retrievalSettings={
+      status:async()=>({ok:true,...window.savedProfiles}),
+      save:async value=>{const profile={baseUrl:value.baseUrl,model:value.model,dimensions:value.dimensions,hasKey:true,verified:false};window.savedProfiles[value.kind]=profile;return {ok:true,profile};},
+      clear:async kind=>{delete window.savedProfiles[kind];return {ok:true};}
+    }; true;`);
+    await evaluate(settingsCode);
     await evaluate("document.getElementById('switchToAgent').click()");
   }
   async function waitFor(expression) {
@@ -56,6 +63,27 @@ app.whenReady().then(async () => {
   try {
     await mount();
     await waitFor("!document.getElementById('agentSend').disabled");
+    await waitFor("!document.querySelector('[data-save-profile=embedding]').disabled");
+    await evaluate("document.querySelector('#agentView [data-page=settings]').click();document.getElementById('agentInput').value='未发送草稿'");
+    assert.equal(await evaluate("!document.getElementById('settingsView').hidden && document.getElementById('agentView').hidden && document.getElementById('plannerView').hidden"),true);
+    assert.equal(await evaluate("document.getElementById('settingsView').contains(document.getElementById('agentModel')) && !document.getElementById('agentView').querySelector('.agent-settings')"),true);
+    await evaluate("document.getElementById('embeddingKey').value='fixture-secret';document.querySelector('[data-save-profile=embedding]').click()");
+    await waitFor("document.getElementById('embeddingStatus').textContent.includes('已安全保存')");
+    assert.equal(await evaluate("document.getElementById('embeddingKey').value"),"");
+    assert.match(await evaluate("document.getElementById('embeddingStatus').textContent"), /未验证接口/);
+    assert.equal(await evaluate("document.getElementById('rerankerStatus').textContent"),"未配置");
+    assert.equal(await evaluate("JSON.stringify(localStorage).includes('fixture-secret')"),false);
+    await evaluate("document.querySelector('[data-clear-profile=embedding]').click()");
+    await waitFor("document.getElementById('embeddingStatus').textContent==='未配置'");
+    await evaluate("window.desktopAPI.retrievalSettings.save=async()=>({ok:false,error:{message:'测试保存失败'}});document.querySelector('[data-save-profile=embedding]').click()");
+    await waitFor("document.getElementById('embeddingStatus').textContent==='测试保存失败'");
+    assert.equal(await evaluate("getComputedStyle(document.getElementById('embeddingStatus')).display!=='none'"),true);
+    if (process.env.P2AT_SETTINGS_SCREENSHOT) {
+      await new Promise(resolve=>setTimeout(resolve,200));
+      await fs.writeFile(process.env.P2AT_SETTINGS_SCREENSHOT, (await window.webContents.capturePage()).toPNG());
+    }
+    await evaluate("document.querySelector('#settingsView [data-page=agent]').click()");
+    assert.equal(await evaluate("document.getElementById('agentInput').value"),"未发送草稿");
     await evaluate("document.getElementById('agentModel').value='mock'; document.getElementById('agentInput').value='查看记忆'; document.getElementById('agentComposer').requestSubmit()");
     await waitFor("document.querySelectorAll('.agent-operation').length === 2");
     await checkMinimalLayout();

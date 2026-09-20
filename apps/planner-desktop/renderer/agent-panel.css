@@ -31,3 +31,12 @@
 .agent-view ::-webkit-scrollbar-track,.agent-view ::-webkit-scrollbar-corner{background:#101216}
 .agent-view ::-webkit-scrollbar-thumb{background:#555a63;border:2px solid #101216;border-radius:8px}
 .agent-view ::-webkit-scrollbar-thumb:hover{background:#747b87}
+.agent-layout{grid-template-columns:minmax(0,1fr)}
+.settings-content{overflow:auto;min-height:0;width:min(900px,100%);margin:0 auto;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px}
+.settings-content .agent-settings{border:0;border-radius:0;background:transparent}
+.settings-content .agent-settings summary{padding:0 0 16px;font-size:17px}
+.settings-content .agent-settings-body{padding:0}
+.retrieval-settings{display:grid;gap:9px;border-top:1px solid #2b2e33;padding-top:20px}
+.retrieval-settings h2{font-size:17px;margin:0 0 4px}
+.retrieval-settings label{font-size:12px;color:#c8c3b8}
+.retrieval-settings input,.retrieval-settings select{width:100%;box-sizing:border-box;padding:9px;background:#0a0c0f;border:1px solid #34373d;border-radius:8px;color:#eee9df}

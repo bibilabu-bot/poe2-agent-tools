@@ -3,6 +3,11 @@
 (() => {
   const byId = (id) => document.getElementById(id);
   const plannerView = byId("plannerView"), agentView = byId("agentView");
+  const settingsView = byId("settingsView");
+  const chatSettings = agentView.querySelector(".agent-settings");
+  byId("chatSettingsHost").append(chatSettings);
+  chatSettings.open = true;
+  chatSettings.querySelector("summary").textContent = "聊天模型与连接";
   const api = window.desktopAPI?.agent;
   const MODEL_PREFERENCE_KEY = "p2at.agent.preferred-model";
   const CONVERSATION_KEY = "p2at.agent.conversation.v1";
@@ -21,14 +26,16 @@
   function preferredModel() { try { return localStorage.getItem(MODEL_PREFERENCE_KEY) || ""; } catch { return ""; } }
   function rememberModel(model) { try { if (model) localStorage.setItem(MODEL_PREFERENCE_KEY, model); } catch {} }
 
-  function switchView(showAgent) {
-    agentView.hidden = !showAgent;
-    plannerView.hidden = showAgent;
-    if (showAgent) scrollToLatest();
-    if (!showAgent) requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+  function switchView(page) {
+    agentView.hidden = page !== "agent";
+    plannerView.hidden = page !== "planner";
+    settingsView.hidden = page !== "settings";
+    if (page === "agent") scrollToLatest();
+    if (page === "planner") requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
   }
-  byId("switchToAgent").addEventListener("click", () => switchView(true));
-  byId("switchToPlanner").addEventListener("click", () => switchView(false));
+  byId("switchToAgent").addEventListener("click", () => switchView("agent"));
+  byId("switchToPlanner").addEventListener("click", () => switchView("planner"));
+  document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => switchView(button.dataset.page)));
 
   function targetHost() {
     try { return new URL(byId("agentBaseUrl").value).host; } catch { return "地址待确认"; }
@@ -50,6 +57,7 @@
     byId("agentInput").disabled = !configured || running;
     byId("agentSend").disabled = !configured || running;
     byId("agentStop").disabled = !running;
+    for (const id of ["agentBaseUrl", "agentApiKey", "agentConnect", "agentClearConfig", "agentModel"]) byId(id).disabled = running;
     byId("agentRunState").textContent = running ? "正在运行…" : "空闲";
   }
   function addMessage(role, text, persistent = true) {
@@ -186,7 +194,7 @@
       if (!result.ok) {
         resetModelOptions("获取失败，请重试");
         setModelStatus(`模型列表获取失败：${result.error.message}；可重试，手动填写仅作为临时兜底`, "error");
-        byId("agentView").querySelector(".agent-settings").open = true;
+        chatSettings.open = true; switchView("settings");
         return;
       }
       const select = byId("agentModelSelect");
@@ -222,8 +230,8 @@
     const input = byId("agentInput"), text = input.value.trim(), model = byId("agentModel").value.trim();
     if (!text) return;
     if (!model) {
-      addMessage("error", "尚未选择模型。请展开左侧“模型与连接设置”后选择模型，或等待模型列表自动加载。", false);
-      byId("agentView").querySelector(".agent-settings").open = true;
+      addMessage("error", "尚未选择模型。请到“设置”页选择聊天模型，或等待模型列表自动加载。", false);
+      chatSettings.open = true; switchView("settings");
       return;
     }
     rememberModel(model);

@@ -15,6 +15,7 @@ const { createBoundedCandidateFetch, createLocalizationCandidateCatalog } = requ
 const { createTrustedPlannerSenderPredicate, createWeGameImportService, createWeGameIpcHandler } = require("./wegame-import-service.cjs");
 const { AgentService, createAgentIpcHandlers } = require("./agent-service.cjs");
 const { AgentCredentialStore } = require("./agent-credential-store.cjs");
+const { createRetrievalSettings } = require("./retrieval-settings.cjs");
 const { OpenAICompatibleProvider } = require("./openai-compatible-provider.cjs");
 const { PythonAgentError, PythonAgentClient } = require("./python-agent-client.cjs");
 
@@ -214,6 +215,10 @@ ipcMain.handle("agent:reset", agentIpcHandlers.reset);
 ipcMain.handle("agent:restore-conversation", agentIpcHandlers.restore);
 
 app.whenReady().then(async()=>{
+  const retrievalSettings = createRetrievalSettings({ userDataPath: app.getPath("userData"), safeStorage, isTrustedSender: isTrustedPlannerSender });
+  ipcMain.handle("settings:retrieval-status", retrievalSettings.status);
+  ipcMain.handle("settings:retrieval-save", retrievalSettings.save);
+  ipcMain.handle("settings:retrieval-clear", retrievalSettings.clear);
   agentCredentialStore = new AgentCredentialStore({ userDataPath: app.getPath("userData"), safeStorage });
   try {
     const cached = await agentCredentialStore.load();

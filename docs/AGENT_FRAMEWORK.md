@@ -255,6 +255,25 @@ overflow, following both waiting activity and tool/reply completion, preserving 
 manually scrolled position during timer ticks, and computed nested scrollbar colors.
 Both UI fixtures and the syntax suite passed.
 
+Settings follow-up: Settings is a third top-level page. Existing chat controls are
+moved once into its host (same DOM IDs and listeners); switching pages preserves
+conversation, draft and mounted Planner state. Chat credentials retain the existing
+storage path and model preference. Independent embedding/reranker profiles use
+trusted IPC and separate AgentCredentialStore directories under retrieval-settings.
+Keys and model metadata are OS-encrypted; renderer status never returns a key.
+Blank keys retain only a same-endpoint saved key; changing endpoint requires a new
+key. HTTPS URLs with credentials, queries or fragments are rejected. Writes and
+clears are serialized and encryption failure has no plaintext fallback. Explicit
+save/clear buttons report errors and clear password fields. Retrieval status always
+says unverified/not yet wired into RAG; no retrieval API request is made.
+Defaults are text-embedding-v4 with 1024 dimensions and qwen3.7-text-rerank, with
+editable endpoints/models. The desktop application must restart for the new
+preload/IPC methods. Tests cover independent persistence, safe status, endpoint-key
+binding, validation, untrusted callers, encryption failure and rendered navigation,
+draft preservation and settings saves. Node 167/167 (zero skips), Python 29/29,
+both rendered Electron UI fixtures and syntax checks passed. Settings rendering
+was visually inspected with synthetic data. No real retrieval-service call was made.
+
 ## Run and review
 
 From `apps/planner-desktop`:
