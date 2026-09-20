@@ -245,6 +245,16 @@ Node 164/164 (zero skips), Python 29/29, rendered UI fixtures and independent re
 passed. The live renderer confirmed search/book icons, `<1 ms` labels and zero
 borders without sending another model request.
 
+Scroll follow-up: the Agent view declares a dark native color scheme and thin
+dark scrollbars, including nested tool results and the composer. New messages,
+activity state/step/trace changes and restoring/showing the view schedule a single
+bottom scroll after layout. Elapsed-time-only ticks and manual detail toggles do
+not force scrolling. This does not add runtime token/tool-event streaming: tool
+details still arrive with the complete response. Rendered Electron fixtures verify
+overflow, following both waiting activity and tool/reply completion, preserving a
+manually scrolled position during timer ticks, and computed nested scrollbar colors.
+Both UI fixtures and the syntax suite passed.
+
 ## Run and review
 
 From `apps/planner-desktop`:

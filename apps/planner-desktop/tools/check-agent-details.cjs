@@ -83,6 +83,31 @@ app.whenReady().then(async () => {
     assert.deepEqual(iconVariants.map(v=>v.icon), ["search", "book", "pencil", "calculator", "tool", "tool"]);
     assert.equal(new Set(iconVariants.slice(0, 5).map(v=>v.path)).size, 5);
     assert.ok(iconVariants.every(v=>v.hidden === "true"));
+    // Constrain the viewport and drive the real submit/render path with a deferred
+    // response: waiting activity and completed tool/reply output must stay visible.
+    await evaluate(`(() => {
+      const list=document.getElementById('agentMessages');
+      list.style.height='260px'; list.style.maxHeight='260px';
+      window.desktopAPI.agent.send=()=>new Promise(resolve=>window.finishScrollTest=resolve);
+      document.getElementById('agentInput').value='长消息\\n'.repeat(80);
+      document.getElementById('agentComposer').requestSubmit();
+    })()`);
+    await waitFor("!!window.finishScrollTest");
+    const atBottom = "(()=>{const l=document.getElementById('agentMessages');return l.scrollHeight>l.clientHeight && Math.abs(l.scrollHeight-l.clientHeight-l.scrollTop)<2})()";
+    await waitFor(atBottom);
+    await evaluate("document.getElementById('agentMessages').scrollTop=0");
+    await new Promise(resolve=>setTimeout(resolve,1100));
+    assert.equal(await evaluate("document.getElementById('agentMessages').scrollTop"),0, "timer ticks must not pull the reader down");
+    await evaluate(`window.finishScrollTest({ok:true,text:'新输出\\n'.repeat(100),trace:[{name:'calculator',ok:true,result:'6'}]})`);
+    await waitFor("!document.getElementById('agentSend').disabled");
+    await waitFor(atBottom);
+    const scrollbarStyles = await evaluate(`['#agentMessages','.agent-operation pre','#agentInput'].map(s=>{
+      const style=getComputedStyle(document.querySelector(s));return {scheme:style.colorScheme,color:style.scrollbarColor,width:style.scrollbarWidth};})`);
+    for (const style of scrollbarStyles) {
+      assert.equal(style.scheme,'dark'); assert.equal(style.width,'thin');
+      assert.equal(style.color,'rgb(85, 90, 99) rgb(16, 18, 22)');
+    }
+    console.log("PASS: dark nested scrollbars; running activity and tool/reply completion follow bottom; timer does not steal scroll position");
     console.log("PASS: production panel expands/collapses parameters, results, timing and memory links; reload restores details; HTML stays inert");
   } finally { window.destroy(); await isolated.clearStorageData(); }
 }).then(() => app.exit(0), error => { console.error(error.stack); app.exit(1); });

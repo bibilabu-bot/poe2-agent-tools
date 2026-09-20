@@ -8,6 +8,15 @@
   const CONVERSATION_KEY = "p2at.agent.conversation.v1";
   let configured = false, running = false, conversationId = 0, configRevision = 0;
   let timeline = [], connectedBaseUrl = null;
+  let scrollFrame = null;
+  function scrollToLatest() {
+    if (scrollFrame !== null) return;
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = null;
+      const list = byId("agentMessages");
+      list.scrollTop = list.scrollHeight;
+    });
+  }
 
   function preferredModel() { try { return localStorage.getItem(MODEL_PREFERENCE_KEY) || ""; } catch { return ""; } }
   function rememberModel(model) { try { if (model) localStorage.setItem(MODEL_PREFERENCE_KEY, model); } catch {} }
@@ -15,6 +24,7 @@
   function switchView(showAgent) {
     agentView.hidden = !showAgent;
     plannerView.hidden = showAgent;
+    if (showAgent) scrollToLatest();
     if (!showAgent) requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
   }
   byId("switchToAgent").addEventListener("click", () => switchView(true));
@@ -45,7 +55,7 @@
   function addMessage(role, text, persistent = true) {
     const list = byId("agentMessages");
     list.querySelector(".agent-empty")?.remove();
-    const item = document.createElement("div"); item.className = `agent-message ${role}`; item.textContent = text; list.append(item); list.scrollTop = list.scrollHeight;
+    const item = document.createElement("div"); item.className = `agent-message ${role}`; item.textContent = text; list.append(item); scrollToLatest();
     const entry = { kind: "message", role, text, persistent }; timeline.push(entry); return entry;
   }
   function formatDuration(ms) { const seconds = Math.max(0, Math.floor(ms / 1000)); return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`; }
@@ -56,7 +66,12 @@
     const operations = document.createElement("div"); element.append(operations);
     const entry = { kind: "activity", durationMs, steps: [...steps], trace: window.AgentTrace.normalizeTrace(trace), state, persistent }; timeline.push(entry);
     let renderedTrace = null;
+    let renderedProgress = null;
     const render = () => {
+      const progress = JSON.stringify([entry.state, entry.steps]);
+      // Follow new content after layout, not elapsed-time ticks or detail toggles.
+      if (renderedTrace !== entry.trace || renderedProgress !== progress) scrollToLatest();
+      renderedProgress = progress;
       head.textContent = `${entry.state === "error" ? "处理失败，用时" : "已处理"} ${formatDuration(entry.durationMs)}`;
       // Completed operations already have their own expandable rows. Keep transient
       // waiting/failure messages, without repeating the completed step checklist.
@@ -107,7 +122,7 @@
       if (item.kind === "message") addMessage(item.role, item.text);
       else addActivity({ durationMs: item.durationMs, steps: item.steps, trace: item.trace, state: "done" });
     }
-    byId("agentMessages").scrollTop = byId("agentMessages").scrollHeight;
+    scrollToLatest();
   }
   function showTrace(trace) {
     const log = byId("agentToolLog");
