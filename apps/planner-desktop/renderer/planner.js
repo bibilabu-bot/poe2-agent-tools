@@ -965,49 +965,14 @@ function canTraverseAsc(n) {
   );
 }
 
-function masteryEffectIdentity(n) {
-  if(!n) return "";
-  if(n.activeEffectImage) return String(n.activeEffectImage);
-
-  // Fallback for preprocessors that kept the mastery node but dropped the path.
-  const name=String(n.name||"").replace(/\s+Mastery$/i,"").replace(/[^A-Za-z]/g,"").toLowerCase();
-  return name ? `name:${name}` : "";
-}
-
+let masteryTriggerIndex=new Map();
 function masteryTriggerCandidates(mastery) {
-  const key=masteryEffectIdentity(mastery);
-  const out=[];
-
-  // Best path: official export places activeEffectImage on every PassiveSkill
-  // that belongs to the same MasteryGroup.
-  if(key && !key.startsWith("name:")) {
-    for(const n of nodes) {
-      if(n===mastery || isMasteryVisual(n) || isAsc(n)) continue;
-      if(masteryEffectIdentity(n)===key) out.push(n);
-    }
-    if(out.length) return out;
-  }
-
-  // Fallback for slim preprocessors: same visual group.
-  if(mastery.group!=null) {
-    for(const n of nodes) {
-      if(n===mastery || isMasteryVisual(n) || isAsc(n)) continue;
-      if(n.group===mastery.group) out.push(n);
-    }
-    if(out.length) return out;
-  }
-
-  // Last fallback: raw adjacency is only used as a trigger hint, never as
-  // an allocatable/pathing connection.
-  for(const nx of rawGraph.neighbors(idOf(mastery))) {
-    const n=byId.get(nx);
-    if(n && !isMasteryVisual(n) && !isAsc(n)) out.push(n);
-  }
-  return out;
+  return (masteryTriggerIndex.get(idOf(mastery))||[]).map(id=>byId.get(id)).filter(Boolean);
 }
 
 function masteryTriggered(mastery) {
-  return masteryTriggerCandidates(mastery).some(n=>allocated.has(idOf(n)));
+  return window.plannerMasteryVisualState.isTriggered(
+    masteryTriggerIndex.get(idOf(mastery)),allocated,weaponSet1Allocated,weaponSet2Allocated);
 }
 
 function masteryAtlasFrame(n) {
@@ -4253,6 +4218,11 @@ async function load() {
     for(const n of nodes) if(Number.isFinite(n.x)&&Number.isFinite(n.y)) addSpatial(n);
 
     rawGraph=createPassiveGraph(nodes,edges,{getNodeId:idOf});
+    masteryTriggerIndex=window.plannerMasteryVisualState.buildTriggerIndex(nodes,{
+      getId:idOf,isMastery:isMasteryVisual,
+      isEligible:n=>!isAsc(n)&&!isInstillExclusiveNode(n)&&!isLegacyStartArtifact(n)&&!isClassStart(n),
+      neighbors:id=>rawGraph.neighbors(id),
+    });
     // Planner/path adjacency excludes visual-only mastery, canonical
     // display-only hidden nodes, and non-visible conditional dependency edges.
     passiveGraph=createPassiveGraph(nodes,edges,{

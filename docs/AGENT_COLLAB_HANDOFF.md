@@ -5,6 +5,48 @@ Branch: `task/P2AT-026A-python-agent-runtime`
 Verified branch HEAD before this handoff: `baa751b263f7c312c6e14d96ae695444dd49874a`  
 Task status: `REVIEW`; do not merge `main`.
 
+## Owner-approved mastery glow correction (2026-09-20)
+
+The glow is a decorative cluster center, not the hovered node itself. Locked runtime
+node 19044 (Arcane Intensity) belongs to the cluster containing decoration 53188
+(Mana Mastery), centered at 2922.78 / -9973.75. Runtime group 1002 corresponds to
+official group 1041 here; group numbers must not be joined across datasets.
+Both exports explicitly connect decoration 53188 to exactly 16256, 19044, 3567 and
+39567. Runtime raw mastery edges match official in/out membership for all 359 centers.
+96 centers have declared triggers in other visual groups, so group equality alone
+would incorrectly suppress legitimate effects.
+
+The previous code preferred global texture identity and then every node in the visual
+group. The locked slim runtime has no activeEffectImage fields, so its current fallback
+could activate this glow from ordinary small node 4828 despite no designated trigger
+being allocated. This is a reproducible mechanism; no private user allocation was read
+to infer the exact screenshot state.
+
+The new pure mastery-visual-state helper indexes only explicit raw graph neighbors,
+excluding other mastery, ascendancy, display-only/legacy and class-start nodes.
+Texture identity, names, spatial proximity and visual group equality do not create
+membership. Missing adjacency produces no triggers; explicit membership still works
+without group/texture fields. No graph traversal or Build data is modified.
+Allocation checks union general, weapon I and weapon II because the existing canvas
+renders both weapon allocation layers concurrently; weaponMode selects editing/path
+preview rather than hiding the other weapon group. Hover/preview sets are never inputs.
+Indexing occurs once after raw graph creation; no per-frame whole-tree candidate scan.
+
+`npm run test:mastery-visuals` runs pure regressions and isolated real Chromium Canvas
+checks using hash-verified runtime, official and original atlas assets. It verifies
+all 359 mappings, then draws the unchanged production drawMasteryVisuals function:
+remote decoration 10495 triggered by 24120 lights normally while local 53188 stays dark;
+local small 4828 and preview 19044 stay dark; actual 19044 allocation lights it;
+removal extinguishes it; weapon I and II each light it. Pixel alpha is checked for
+the original atlas rendering. User app/allocations and API profiles are not touched.
+Glow material, alpha, footprint and fallback drawing code are unchanged. REVIEW.
+
+Validation: full desktop Node/Python suite passed (Python 39/39), syntax checks,
+mastery pure tests 5/5, locked-data Canvas fixture and prior node UI rendering checks
+passed. Independent read-only review found no blocking issues. The Canvas fixture
+extracts production drawing functions and constructs a simplified eligibility index;
+it is rendering/membership evidence, not full Planner startup end-to-end coverage.
+
 ## Owner-approved urgent Planner UI follow-up (2026-09-20)
 
 Controller dispatched three bounded UI corrections while agent diagnosis is paused:
