@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 ## Product objective
 
@@ -8,13 +8,15 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+Latest controller acceptance: `88f8e837e7748c3e81f10c788bb71e435ada769d` (2026-09-20), P2AT-026A developer Python/LangGraph runtime, durable scoped memory, separate encrypted retrieval settings and read-only RAG, plus P2AT-027A/B/C page layout and isolated sessions. Node **193/193**, Python **44/44**, zero skips; atomic selection and real synthetic Electron regressions passed. Python 3.11+ and installed requirements remain required: no bundled runtime or release installer is accepted. `docs/CONTROLLER_ACCEPTANCE_027.md` supersedes earlier integration counts below.
+
 Controller integration accepted on 2026-09-19: P2AT-021C, 022A, 022B, 023A and 024A, including integration corrections at `9b08b1036eae49704e2736be708a2f8f1692f739`. The latest integrated desktop suite is **152/152, zero skips with locked official-tree evidence**. Native Windows page switching and panel operation passed. See `docs/PRODUCT_INTEGRATION.md` for exact included commits and deferred work. Earlier per-branch counts below are historical delivery evidence, superseded by this integration result.
 
 | Area | State | Evidence / notes |
 | --- | --- | --- |
 | Repository migration | Complete | ChatGPT export reorganized and committed to `main` |
 | Desktop shell | Prototype | Electron 0.2; isolated preload and local resource protocol |
-| General agent MVP | Accepted MVP | Project-independent bounded core, OS-encrypted local API credential cache, ordinary chat and calculator tool loop; still deliberately disconnected from Planner state |
+| General agent runtime | Accepted developer build | Python/LangGraph loop, durable endpoint/session-scoped SQLite memory, isolated session selection, streaming and tool details; OS-encrypted credentials remain in Electron. Read-only knowledge retrieval does not mutate Planner state |
 | Passive tree renderer | Graph core accepted | Canvas2D rendering remains in Planner; pure graph construction, queries and deterministic eligible paths passed controller acceptance |
 | Allocation | Prototype | Normal, ascendancy and weapon-set allocation present |
 | Conditional/hidden nodes | Prototype | Conditional reveal and external hidden-node sidecar present |
@@ -26,7 +28,7 @@ Controller integration accepted on 2026-09-19: P2AT-021C, 022A, 022B, 023A and 0
 | WeGame Build import | Accepted partial import | Transactional preview/application; owner-validated experimental `set1`/`set2` mapping saves native weapon sets after explicit confirmation. Overrides, jewel contents and unresolved evidence remain inactive and memory-only; no full-Build compatibility claim |
 | Jewel compiler | Fixture-ready | Compiler creates sample normalized JSON and rule families |
 | Jewel integration | Contract ready | Only twelve verified ordinary sockets are eligible for the first slice; implementation, special sockets and radius effects remain deferred |
-| Automated tests | 152 desktop tests | Integrated suite passes with locked official-tree evidence and zero skips; includes agent, layout, localization and WeGame import regressions |
+| Automated tests | 193 Node + 44 Python | Independent full-suite acceptance with locked official-tree evidence and zero skips; real synthetic Electron sessions/layout/mastery regressions also passed |
 | Continuous integration | Implemented | Offline desktop tests, syntax checks and jewel fixture verification on PRs and `main` pushes |
 | Packaging/release | Not started | No installer or release workflow |
 | Upstream data governance | Runtime integrated | ADR-007 and the validated 26-file canonical source lock govern Planner runtime identity and integrity; jewel compiler migration remains pending |

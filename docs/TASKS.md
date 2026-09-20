@@ -6,9 +6,11 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+Controller acceptance (2026-09-20): P2AT-026A and P2AT-027A/B/C are accepted for the developer build at `88f8e837e7748c3e81f10c788bb71e435ada769d`, including user-approved context/memory/settings/read-only retrieval follow-ups and atomic session-selection correction. Earlier REVIEW/no-main statements below describe executor delivery gates, superseded by this controller acceptance. This is not installer or bundled-Python acceptance. Independent Node 193/193, Python 44/44 and real synthetic Electron regressions passed; no private archive/Key or paid service was used. See `docs/CONTROLLER_ACCEPTANCE_027.md`.
+
 ### P2AT-027A — Unify page navigation and left Planner tools
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-026A REVIEW branch; mastery correction 114e47e
 - Scope: common page header and left vertical collapsible Planner tools only.
@@ -20,7 +22,7 @@ independent commit on the existing isolated branch. No allocation/data contract 
 
 ### P2AT-027B — Move Settings scrolling to the window edge
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-027A
 - Scope: full-width single Settings page scroll owner, centered readable inner form.
@@ -32,7 +34,7 @@ independent commit. No real paid requests.
 
 ### P2AT-027C — Restore independent sessions and simplify chat layout
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-027A, P2AT-027B, P2AT-026A SQLite memory
 - Scope: collapsible session overview, persisted selection/list, central chat/composer.
@@ -49,7 +51,7 @@ sync, parallel generation, index rebuild or unsafe model HTML. Remain REVIEW, no
 
 ### P2AT-026A — Move the agent runtime to Python
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Priority: P0
 - Assignment target: `Codex local executor`
 - Depends on: P2AT-024A
