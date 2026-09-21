@@ -86,16 +86,74 @@ PASS — 3 checks: error visibility (message/activity/model/connection, Planner 
 
 Both ran with a real Windows Electron instance. Electron binary was installed via `node node_modules/electron/install.js` (no `ELECTRON_SKIP_BINARY_DOWNLOAD`).
 
+## Official tree cache (zero-skip verification)
+
+Follow-up task on branch `task/P2AT-029A-cache-verification` (baseline `0acbfc416da6e98d6dec472a659f12adafdeb363`) closes the three cache-dependent skips by downloading and verifying the two missing canonical resources against `data/upstream-sources.lock.json`.
+
+### Canonical resources
+
+| Name | Lock ID | Bytes | SHA-256 |
+|------|---------|-------|---------|
+| `official-data.json` | `shared.ggg.passive-tree` | 5,140,821 | `b52be9c4f17e4114064255ef1b8c58292e9db0e395d95af235a8d3fef0d44642` |
+| `tree-pre.json` | `runtime.drydream.tree-pre` | 1,580,743 | `bbb3b537669ad3ceadda62bcae5f824d3b6f4f23c8a917e0ab5ef858c4192796` |
+
+Immutable download URLs (from the lock's `transport.url`):
+
+- `https://raw.githubusercontent.com/grindinggear/poe2-skilltree-export/bd87e6512c92b868542eddfb1ba4ea8b6dc2da36/data.json`
+- `https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/tree-pre.json`
+
+### Test cache configuration
+
+The tests read two environment variables (names confirmed from the test source, not guessed):
+
+- `POE2_VALIDATED_CACHE_DIR` — directory containing both `official-data.json` and `tree-pre.json`. When set and either file is missing, the tests **fail** rather than skip.
+- `P2AT_OFFICIAL_TREE` — path to the official tree file (`official-data.json`). Verified byte-for-byte against the `shared.ggg.passive-tree` lock entry.
+
+Both files are verified by the tests themselves (byte count plus SHA-256 against the lock), so no test bypass is possible.
+
+### Reproducible setup (no host or drive-specific paths)
+
+```powershell
+# Cache directory outside the repository (portable: derives from $env:USERPROFILE)
+$cacheDir = Join-Path $env:USERPROFILE "p2at-validated-cache"
+New-Item -ItemType Directory -Force $cacheDir | Out-Null
+
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/grindinggear/poe2-skilltree-export/bd87e6512c92b868542eddfb1ba4ea8b6dc2da36/data.json" `
+  -OutFile (Join-Path $cacheDir "official-data.json")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/drydream/poe2drydream/073838ccf0585131788e714721d6d2d95aa44b77/public/tree-pre.json" `
+  -OutFile (Join-Path $cacheDir "tree-pre.json")
+
+# Strictly verify bytes and SHA-256 against data/upstream-sources.lock.json before running tests
+# (the tests repeat this verification, so a mismatch fails rather than silently skipping)
+
+cd apps/planner-desktop
+$env:POE2_VALIDATED_CACHE_DIR = $cacheDir
+$env:P2AT_OFFICIAL_TREE = Join-Path $cacheDir "official-data.json"
+npm test
+npm run check
+```
+
+### Zero-skip result
+
+With the cache populated and both variables set, the full offline suite passes with no skips:
+
+- Node: **196/196 pass, 0 fail, 0 skipped**
+- Python: **60/60 pass**
+
+The three previously skipped tests now run and pass:
+
+1. `locked coverage reports real mappings, categories, and Zarokh conflict`
+2. `allocation coverage evaluates supplied native allocation`
+3. `locked-tree coverage can be reproduced when an official tree path is supplied`
+
 ## Limitations
 
-1. Node test count (196) matches the controller reference; Python matches at 60/60. Three Node tests remain skipped, so this is not equivalent to zero-skip coverage.
-2. 3 Node tests skipped due to missing official tree cache. This is expected on a fresh checkout. The controller's cache path (`C:\Users\xty12\P2AT-004C-acceptance\user-data\game-data\core`) does not exist here.
-3. Electron GPU warnings (`GPU state invalid after WaitForGetOffsetInRange`) are cosmetic and did not affect test results.
-4. No real model calls, paid API keys, vector index rebuilds, or user session databases were accessed.
-5. No production WeGame or live CDN endpoints were contacted beyond what the test fixtures simulate.
+1. Electron GPU warnings (`GPU state invalid after WaitForGetOffsetInRange`) are cosmetic and did not affect test results.
+2. No real model calls, paid API keys, vector index rebuilds, or user session databases were accessed.
+3. No production WeGame endpoints were contacted beyond what the test fixtures simulate.
+4. The two downloaded resources remain outside the repository and Git (licensing: redistribution `prohibited-until-confirmed`); they must not be committed.
 
 ## Prerequisites for subsequent development
 
-- Official tree cache directory (containing `official-data.json`, `tree-pre.json` from a validated canonical source) to enable full locked-tree test coverage.
-- `P2AT_OFFICIAL_TREE` environment variable to enable locked-tree coverage reproduction tests.
+- The validated cache directory and `POE2_VALIDATED_CACHE_DIR` / `P2AT_OFFICIAL_TREE` variables enable full zero-skip locked-tree coverage (see "Official tree cache").
 - Electron already available for UI regression checks.
