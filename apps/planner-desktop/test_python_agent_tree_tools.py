@@ -128,6 +128,8 @@ class ToolExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tool.name, "tree_summary")
         result = await tool.execute({})
         self.assertEqual(result["nodeCount"], 6)
+        self.assertEqual(result["jewelSockets"]["scope"], "entire_tree_catalog")
+        self.assertEqual(result["jewelSockets"]["allocatedInCurrentBuild"], 0)
 
     async def test_read_tree_nodes_single(self):
         tools = {t.name: t for t in register_tree_tools(_make_fixture_snapshot())}

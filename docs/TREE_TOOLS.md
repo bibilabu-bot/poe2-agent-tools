@@ -19,7 +19,7 @@ If the Planner has no loaded tree or the renderer cannot produce a valid project
 
 No parameters.
 
-Returns: `{snapshotId, nodeCount, coordinateRange: {min, max}, nodeKinds: {small, notable, keystone, jewel, classstart, ...}, jewelSockets: {total, ordinary, special}, ascendancyNodeCount, conditionalRevealCount, class: {base, selectedAscendancyId}, ascendancyOptions}`.
+Returns: `{snapshotId, nodeCount, coordinateRange: {min, max}, nodeKinds: {...}, jewelSockets: {scope: "entire_tree_catalog", total, ordinary, special, allocatedInCurrentBuild}, ascendancyNodeCount, conditionalRevealCount, class, ascendancyOptions}`. `total`/`ordinary`/`special` describe the entire loaded catalog, not sockets owned or available in the current Build.
 
 Output size: bounded by node kind count (fixed).
 

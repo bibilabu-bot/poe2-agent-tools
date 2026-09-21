@@ -233,13 +233,18 @@ class TreeSummaryTool(_TreeTool):
                 max_y = max(max_y, ny)
         js_total = sum(1 for n in nodes if n.get("isJewelSocket"))
         js_ord = sum(1 for n in nodes if n.get("isOrdinaryJewelSocket"))
+        allocated_ids = set().union(*(b.get("allocations", {}).get(name, [])
+                                      for name in ("normal", "weaponSet1", "weaponSet2", "ascendancy")))
+        js_allocated = sum(1 for n in nodes if n.get("isJewelSocket") and n.get("id") in allocated_ids)
         return {"snapshotId": s.snapshot_id, "nodeCount": s.node_count,
                 "coordinateRange": {"min": {"x": min_x if min_x != float("inf") else None,
                                            "y": min_y if min_y != float("inf") else None},
                                     "max": {"x": max_x if max_x != float("-inf") else None,
                                            "y": max_y if max_y != float("-inf") else None}},
                 "nodeKinds": kinds,
-                "jewelSockets": {"total": js_total, "ordinary": js_ord, "special": js_total - js_ord},
+                "jewelSockets": {"scope": "entire_tree_catalog", "total": js_total,
+                                  "ordinary": js_ord, "special": js_total - js_ord,
+                                  "allocatedInCurrentBuild": js_allocated},
                 "ascendancyNodeCount": sum(1 for n in nodes if n.get("isAscendancy")),
                 "conditionalRevealCount": sum(1 for n in nodes if n.get("isConditionalReveal")),
                 "class": {"base": b.get("baseClassName"), "selectedAscendancyId": b.get("selectedAscendancyId")},

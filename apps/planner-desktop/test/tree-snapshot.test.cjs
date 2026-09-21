@@ -111,6 +111,16 @@ test("captureBuildState produces deterministic sorted arrays", () => {
   assert.deepEqual(bs.allocations.normal, ["10","20","5"]);
 });
 
+test("ascendancy usage excludes every zero-cost ascendancy start artifact", () => {
+  const state = {
+    nodes:[{skill:"a",kind:"ascstart"},{skill:"b",kind:"ascstart"},{skill:"c",kind:"notable"},{skill:"d",kind:"small"}],
+    allocated:new Set(), weaponSet1Allocated:new Set(), weaponSet2Allocated:new Set(),
+    ascAllocated:new Set(["a","b","c","d"]), instillAllocated:new Set(), ascStartId:"a",
+    maxPoints:123,maxWeaponPoints:24,maxAscPoints:8,selectedAscendancyId:"Gemling",ascendancyOptions:[],
+  };
+  assert.equal(captureBuildState(state).budgetUsage.ascendancy, 2);
+});
+
 test("complete catalog ignores canvas filters and publishes node 54814 with every Chinese stat", () => {
   const nodes = [
     {skill:"1", name:"职业起点", kind:"classstart", classesStart:[0], stats:[], x:0, y:0},

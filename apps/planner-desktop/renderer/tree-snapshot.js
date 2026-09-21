@@ -235,6 +235,10 @@
     }).sort(function(a, b) { return compareNodeIds(idOf(a), idOf(b)); }).slice(0, 40).map(function(node) {
       return { id: idOf(node), name: String(node.name || ""), kind: nodeKind(node), stats: Array.isArray(node.stats) ? node.stats : [] };
     });
+    var fallbackAscUsed = sortedIds(state.ascAllocated || []).filter(function(nodeId) {
+      var node = (state.nodes || []).find(function(candidate) { return idOf(candidate) === nodeId; });
+      return nodeId !== state.ascStartId && !(node && (nodeKind(node) === "ascstart" || node.isAscendancyStart === true));
+    }).length;
     return {
       baseClassName: state.baseClassName || null,
       selectedAscendancyId: state.selectedAscendancyId || null,
@@ -249,7 +253,7 @@
         normal: state.passivePointsUsed != null ? state.passivePointsUsed : (state.allocated ? (state.classStartId && state.allocated.has ? Math.max(0, state.allocated.size - 1) : (Array.isArray(state.allocated) ? state.allocated.length : 0)) : 0),
         weaponSet1: state.weaponSet1Allocated ? (state.weaponSet1Allocated.size != null ? state.weaponSet1Allocated.size : state.weaponSet1Allocated.length) : 0,
         weaponSet2: state.weaponSet2Allocated ? (state.weaponSet2Allocated.size != null ? state.weaponSet2Allocated.size : state.weaponSet2Allocated.length) : 0,
-        ascendancy: state.ascPointsUsed != null ? state.ascPointsUsed : (state.ascAllocated ? (state.ascStartId && state.ascAllocated.has ? Math.max(0, state.ascAllocated.size - 1) : (Array.isArray(state.ascAllocated) ? state.ascAllocated.length : 0)) : 0),
+        ascendancy: state.ascPointsUsed != null ? state.ascPointsUsed : fallbackAscUsed,
         instilled: state.instillAllocated ? (state.instillAllocated.size != null ? state.instillAllocated.size : state.instillAllocated.length) : 0,
       },
       allocations: {

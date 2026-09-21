@@ -2471,6 +2471,8 @@ function usedAscPoints() {
   let used=0;
   for(const id of ascAllocated) {
     if(id===ascStartId) continue;
+    const node=byId.get(String(id));
+    if(node && (kind(node)==="ascstart" || node.isAscendancyStart===true)) continue;
     used++;
   }
   return used;
@@ -4343,7 +4345,7 @@ window.captureBuildState = function() {
   state.maxWeaponPoints = Number.isFinite(maxWeaponPoints) ? maxWeaponPoints : 0;
   state.maxAscPoints = Number.isFinite(maxAscPoints) ? maxAscPoints : 0;
   if (typeof effectivePassivePointsUsed === "function") state.passivePointsUsed = effectivePassivePointsUsed();
-  state.ascPointsUsed = ascAllocated ? (ascStartId ? Math.max(0, ascAllocated.size - 1) : ascAllocated.size) : 0;
+  state.ascPointsUsed = typeof usedAscPoints === "function" ? usedAscPoints() : 0;
   state.allocated = _plannerSortedIds(allocated);
   state.weaponSet1Allocated = _plannerSortedIds(weaponSet1Allocated);
   state.weaponSet2Allocated = _plannerSortedIds(weaponSet2Allocated);
