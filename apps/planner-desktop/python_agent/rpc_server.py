@@ -28,6 +28,9 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
         return service.rag.status() if service.rag else {"ready":False,"count":0}
     if method == "tree_snapshot":
         from .tree_tools import TreeSnapshot
+        gen = params.get("generation")
+        if gen is not None and service._active_generation is not None and str(gen) != str(service._active_generation):
+            return {"ready": False, "nodeCount": 0, "stale": True}
         if not params or not params.get("snapshot"):
             service.tree_snapshot = None
             return {"ready": False, "nodeCount": 0}

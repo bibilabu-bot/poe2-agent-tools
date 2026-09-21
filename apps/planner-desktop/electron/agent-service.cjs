@@ -146,13 +146,17 @@ class AgentService {
           if (buildState) {
             const snapshot = await this.treeSnapshotProvider(buildState);
             checkActive();
-            if (snapshot) await this.client.request("tree_snapshot", {snapshot});
+            if (snapshot) {
+              await this.client.request("tree_snapshot", {snapshot, generation: String(generation)});
+            }
+          } else {
+            // No build state means tree data unavailable — clear old snapshot.
+            await this.client.request("tree_snapshot", {snapshot:null, generation: String(generation)});
           }
         } catch (error) {
           checkActive();
           if (["CANCELLED", "RUN_TIMEOUT"].includes(error?.code)) throw error;
-          // Optional tree tools must not disable the base chat service.
-          await this.client.request("tree_snapshot", {snapshot:null});
+          await this.client.request("tree_snapshot", {snapshot:null, generation: String(generation)});
         }
         checkActive();
       }

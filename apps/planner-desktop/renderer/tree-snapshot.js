@@ -1,347 +1,293 @@
-"use strict";
-// Bounded, immutable tree + Build snapshot for the Python tool loop.
-// Does NOT touch DOM, Planner globals, network or file system at runtime.
-// Callers inject the current Planner state and graph; this module
-// produces a narrow JSON-serializable snapshot with precomputed
-// eligibility classifications and stable adjacency.
+(function initTreeSnapshot(root, factory) {
+  var api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  else root.plannerTreeSnapshot = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function treeSnapshotFactory() {
+  "use strict";
 
-const { createPassiveGraph } = require("./passive-graph.js");
+  var pg = typeof plannerPassiveGraph !== "undefined" ? plannerPassiveGraph
+    : typeof require === "function" ? require("./passive-graph.js") : null;
+  if (!pg) throw new Error("plannerPassiveGraph is required");
 
-const ORDINARY_SOCKET_IDS = new Set(
-  ["2491","7960","21984","26196","26725","32763","46882","54127","55190","60735","61419","61834"]
-);
+  var createPassiveGraph = pg.createPassiveGraph;
+  var buildShortestPathIndex = pg.buildShortestPathIndex;
+  var reachableEligibleIds = pg.reachableEligibleIds;
 
-const INSTILL_EXCLUSIVE_NAME_SET = new Set([
-  "Charity's Reach","Grasp of the Elements","Unity of Purpose","The Frozen Abyss",
-  "Scout's Pride","Kindle the Wild"
-]);
-
-const LEGACY_START_ARTIFACT_NAMES = new Set([
-  "Six","Marauder","Witch","Ranger","Duelist","Shadow","Templar"
-]);
-
-const ALLOCATION_CATEGORY_ORDER = ["normal","weaponSet1","weaponSet2","ascendancy","instilled"];
-
-function compareNodeIds(a, b) {
-  const left = String(a), right = String(b);
-  return left < right ? -1 : left > right ? 1 : 0;
-}
-
-function sortedIds(ids) { return [...ids].map(String).sort(compareNodeIds); }
-
-// --- planner.js classification rules replicated as pure, narrow helpers ---
-// These MUST match the in-Planner classification. Tests lock the two together.
-
-function idOf(n) { return String(n.skill ?? n._id ?? n.id); }
-
-function nodeKind(n) { return n?.kind || "small"; }
-
-function isAscNode(n) { return Boolean(n?.asc); }
-
-function isClassStartNode(n) {
-  return nodeKind(n) === "classstart" || Array.isArray(n?.classesStart) || Array.isArray(n?.classStartIndex);
-}
-
-function isLegacyStartArtifactNode(n) {
-  if (!n) return false;
-  const rawName = String(n.name || "").trim();
-  if (LEGACY_START_ARTIFACT_NAMES.has(rawName)) return true;
-  if (/^\d+$/.test(rawName) && (n.group == null || nodeKind(n) === "classstart")) return true;
-  return false;
-}
-
-function isMasteryVisualNode(n) {
-  if (!n) return false;
-  return nodeKind(n) === "mastery" || n.isOnlyImage === true;
-}
-
-function isInstillExclusiveNode(n) {
-  return Boolean(n && INSTILL_EXCLUSIVE_NAME_SET.has(String(n.name || "")));
-}
-
-function unlockConstraintOf(n, overrideRequirementIdsFn) {
-  const uc = n?.unlockConstraint;
-  if (uc && typeof uc === "object") return uc;
-  const ids = overrideRequirementIdsFn ? overrideRequirementIdsFn(n) : [];
-  return ids.length ? { nodes: ids } : null;
-}
-
-function isConditionalRevealNode(n, overrideRequirementIdsFn) {
-  return Boolean(
-    n && !isAscNode(n) && !isMasteryVisualNode(n) && !isInstillExclusiveNode(n) &&
-    unlockConstraintOf(n, overrideRequirementIdsFn)
+  var ORDINARY_SOCKET_IDS = new Set(
+    ["2491","7960","21984","26196","26725","32763","46882","54127","55190","60735","61419","61834"]
   );
-}
 
-function constraintNodeIds(n, overrideRequirementIdsFn) {
-  const uc = unlockConstraintOf(n, overrideRequirementIdsFn);
-  if (!uc || !Array.isArray(uc.nodes)) return [];
-  return uc.nodes.map(String);
-}
+  var INSTILL_EXCLUSIVE_NAME_SET = new Set([
+    "Charity's Reach","Grasp of the Elements","Unity of Purpose","The Frozen Abyss",
+    "Scout's Pride","Kindle the Wild"
+  ]);
 
-function constraintAscendancyMatches(n, selectedAscendancyId) {
-  const uc = n?.unlockConstraint;
-  if (!uc || !uc.ascendancy) return true;
-  if (!selectedAscendancyId) return false;
-  return String(uc.ascendancy) === String(selectedAscendancyId);
-}
+  var LEGACY_START_ARTIFACT_NAMES = new Set([
+    "Six","Marauder","Witch","Ranger","Duelist","Shadow","Templar"
+  ]);
 
-function constraintSatisfied(n, activeIds, selectedAscendancyId, overrideRequirementIdsFn) {
-  if (!isConditionalRevealNode(n, overrideRequirementIdsFn)) return true;
-  if (!constraintAscendancyMatches(n, selectedAscendancyId)) return false;
-  for (const req of constraintNodeIds(n, overrideRequirementIdsFn)) {
-    if (!activeIds.has(req)) return false;
-  }
-  return true;
-}
-
-const CONDITIONAL_NODE_OVERRIDES = {
-  "The Hollowkeeper": { requires: ["First Teachings of the Keeper","First Principle of the Hollow"], visibleConnections:["First Teachings of the Keeper"] },
-  "Path of the Renegade": { requires: ["Redblade Discipline","Brinerot Ferocity","Mutewind Agility"] }
-};
-
-function overrideRequirementIds(n, byName) {
-  if (!n || !byName) return [];
-  const ov = CONDITIONAL_NODE_OVERRIDES[String(n.name || "")];
-  if (!ov?.requires) return [];
-  return ov.requires.map(name => byName.get(name)).filter(Boolean).map(idOf);
-}
-
-function allocatableEdgeAllowedNodes(a, b, byName) {
-  if (!a || !b) return false;
-  if (isMasteryVisualNode(a) || isMasteryVisualNode(b)) return false;
-  if (isInstillExclusiveNode(a) || isInstillExclusiveNode(b)) return false;
-  for (const [conditional, other] of [[a,b],[b,a]]) {
-    const ov = CONDITIONAL_NODE_OVERRIDES[String(conditional.name || "")];
-    if (ov?.visibleConnections && !ov.visibleConnections.includes(String(other.name || ""))) return false;
-  }
-  return true;
-}
-
-// --- Snapshot capture ---
-
-function _nameIndex(nodes) {
-  const map = new Map();
-  for (const n of nodes) { const name = String(n.name || "").trim(); if (name) map.set(name, n); }
-  return map;
-}
-
-function _activeAllocationSet(state) {
-  const set = new Set(state.allocated);
-  for (const id of state.ascAllocated) set.add(id);
-  return set;
-}
-
-function _canTraverse(n, state, activeSet, byName) {
-  if (!n || isAscNode(n) || isMasteryVisualNode(n) || isInstillExclusiveNode(n) || isLegacyStartArtifactNode(n)) return false;
-  if (isClassStartNode(n) && state.classStartId && idOf(n) !== state.classStartId) return false;
-  if (isConditionalRevealNode(n, (nn) => overrideRequirementIds(nn, byName)) &&
-      !constraintSatisfied(n, activeSet, state.selectedAscendancyId, (nn) => overrideRequirementIds(nn, byName))) return false;
-  return true;
-}
-
-function _canTraverseAsc(n, state) {
-  return Boolean(n && !isMasteryVisualNode(n) && state.selectedAscendancyId && n.asc === state.selectedAscendancyId);
-}
-
-function captureTreeSnapshot(state) {
-  if (!state || !Array.isArray(state.nodes) || !state.byId) throw new TypeError("planner state is required");
-
-  const activeSet = _activeAllocationSet(state);
-  const byName = _nameIndex(state.nodes);
-  const eligibleNodes = [];
-
-  // Build allocatable-edge graph once (matches Planner's passiveGraph).
-  const allocGraph = createPassiveGraph(state.nodes, state.edges || [], {
-    getNodeId: idOf,
-    allowEdge: (a, b) => allocatableEdgeAllowedNodes(a, b, byName),
-  });
-
-  for (const node of state.nodes) {
-    if (isMasteryVisualNode(node) || isLegacyStartArtifactNode(node)) continue;
-    const id = idOf(node);
-    if (!id || id === "undefined") continue;
-    const kind = nodeKind(node);
-    if (kind === "instill" && !state.showInstillOnGraph) continue;
-    if (!state.showSmall && kind === "small") continue;
-
-    const neighbors = allocGraph.neighbors(id);
-    const generalEligible = _canTraverse(node, state, activeSet, byName);
-    const ascEligible = _canTraverseAsc(node, state);
-    const isConditionalReveal = isConditionalRevealNode(node, (nn) => overrideRequirementIds(nn, byName));
-    const satisfied = isConditionalReveal ? constraintSatisfied(node, activeSet, state.selectedAscendancyId, (nn) => overrideRequirementIds(nn, byName)) : true;
-
-    eligibleNodes.push({
-      id,
-      name: String(node.name || ""),
-      stats: Array.isArray(node.stats) ? node.stats.slice(0, 32) : [],
-      statsTotal: Array.isArray(node.stats) ? node.stats.length : 0,
-      kind,
-      x: Number.isFinite(node.x) ? node.x : 0,
-      y: Number.isFinite(node.y) ? node.y : 0,
-      orbit: Number.isFinite(node.orbit) ? Number(node.orbit) : null,
-      orbitIndex: Number.isFinite(node.orbitIndex) ? Number(node.orbitIndex) : null,
-      asc: node.asc || null,
-      isJewelSocket: Boolean(node.isJewelSocket),
-      isBlighted: Boolean(node.isBlighted),
-      isKeystone: kind === "keystone",
-      isNotable: kind === "notable",
-      isSmall: kind === "small",
-      isAscendancy: isAscNode(node),
-      isClassStart: isClassStartNode(node),
-      isConditionalReveal,
-      constraintSatisfied: satisfied,
-      isGeneralEligible: generalEligible,
-      isAscEligible: ascEligible,
-      neighbors: sortedIds(neighbors),
-      unlockConstraint: node.unlockConstraint || null,
-      isOrdinaryJewelSocket: Boolean(node.isJewelSocket) && ORDINARY_SOCKET_IDS.has(id),
-    });
-  }
-
-  // Sort nodes by ID for stable iteration
-  eligibleNodes.sort((a, b) => compareNodeIds(a.id, b.id));
-
-  const nodeMap = {};
-  const adjacency = {};
-  for (const n of eligibleNodes) {
-    nodeMap[n.id] = n;
-    adjacency[n.id] = n.neighbors;
-  }
-
-  const generalStarts = sortedIds([state.classStartId, ...state.allocated].filter(id => {
-    const n = nodeMap[id];
-    return n && n.isGeneralEligible;
-  }));
-
-  const { buildShortestPathIndex, reachableEligibleIds } = require("./passive-graph.js");
-  const generalParent = buildShortestPathIndex(allocGraph, {
-    starts: generalStarts,
-    isEligible: (n) => { const nid = idOf(n); const sn = nodeMap[nid]; return sn ? sn.isGeneralEligible : false; },
-  });
-  const generalReachable = reachableEligibleIds(allocGraph, {
-    starts: generalStarts,
-    isEligible: (n) => { const nid = idOf(n); const sn = nodeMap[nid]; return sn ? sn.isGeneralEligible : false; },
-  });
-
-  let ascStarts = [];
-  let ascReachable = new Set();
-  if (state.selectedAscendancyId) {
-    ascStarts = sortedIds([...state.ascAllocated].filter(id => {
-      const n = nodeMap[id];
-      return n && n.isAscEligible;
-    }));
-    ascReachable = reachableEligibleIds(allocGraph, {
-      starts: ascStarts,
-      isEligible: (n) => { const nid = idOf(n); const sn = nodeMap[nid]; return sn ? sn.isAscEligible : false; },
-    });
-  }
-
-  const { createHash } = require("node:crypto");
-  const treeDigest = createHash("sha256").update(JSON.stringify({
-    nodeCount: eligibleNodes.length,
-    edgeCount: Object.values(adjacency).reduce((s, a) => s + a.length, 0) / 2,
-    parentNodeCount: generalParent.size + (state.selectedAscendancyId ? "1" : "0"),
-  })).digest("hex").slice(0, 16);
-
-  return {
-    snapshotId: `tree-snapshot-${treeDigest}`,
-    nodeCount: eligibleNodes.length,
-    adjacency,
-    general: {
-      starts: generalStarts,
-      reachableCount: generalReachable.size,
-    },
-    ascendancy: state.selectedAscendancyId ? {
-      starts: ascStarts,
-      reachableCount: ascReachable.size,
-      ascendancyId: state.selectedAscendancyId,
-    } : null,
-    // Path index: map nodeId -> parentId (or null for start nodes)
-    // Only includes reachable nodes. Pre-computed by passive-graph.js.
-    _pathIndex: {
-      generalParent: Object.fromEntries(generalParent),
-      generalReachable: Array.from(generalReachable),
-      ascParent: state.selectedAscendancyId ? Object.fromEntries(
-        buildShortestPathIndex(allocGraph, {
-          starts: ascStarts,
-          isEligible: (n) => { const nid = idOf(n); const sn = nodeMap[nid]; return sn ? sn.isAscEligible : false; },
-        })
-      ) : {},
-      ascReachable: Array.from(ascReachable),
-    },
+  var CONDITIONAL_NODE_OVERRIDES = {
+    "The Hollowkeeper": { requires: ["First Teachings of the Keeper","First Principle of the Hollow"], visibleConnections:["First Teachings of the Keeper"] },
+    "Path of the Renegade": { requires: ["Redblade Discipline","Brinerot Ferocity","Mutewind Agility"] }
   };
-}
 
-function captureBuildState(state) {
-  const classStartId = state.classStartId || null;
-  return {
-    baseClassName: state.baseClassName || null,
-    selectedAscendancyId: state.selectedAscendancyId || null,
-    classStartId,
-    budgets: {
-      passive: Number.isFinite(state.maxPoints) ? state.maxPoints : 0,
-      weaponSet: Number.isFinite(state.maxWeaponPoints) ? state.maxWeaponPoints : 0,
-      ascendancy: Number.isFinite(state.maxAscPoints) ? state.maxAscPoints : 0,
-    },
-    budgetUsage: {
-      normal: state.allocated ? state.allocated.size : 0,
-      weaponSet1: state.weaponSet1Allocated ? state.weaponSet1Allocated.size : 0,
-      weaponSet2: state.weaponSet2Allocated ? state.weaponSet2Allocated.size : 0,
-      ascendancy: state.ascAllocated ? state.ascAllocated.size : 0,
-      instilled: state.instillAllocated ? state.instillAllocated.size : 0,
-    },
-    allocations: {
-      normal: sortedIds(state.allocated || []),
-      weaponSet1: sortedIds(state.weaponSet1Allocated || []),
-      weaponSet2: sortedIds(state.weaponSet2Allocated || []),
-      ascendancy: sortedIds(state.ascAllocated || []),
-      instilled: sortedIds(state.instillAllocated || []),
-    },
-    ascendancyOptions: (state.ascendancyOptions || []).map(a => ({ id: a.id, name: a.name })),
-    snapshots: {
-      camera: state.camera ? { x: state.camera.x, y: state.camera.y, scale: state.camera.scale } : null,
+  function compareNodeIds(a, b) {
+    var left = String(a), right = String(b);
+    return left < right ? -1 : left > right ? 1 : 0;
+  }
+
+  function sortedIds(ids) {
+    if (!ids) return [];
+    if (ids instanceof Set) ids = Array.from(ids);
+    if (!Array.isArray(ids)) return [];
+    return ids.map(String).sort(compareNodeIds);
+  }
+
+  function idOf(n) { return String(n.skill != null ? n.skill : n._id != null ? n._id : n.id != null ? n.id : "undefined"); }
+
+  function nodeKind(n) { return n && n.kind ? n.kind : "small"; }
+
+  function isAscNode(n) { return Boolean(n && n.asc); }
+
+  function isClassStartNode(n) {
+    return nodeKind(n) === "classstart" || Array.isArray(n && n.classesStart) || Array.isArray(n && n.classStartIndex);
+  }
+
+  function isLegacyStartArtifactNode(n) {
+    if (!n) return false;
+    var rawName = String(n.name || "").trim();
+    if (LEGACY_START_ARTIFACT_NAMES.has(rawName)) return true;
+    if (/^\d+$/.test(rawName) && (n.group == null || nodeKind(n) === "classstart")) return true;
+    return false;
+  }
+
+  function isMasteryVisualNode(n) {
+    if (!n) return false;
+    return nodeKind(n) === "mastery" || n.isOnlyImage === true;
+  }
+
+  function isInstillExclusiveNode(n) {
+    return Boolean(n && INSTILL_EXCLUSIVE_NAME_SET.has(String(n.name || "")));
+  }
+
+  function unlockConstraintOf(n, overrideReqFn) {
+    if (!n) return null;
+    var uc = n.unlockConstraint;
+    if (uc && typeof uc === "object") return uc;
+    var ids = typeof overrideReqFn === "function" ? overrideReqFn(n) : [];
+    return ids && ids.length ? { nodes: ids } : null;
+  }
+
+  function isConditionalRevealNode(n, overrideReqFn) {
+    return Boolean(
+      n && !isAscNode(n) && !isMasteryVisualNode(n) && !isInstillExclusiveNode(n) &&
+      unlockConstraintOf(n, overrideReqFn)
+    );
+  }
+
+  function constraintAscendancyMatches(n, selectedAscendancyId) {
+    if (!n) return true;
+    var uc = n.unlockConstraint;
+    if (!uc || !uc.ascendancy) return true;
+    if (!selectedAscendancyId) return false;
+    return String(uc.ascendancy) === String(selectedAscendancyId);
+  }
+
+  function constraintSatisfied(n, activeIds, selectedAscendancyId, overrideReqFn) {
+    if (!isConditionalRevealNode(n, overrideReqFn)) return true;
+    if (!constraintAscendancyMatches(n, selectedAscendancyId)) return false;
+    var reqs = [];
+    if (typeof overrideReqFn === "function") reqs = overrideReqFn(n) || [];
+    if (!reqs.length) {
+      var uc = n && n.unlockConstraint;
+      reqs = (uc && Array.isArray(uc.nodes)) ? uc.nodes.map(String) : [];
+    }
+    for (var i = 0; i < reqs.length; i++) { if (!activeIds.has(reqs[i])) return false; }
+    return true;
+  }
+
+  function _emptyOverrideFn() { return []; }
+
+  function allocatableEdgeAllowedNodes(a, b, byName) {
+    if (!a || !b) return false;
+    if (isMasteryVisualNode(a) || isMasteryVisualNode(b)) return false;
+    if (isInstillExclusiveNode(a) || isInstillExclusiveNode(b)) return false;
+    for (var i = 0; i < 2; i++) {
+      var conditional = i === 0 ? a : b, other = i === 0 ? b : a;
+      var ov = CONDITIONAL_NODE_OVERRIDES[String(conditional.name || "")];
+      if (ov && ov.visibleConnections && !ov.visibleConnections.includes(String(other.name || ""))) return false;
+    }
+    return true;
+  }
+
+  function _nameIndex(nodes) {
+    var map = new Map();
+    for (var i = 0; i < nodes.length; i++) { var nm = String(nodes[i].name || "").trim(); if (nm) map.set(nm, nodes[i]); }
+    return map;
+  }
+
+  function _activeAllocationSet(state) {
+    var s = new Set(state.allocated || []);
+    var asc = state.ascAllocated;
+    if (asc) { if (asc.forEach) asc.forEach(function(id) { s.add(id); }); else for (var i = 0; i < asc.length; i++) s.add(String(asc[i])); }
+    return s;
+  }
+
+  function _canTraverse(n, state, activeSet, byName) {
+    if (!n || isAscNode(n) || isMasteryVisualNode(n) || isInstillExclusiveNode(n) || isLegacyStartArtifactNode(n)) return false;
+    if (isClassStartNode(n) && state.classStartId && idOf(n) !== state.classStartId) return false;
+    if (isConditionalRevealNode(n, _emptyOverrideFn) && !constraintSatisfied(n, activeSet, state.selectedAscendancyId, _emptyOverrideFn)) return false;
+    return true;
+  }
+
+  function _canTraverseAsc(n, state) {
+    return Boolean(n && !isMasteryVisualNode(n) && state.selectedAscendancyId && n.asc === state.selectedAscendancyId);
+  }
+
+  function captureTreeSnapshot(state) {
+    if (!state || !Array.isArray(state.nodes)) throw new TypeError("planner state with nodes[] is required");
+    var activeSet = _activeAllocationSet(state);
+    var byName = _nameIndex(state.nodes);
+    var allocGraph = createPassiveGraph(state.nodes, state.edges || [], { getNodeId: idOf, allowEdge: function(a, b) { return allocatableEdgeAllowedNodes(a, b, byName); } });
+    var eligibleNodes = [];
+    for (var i = 0; i < state.nodes.length; i++) {
+      var node = state.nodes[i]; if (!node) continue;
+      if (isMasteryVisualNode(node) || isLegacyStartArtifactNode(node)) continue;
+      var nid = idOf(node); if (!nid || nid === "undefined") continue;
+      var knd = nodeKind(node);
+      if (knd === "instill" && !state.showInstillOnGraph) continue;
+      if (!state.showSmall && knd === "small") continue;
+      var neighbors = allocGraph.neighbors(nid);
+      var generalEligible = _canTraverse(node, state, activeSet, byName);
+      var ascEligible = _canTraverseAsc(node, state);
+      var isCond = isConditionalRevealNode(node, _emptyOverrideFn);
+      var satisfied = isCond ? constraintSatisfied(node, activeSet, state.selectedAscendancyId, _emptyOverrideFn) : true;
+      eligibleNodes.push({
+        id: nid, name: String(node.name || ""), stats: Array.isArray(node.stats) ? node.stats : [],
+        kind: knd,
+        x: Number.isFinite(node.x) ? node.x : null, y: Number.isFinite(node.y) ? node.y : null,
+        asc: node.asc || null,
+        isJewelSocket: Boolean(node.isJewelSocket), isBlighted: Boolean(node.isBlighted),
+        isKeystone: knd === "keystone", isNotable: knd === "notable", isSmall: knd === "small",
+        isAscendancy: isAscNode(node), isClassStart: isClassStartNode(node),
+        isConditionalReveal: isCond, constraintSatisfied: satisfied,
+        isGeneralEligible: generalEligible, isAscEligible: ascEligible,
+        isOrdinaryJewelSocket: Boolean(node.isJewelSocket) && ORDINARY_SOCKET_IDS.has(nid),
+        neighbors: sortedIds(neighbors),
+        unlockConstraint: node.unlockConstraint || null,
+        ascendancyId: node.asc || node.ascendancyId || null,
+      });
+    }
+    eligibleNodes.sort(function(a, b) { return compareNodeIds(a.id, b.id); });
+    var nodeMap = {}, adjacency = {};
+    for (var j = 0; j < eligibleNodes.length; j++) { var en = eligibleNodes[j]; nodeMap[en.id] = en; adjacency[en.id] = en.neighbors; }
+
+    // --- general: starts = classStartId + allocated ---
+    var generalStarts = sortedIds(([state.classStartId]).concat(Array.from(state.allocated || [])).filter(function(id) { var sn = nodeMap[id]; return sn && sn.isGeneralEligible; }));
+    var generalParent = buildShortestPathIndex(allocGraph, { starts: generalStarts, isEligible: function(n) { var nid = idOf(n); var sn = nodeMap[nid]; return sn ? sn.isGeneralEligible : false; } });
+    var generalReachable = reachableEligibleIds(allocGraph, { starts: generalStarts, isEligible: function(n) { var nid = idOf(n); var sn = nodeMap[nid]; return sn ? sn.isGeneralEligible : false; } });
+
+    // --- weaponSet1: starts = weaponSet1Allocated (no classStart) ---
+    var ws1Starts = sortedIds(state.weaponSet1Allocated || []);
+    var ws1Parent = ws1Starts.length ? buildShortestPathIndex(allocGraph, { starts: ws1Starts, isEligible: function(n) { var nid = idOf(n); var sn = nodeMap[nid]; return sn ? sn.isGeneralEligible : false; } }) : new Map();
+
+    // --- weaponSet2: starts = weaponSet2Allocated ---
+    var ws2Starts = sortedIds(state.weaponSet2Allocated || []);
+    var ws2Parent = ws2Starts.length ? buildShortestPathIndex(allocGraph, { starts: ws2Starts, isEligible: function(n) { var nid = idOf(n); var sn = nodeMap[nid]; return sn ? sn.isGeneralEligible : false; } }) : new Map();
+
+    // --- ascendancy ---
+    var ascStarts = [], ascParent = {}, ascReachable = new Set();
+    if (state.selectedAscendancyId) {
+      ascStarts = sortedIds(Array.from(state.ascAllocated || []).filter(function(id) { var sn = nodeMap[id]; return sn && sn.isAscEligible; }));
+      var ascIdx = buildShortestPathIndex(allocGraph, { starts: ascStarts, isEligible: function(n) { var nid = idOf(n); var sn = nodeMap[nid]; return sn ? sn.isAscEligible : false; } });
+      ascParent = Object.fromEntries(ascIdx);
+      ascReachable = reachableEligibleIds(allocGraph, { starts: ascStarts, isEligible: function(n) { var nid = idOf(n); var sn = nodeMap[nid]; return sn ? sn.isAscEligible : false; } });
+    }
+
+    var treeDigest = String(eligibleNodes.length) + "n" + String(generalParent.size);
+    var snapshotId = "tree-" + treeDigest;
+
+    return {
+      snapshotId: snapshotId, nodeCount: eligibleNodes.length, adjacency: adjacency,
+      general: { starts: generalStarts, reachableCount: generalReachable.size },
+      ascendancy: state.selectedAscendancyId ? { starts: ascStarts, reachableCount: ascReachable.size, ascendancyId: state.selectedAscendancyId } : null,
+      _pathIndex: {
+        generalParent: Object.fromEntries(generalParent), generalReachable: Array.from(generalReachable),
+        weaponSet1Parent: Object.fromEntries(ws1Parent),
+        weaponSet2Parent: Object.fromEntries(ws2Parent),
+        ascParent: ascParent, ascReachable: Array.from(ascReachable),
+      },
+    };
+  }
+
+  function captureBuildState(state) {
+    return {
+      baseClassName: state.baseClassName || null,
+      selectedAscendancyId: state.selectedAscendancyId || null,
+      classStartId: state.classStartId || null,
+      ascStartId: state.ascStartId || null,
+      budgets: {
+        passive: Number.isFinite(state.maxPoints) ? state.maxPoints : 0,
+        weaponSet: Number.isFinite(state.maxWeaponPoints) ? state.maxWeaponPoints : 0,
+        ascendancy: Number.isFinite(state.maxAscPoints) ? state.maxAscPoints : 0,
+      },
+      budgetUsage: {
+        normal: state.passivePointsUsed != null ? state.passivePointsUsed : (state.allocated ? (state.classStartId && state.allocated.has ? Math.max(0, state.allocated.size - 1) : (Array.isArray(state.allocated) ? state.allocated.length : 0)) : 0),
+        weaponSet1: state.weaponSet1Allocated ? (state.weaponSet1Allocated.size != null ? state.weaponSet1Allocated.size : state.weaponSet1Allocated.length) : 0,
+        weaponSet2: state.weaponSet2Allocated ? (state.weaponSet2Allocated.size != null ? state.weaponSet2Allocated.size : state.weaponSet2Allocated.length) : 0,
+        ascendancy: state.ascPointsUsed != null ? state.ascPointsUsed : (state.ascAllocated ? (state.ascStartId && state.ascAllocated.has ? Math.max(0, state.ascAllocated.size - 1) : (Array.isArray(state.ascAllocated) ? state.ascAllocated.length : 0)) : 0),
+        instilled: state.instillAllocated ? (state.instillAllocated.size != null ? state.instillAllocated.size : state.instillAllocated.length) : 0,
+      },
+      allocations: {
+        normal: sortedIds(state.allocated || []),
+        weaponSet1: sortedIds(state.weaponSet1Allocated || []),
+        weaponSet2: sortedIds(state.weaponSet2Allocated || []),
+        ascendancy: sortedIds(state.ascAllocated || []),
+        instilled: Array.from(state.instillAllocated || []).sort(),
+      },
+      ascendancyOptions: (state.ascendancyOptions || []).map(function(a) { return { id: a.id, name: a.name }; }),
       weaponMode: state.weaponMode || null,
       showAscendancy: Boolean(state.showAsc),
       showLockedConditional: Boolean(state.showLockedConditional),
-    },
-  };
-}
+      showInstillOnGraph: Boolean(state.showInstillOnGraph),
+    };
+  }
 
-function publishFullSnapshot(treeSnapshot, buildState, upstreamSnapshotId) {
-  if (!treeSnapshot || !buildState) throw new TypeError("tree and build snapshots are required");
-  const { createHash } = require("node:crypto");
-  const identity = createHash("sha256").update(JSON.stringify({
-    treeId: treeSnapshot.snapshotId,
-    allocations: buildState.allocations,
-    ascendancy: buildState.selectedAscendancyId,
-  })).digest("hex").slice(0, 16);
-  return {
-    snapshotId: `full-snapshot-${identity}`,
-    upstreamSnapshotId: upstreamSnapshotId || null,
-    ...treeSnapshot,
-    build: buildState,
-  };
-}
+  function _digest(data) {
+    var s = JSON.stringify(data, Object.keys(data).sort());
+    var h = 0;
+    for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+    return "snap-" + (h >>> 0).toString(36);
+  }
 
-// Rollup the full tree node data (with paging support) for Python.
-// The heavy path index is published separately.
-function publishNodesPage(snapshot, offset = 0, limit = 500) {
-  if (!snapshot || !snapshot.adjacency) throw new TypeError("snapshot is required");
-  // Rebuild node list from adjacency keys
-  // (nodes live on the JS side; we paginate for transport)
-  return { offset, limit, complete: true };
-}
+  function publishFullSnapshot(treeSnapshot, buildState, upstreamId) {
+    if (!treeSnapshot || !buildState) throw new TypeError("tree and build snapshots are required");
+    var identity = _digest({
+      treeId: treeSnapshot.snapshotId,
+      normal: (buildState.allocations.normal || []).join(","),
+      ws1: (buildState.allocations.weaponSet1 || []).join(","),
+      ws2: (buildState.allocations.weaponSet2 || []).join(","),
+      asc: (buildState.allocations.ascendancy || []).join(","),
+      inst: (buildState.allocations.instilled || []).join(","),
+      ascendancy: buildState.selectedAscendancyId || "",
+      budgets: buildState.budgets,
+    });
+    return {
+      snapshotId: identity, upstreamSnapshotId: upstreamId || null,
+      nodeCount: treeSnapshot.nodeCount, adjacency: treeSnapshot.adjacency,
+      general: treeSnapshot.general, ascendancy: treeSnapshot.ascendancy,
+      _pathIndex: treeSnapshot._pathIndex, build: buildState,
+    };
+  }
 
-module.exports = {
-  captureTreeSnapshot,
-  captureBuildState,
-  publishFullSnapshot,
-  compareNodeIds,
-  sortedIds,
-  // Classification helpers (exported for testing)
-  idOf, nodeKind, isAscNode, isClassStartNode, isLegacyStartArtifactNode,
-  isMasteryVisualNode, isInstillExclusiveNode, isConditionalRevealNode,
-  constraintSatisfied, allocatableEdgeAllowedNodes,
-  ORDINARY_SOCKET_IDS,
-};
+  return Object.freeze({
+    captureTreeSnapshot: captureTreeSnapshot, captureBuildState: captureBuildState,
+    publishFullSnapshot: publishFullSnapshot,
+    compareNodeIds: compareNodeIds, sortedIds: sortedIds,
+    idOf: idOf, nodeKind: nodeKind, isAscNode: isAscNode,
+    isClassStartNode: isClassStartNode, isLegacyStartArtifactNode: isLegacyStartArtifactNode,
+    isMasteryVisualNode: isMasteryVisualNode, isInstillExclusiveNode: isInstillExclusiveNode,
+    isConditionalRevealNode: isConditionalRevealNode, constraintSatisfied: constraintSatisfied,
+    allocatableEdgeAllowedNodes: allocatableEdgeAllowedNodes, ORDINARY_SOCKET_IDS: ORDINARY_SOCKET_IDS,
+  });
+});

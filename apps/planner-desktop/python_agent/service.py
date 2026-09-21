@@ -27,6 +27,7 @@ class AgentService:
         self.conversation_id: str | None = None
         self.rag = None
         self.tree_snapshot = None
+        self._active_generation = None
         self.running = False
         self.prompts = PromptStore(str(Path(memory_path).with_suffix(".prompts.json")) if memory_path and memory_path != ":memory:" else None)
 
