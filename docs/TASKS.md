@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-028A — Govern and inspect effective system prompts
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Assignment target: `Codex local executor`
 - Depends on: accepted P2AT-026A and P2AT-027C; main eb60779
 - Scope: behavior-preserving versioned Python prompt builder, safe settings inspection,
@@ -24,6 +24,13 @@ state, never expanded private MEMORY_CONTEXT_DATA, keys or conversation content.
 No hosted model calls, tree tools, archive changes or stages 2/3 before acceptance.
 Independent review, offline/full regression and real synthetic UI evidence required.
 Deliver a separate task branch/commit in REVIEW; controller owns acceptance/merge.
+
+Controller acceptance (2026-09-21): accepted at `5cdd7aa09a9caa45b819e63870e8c094187b2d2c`.
+Default prompt text remained byte-identical across all eight feature combinations;
+independent Python and Electron reviews found no blocking issue. Controller reran the
+full offline suite, syntax checks and the synthetic prompt-editor UI, including save,
+restart, busy rejection and confirmed reset. Prompt overrides are local preferences,
+do not grant tools and never expose expanded memory, conversation text or credentials.
 
 Controller acceptance (2026-09-20): P2AT-026A and P2AT-027A/B/C are accepted for the developer build at `88f8e837e7748c3e81f10c788bb71e435ada769d`, including user-approved context/memory/settings/read-only retrieval follow-ups and atomic session-selection correction. Earlier REVIEW/no-main statements below describe executor delivery gates, superseded by this controller acceptance. This is not installer or bundled-Python acceptance. Independent Node 193/193, Python 44/44 and real synthetic Electron regressions passed; no private archive/Key or paid service was used. See `docs/CONTROLLER_ACCEPTANCE_027.md`.
 

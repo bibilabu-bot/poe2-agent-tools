@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-20
+Last updated: 2026-09-21
 
 ## Product objective
 
@@ -8,7 +8,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
-Latest controller acceptance: `88f8e837e7748c3e81f10c788bb71e435ada769d` (2026-09-20), P2AT-026A developer Python/LangGraph runtime, durable scoped memory, separate encrypted retrieval settings and read-only RAG, plus P2AT-027A/B/C page layout and isolated sessions. Node **193/193**, Python **44/44**, zero skips; atomic selection and real synthetic Electron regressions passed. Python 3.11+ and installed requirements remain required: no bundled runtime or release installer is accepted. `docs/CONTROLLER_ACCEPTANCE_027.md` supersedes earlier integration counts below.
+Latest controller acceptance: `5cdd7aa09a9caa45b819e63870e8c094187b2d2c` (2026-09-21), adding P2AT-028A versioned, inspectable and locally editable system-prompt blocks without changing tool permissions or default prompt bytes. The full offline suite, syntax checks and synthetic Electron save/restart/reset/busy-state checks passed; independent Python and Electron reviews found no blocker. The prior `88f8e837e7748c3e81f10c788bb71e435ada769d` acceptance covers P2AT-026A and P2AT-027A/B/C. Python 3.11+ and installed requirements remain required: no bundled runtime or release installer is accepted.
 
 Controller integration accepted on 2026-09-19: P2AT-021C, 022A, 022B, 023A and 024A, including integration corrections at `9b08b1036eae49704e2736be708a2f8f1692f739`. The latest integrated desktop suite is **152/152, zero skips with locked official-tree evidence**. Native Windows page switching and panel operation passed. See `docs/PRODUCT_INTEGRATION.md` for exact included commits and deferred work. Earlier per-branch counts below are historical delivery evidence, superseded by this integration result.
 
@@ -17,6 +17,7 @@ Controller integration accepted on 2026-09-19: P2AT-021C, 022A, 022B, 023A and 0
 | Repository migration | Complete | ChatGPT export reorganized and committed to `main` |
 | Desktop shell | Prototype | Electron 0.2; isolated preload and local resource protocol |
 | General agent runtime | Accepted developer build | Python/LangGraph loop, durable endpoint/session-scoped SQLite memory, isolated session selection, streaming and tool details; OS-encrypted credentials remain in Electron. Read-only knowledge retrieval does not mutate Planner state |
+| System prompt governance | Accepted | Four versioned blocks can be inspected, edited locally and reset; default combinations are byte-identical, overrides do not grant tools and private runtime memory/credentials are excluded |
 | Passive tree renderer | Graph core accepted | Canvas2D rendering remains in Planner; pure graph construction, queries and deterministic eligible paths passed controller acceptance |
 | Allocation | Prototype | Normal, ascendancy and weapon-set allocation present |
 | Conditional/hidden nodes | Prototype | Conditional reveal and external hidden-node sidecar present |
