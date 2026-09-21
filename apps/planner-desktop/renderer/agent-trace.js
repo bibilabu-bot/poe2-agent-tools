@@ -106,7 +106,6 @@
     search_memory: { label: "搜索记忆", icon: "search", path: "M21 21l-4.5-4.5M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0" },
     read_memory: { label: "读取记忆", icon: "book", path: "M12 6v15M12 6C9 3 5 3 2 4v16c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 2Z" },
     update_notebook: { label: "更新笔记", icon: "pencil", path: "M14 5l5 5M4 20l5-1L21 7a3.5 3.5 0 0 0-5-5L4 14v6ZM4 20h16" },
-    calculator: { label: "运行计算器", icon: "calculator", path: "M5 2h14v20H5ZM8 5h8v4H8ZM8 13h2m4 0h2m-8 4h2m4 0h2" },
   };
   const defaultStyle = { label: "运行工具", icon: "tool", path: "m8 5-6 7 6 7m8-14 6 7-6 7" };
   toolStyles.search_passive_nodes = {...toolStyles.search_memory,label:"检索天赋",icon:"passive-search"};

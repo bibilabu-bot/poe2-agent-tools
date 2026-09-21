@@ -8,6 +8,11 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+Pending REVIEW on P2AT-028A3: always-visible prompt close control, Chinese defaults
+(five system/six tool blocks), safe legacy-override migration and removal of the
+calculator demo. This task does not supersede controller acceptance below until
+reviewed and merged. See `SYSTEM_PROMPTS.md` for this branch's implementation.
+
 Latest controller acceptance: `08bb0134feff4ed3957269149cf22d93524a45bd` (2026-09-21), adding P2AT-028A2 complete prompt maintenance split into five system blocks and seven tool-description blocks. Exact defaults, runtime tool schemas and permissions remain unchanged; v1 overrides migrate without implicit writes. The full offline suite, syntax checks, synthetic Electron save/restart/reset/busy-state checks and two independent reviews passed. The prior `571e187a24825cd19b66a3ee2a747b60aa60394a` acceptance covers P2AT-028A. Python 3.11+ and installed requirements remain required: no bundled runtime or release installer is accepted.
 
 Controller integration accepted on 2026-09-19: P2AT-021C, 022A, 022B, 023A and 024A, including integration corrections at `9b08b1036eae49704e2736be708a2f8f1692f739`. The latest integrated desktop suite is **152/152, zero skips with locked official-tree evidence**. Native Windows page switching and panel operation passed. See `docs/PRODUCT_INTEGRATION.md` for exact included commits and deferred work. Earlier per-branch counts below are historical delivery evidence, superseded by this integration result.

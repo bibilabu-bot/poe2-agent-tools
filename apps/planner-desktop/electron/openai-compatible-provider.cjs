@@ -158,7 +158,7 @@ class OpenAICompatibleProvider extends ModelProvider {
       if (!response.ok) {
         const vendorMessage = typeof data?.error?.message === "string" ? data.error.message.slice(0, 500) : "";
         const toolsUnsupported = response.status === 400 && /tool|function/i.test(vendorMessage) && /unsupported|not support|invalid|unknown/i.test(vendorMessage);
-        throw new ProviderError(toolsUnsupported ? "TOOLS_UNSUPPORTED" : `HTTP_${response.status}`, toolsUnsupported ? "所选模型或服务不支持工具调用；请关闭演示工具后重试普通聊天" : publicStatusMessage(response.status), response.status);
+        throw new ProviderError(toolsUnsupported ? "TOOLS_UNSUPPORTED" : `HTTP_${response.status}`, toolsUnsupported ? "所选模型或服务不支持工具调用；请使用支持工具调用的服务" : publicStatusMessage(response.status), response.status);
       }
       return data;
     } finally { scoped.dispose(); }

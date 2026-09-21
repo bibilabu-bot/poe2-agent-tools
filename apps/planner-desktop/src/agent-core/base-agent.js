@@ -14,10 +14,11 @@ class BaseAgent {
 }
 
 class ChatAgent extends BaseAgent {
-  constructor() {
+  // Legacy loop compatibility only. The production Python runtime owns defaults.
+  constructor({ systemPrompt = "" } = {}) {
     super({
       name: "chat",
-      systemPrompt: "You are a concise, helpful general assistant. Use the calculator when enabled and arithmetic is needed. Never claim a tool ran unless a tool result is present.",
+      systemPrompt,
     });
   }
 }

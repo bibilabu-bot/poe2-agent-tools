@@ -1,5 +1,10 @@
 # General agent runtime
 
+Current P2AT-028A3 update: the early calculator demo and its UI toggle have been
+removed from Python and legacy Node production code. Only memory/retrieval tools
+remain. Defaults are Chinese and governed by `SYSTEM_PROMPTS.md`. Any calculator
+acceptance examples below are historical evidence, not a currently available tool.
+
 P2AT-026A moves the active agent implementation to Python 3.11+. The Renderer UI and Electron security boundary remain JavaScript; agent behavior, tools, bounded model/tool iteration, conversation history and OpenAI-compatible protocol handling live under `apps/planner-desktop/python_agent/`.
 
 Electron starts the Python runtime as a hidden child process and uses newline-delimited JSON requests with unique numeric IDs. The process is launched in Python isolated mode with UTF-8 mode explicitly enabled; Node encodes stdin and decodes stdout/stderr as UTF-8, while Python strictly decodes stdin and reconfigures stdout/stderr as UTF-8. Chinese and emoji round trips are covered through the real child process.
@@ -11,7 +16,7 @@ Chat SSE parsing treats explicit `event: error`, top-level `error`, `type: error
 Python entry points:
 
 - `python_agent/core.py`: `BaseAgent`, `BaseTool`, `ToolRegistry`, provider contract and bounded `AgentRunner`.
-- `python_agent/tools.py`: finite-number calculator.
+- `python_agent/prompts.py`: governed Chinese system and tool-description defaults.
 - `python_agent/provider.py`: bounded OpenAI-compatible Models, Chat Completions and Responses JSON adapter.
 - `python_agent/service.py`: Python-owned configuration, conversation and runner assembly.
 - `python_agent/memory.py`: SQLite archive, full extractive directory, transactional notebook and memory tools.
@@ -33,7 +38,7 @@ P2AT-024A adds a project-independent agent foundation to the desktop application
 - `apps/planner-desktop/src/agent-core/tool-registry.js`: explicit tool allowlist and provider definitions.
 - `apps/planner-desktop/src/agent-core/model-provider.js`: injected provider interface.
 - `apps/planner-desktop/src/agent-core/agent-runner.js`: bounded model → tool → model loop.
-- `apps/planner-desktop/src/agent-core/calculator-tool.js`: the only MVP tool; finite-number arithmetic without `eval` or side effects.
+- The original MVP arithmetic demo has been removed; generic loop fixtures live only in tests.
 - `apps/planner-desktop/electron/openai-compatible-provider.cjs`: OpenAI-compatible `GET /models` adapter with Chat Completions and Responses wire support.
 - `apps/planner-desktop/electron/agent-service.cjs`: in-memory configuration/conversation owner and narrow IPC handlers.
 
@@ -164,7 +169,7 @@ Text without tool calls finishes the run. Tool calls are validated and executed 
 
 ## Provider compatibility boundary
 
-The first adapter follows the OpenAI Chat Completions and Responses tool-call shapes plus the Models list shape. When a responses-only relay returns its HTML frontend or a 404 for Chat Completions, the provider switches to `/responses` and remembers that protocol for the active connection. Bounded JSON responses are accepted for both protocols. Server-sent-event parsing currently supports Chat Completions only; Responses SSE is not supported by this MVP. Compatible vendors may differ. A successful model listing does not prove tool support. A model/service that rejects tools produces an explicit message; users can disable the calculator and use ordinary chat. Model IDs are treated only as inert display/request values.
+The first adapter follows the OpenAI Chat Completions and Responses tool-call shapes plus the Models list shape. When a responses-only relay returns its HTML frontend or a 404 for Chat Completions, the provider switches to `/responses` and remembers that protocol for the active connection. Bounded JSON responses are accepted for both protocols. Server-sent-event parsing currently supports Chat Completions only; Responses SSE is not supported by this MVP. Compatible vendors may differ. A successful model listing does not prove tool support. A model/service that rejects tools produces an explicit message; the service must support the registered memory/retrieval tools; the former demo toggle is no longer available. Model IDs are treated only as inert display/request values.
 
 Implementation references: OpenAI [Models API](https://platform.openai.com/docs/api-reference/models) and [API authentication/reference](https://platform.openai.com/docs/api-reference). The adapter intentionally remains separate because other “compatible” vendors may implement only a subset or vary error behavior.
 
@@ -210,8 +215,8 @@ paste credentials into chat or notes. Memory is not uploaded to a tracing servic
   `next_offset` until `complete=true`. Original tool records are included. Reading
   has a 12,000-character aggregate per-run budget in addition to loop limits; a long
   record may require continued reading in later turns. No silent content truncation.
-- These three memory tools are always available in the production conversation.
-  The existing UI checkbox still controls only the calculator demonstration tool.
+- These three memory tools are available when the production conversation memory is active.
+  The former demonstration-tool checkbox has been removed.
 - Existing UI history imports once, atomically, if the active archive is empty;
   subsequent restores use the archive without reimporting or reducing tool records.
   Previously discarded history cannot be recovered retroactively.

@@ -44,12 +44,12 @@ test("both prompt categories pass exact text through guarded save IPC", async ()
   const calls=[];
   const service=new AgentService({client:{request:async(method,params)=>{calls.push({method,params});return {blocks:[]};}}});
   const handlers=createAgentIpcHandlers(service,e=>e.trusted);
-  const overrides={base:"  exact\n",memory_prefix:"prefix\n",tool_calculator:"工具说明🙂"};
+  const overrides={base:"  exact\n",memory_prefix:"prefix\n",tool_search_memory:"工具说明🙂"};
   await assert.rejects(()=>handlers.savePrompts({trusted:false},{overrides}),{code:"UNTRUSTED_SENDER"});
   assert.equal((await handlers.savePrompts({trusted:true},{overrides})).ok,true);
   assert.deepEqual(calls,[{method:"save_prompts",params:{overrides}}]);
   assert.equal((await service.savePrompts({tool_unknown:"x"})).error.code,"INVALID_PROMPT");
-  assert.equal((await service.savePrompts({tool_calculator:"x".repeat(8001)})).error.code,"INVALID_PROMPT");
+  assert.equal((await service.savePrompts({tool_search_memory:"x".repeat(8001)})).error.code,"INVALID_PROMPT");
   assert.equal(calls.length,1);
 });
 

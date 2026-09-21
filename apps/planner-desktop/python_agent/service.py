@@ -11,7 +11,6 @@ from .context import ContextError
 from .core import AgentError, AgentRunner, BaseAgent, ToolRegistry
 from .memory import MemorySession, MemoryStore
 from .provider import OpenAICompatibleProvider
-from .tools import CalculatorTool
 from .session_display import redact
 from .prompts import build_system_prompt, PromptStore, DEFAULTS, BLOCK_LABELS, TOOL_DESCRIPTIONS
 
@@ -170,8 +169,7 @@ class AgentService:
         candidate = [*self.history, {"role": "user", "content": text}]
         memory = MemorySession(self.memory_store, self.conversation_id) if self.memory_store and self.conversation_id else None
         prompt_values = dict(self.prompts.blocks)
-        registry = ToolRegistry([CalculatorTool()] if tools_enabled else [],
-                                {name: prompt_values["tool_" + name] for name in TOOL_DESCRIPTIONS})
+        registry = ToolRegistry(description_overrides={name: prompt_values["tool_" + name] for name in TOOL_DESCRIPTIONS})
         agent = BaseAgent("chat", self.prompt_spec().text)
         if memory:
             for tool in memory.tools():

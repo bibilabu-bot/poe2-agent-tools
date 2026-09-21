@@ -139,8 +139,8 @@ app.whenReady().then(async () => {
     const iconVariants = await evaluate(`window.AgentTrace.renderTrace(document,
       ['search_memory','read_memory','update_notebook','calculator','unknown_tool','__proto__'].map(name=>({name,ok:true,result:'{}'})))
       .map(d=>({icon:d.querySelector('svg').dataset.icon,path:d.querySelector('path').getAttribute('d'),hidden:d.querySelector('svg').getAttribute('aria-hidden')}))`);
-    assert.deepEqual(iconVariants.map(v=>v.icon), ["search", "book", "pencil", "calculator", "tool", "tool"]);
-    assert.equal(new Set(iconVariants.slice(0, 5).map(v=>v.path)).size, 5);
+    assert.deepEqual(iconVariants.map(v=>v.icon), ["search", "book", "pencil", "tool", "tool", "tool"]);
+    assert.equal(new Set(iconVariants.slice(0, 5).map(v=>v.path)).size, 4);
     assert.ok(iconVariants.every(v=>v.hidden === "true"));
     // Constrain the viewport and drive the real submit/render path with a deferred
     // response: waiting activity and completed tool/reply output must stay visible.

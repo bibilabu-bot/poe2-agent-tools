@@ -39,12 +39,13 @@
   $("systemPromptCategory").addEventListener("click",()=>selectCategory("system"));
   $("toolPromptCategory").addEventListener("click",()=>selectCategory("tool"));
   $("openPromptEditor").addEventListener("click",()=>{
-    loaded=false;dirty=false;$("promptEditorBlocks").replaceChildren();selectCategory("system");status.textContent="正在读取全部提示词…";dialog.showModal();
+    loaded=false;dirty=false;$("promptEditorBlocks").replaceChildren();selectCategory("system");status.textContent="正在读取全部提示词…";dialog.showModal();dialog.querySelector(".prompt-editor-body").scrollTop=0;
     perform(()=>window.desktopAPI?.agent?.inspectPrompt());
   });
   function mayClose(){return !busy&&(!dirty||window.confirm("有未保存的提示词修改，确定放弃并关闭？"));}
-  $("closePromptEditor").addEventListener("click",()=>{if(mayClose())dialog.close();});
-  dialog.addEventListener("cancel",event=>{if(!mayClose())event.preventDefault();});
+  function requestClose(){if(mayClose())dialog.close();}
+  $("closePromptEditor").addEventListener("click",requestClose);
+  dialog.addEventListener("cancel",event=>{event.preventDefault();requestClose();});
   $("savePromptBlocks").addEventListener("click",()=>{
     const overrides=Object.fromEntries([...$("promptEditorBlocks").querySelectorAll("textarea")].map(field=>[field.dataset.block,field.value]));
     perform(()=>window.desktopAPI.agent.savePrompts(overrides),"已保存，后续请求生效。");

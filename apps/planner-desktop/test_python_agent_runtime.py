@@ -8,7 +8,7 @@ from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from python_agent.core import AgentError, AgentRunner, ChatAgent, ModelProvider, ModelReply, RunnerLimits, ToolCall, ToolRegistry
-from python_agent.tools import CalculatorTool
+from test_arithmetic_fixture import ArithmeticFixtureTool
 from python_agent.context import ContextError, message_chars, select_context
 from python_agent.service import AgentService
 from python_agent.provider import MAX_RESPONSE_BYTES, OpenAICompatibleProvider, _ResponsesStream, _parse_chat_event_stream, normalize_base_url
@@ -69,10 +69,10 @@ class ScriptedProvider(ModelProvider):
 class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_tool_duration_retains_submillisecond_precision(self):
         provider = ScriptedProvider([
-            ModelReply(tool_calls=(ToolCall("c", "calculator", '{"operator":"multiply","a":2,"b":3}'),)),
+            ModelReply(tool_calls=(ToolCall("c", "fixture_arithmetic", '{"operator":"multiply","a":2,"b":3}'),)),
             ModelReply("6"),
         ])
-        runner = AgentRunner(provider, ToolRegistry([CalculatorTool()]))
+        runner = AgentRunner(provider, ToolRegistry([ArithmeticFixtureTool()]))
         # Replace this module's time reference, not the asyncio event loop's clock.
         with patch("python_agent.core.time") as clock:
             clock.monotonic.side_effect = [100.0, 100.000453]
@@ -105,10 +105,10 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_graph_multiple_tools_leave_input_history_unchanged(self):
         history = [{"role": "user", "content": "中文 😀"}]
         provider = ScriptedProvider([
-            ModelReply(tool_calls=tuple(ToolCall(str(i), "calculator", '{"operator":"multiply","a":3,"b":4}') for i in range(2))),
+            ModelReply(tool_calls=tuple(ToolCall(str(i), "fixture_arithmetic", '{"operator":"multiply","a":3,"b":4}') for i in range(2))),
             ModelReply("12"),
         ])
-        runner = AgentRunner(provider, ToolRegistry([CalculatorTool()]))
+        runner = AgentRunner(provider, ToolRegistry([ArithmeticFixtureTool()]))
         self.assertEqual(set(runner.graph.nodes), {"__start__", "prepare_context", "model", "tools"})
         result = await runner.run(agent=ChatAgent(), history=history, model="mock")
         self.assertEqual(result.tool_calls, 2)
@@ -140,12 +140,12 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.text, "hello")
         self.assertEqual(result.rounds, 1)
 
-    async def test_calculator_tool_loop_preserves_call_id(self):
+    async def test_fixture_arithmetic_tool_loop_preserves_call_id(self):
         provider = ScriptedProvider([
-            ModelReply(tool_calls=(ToolCall("call-1", "calculator", '{"operator":"multiply","a":123,"b":456}'),)),
+            ModelReply(tool_calls=(ToolCall("call-1", "fixture_arithmetic", '{"operator":"multiply","a":123,"b":456}'),)),
             ModelReply("56088"),
         ])
-        result = await AgentRunner(provider, ToolRegistry([CalculatorTool()])).run(
+        result = await AgentRunner(provider, ToolRegistry([ArithmeticFixtureTool()])).run(
             agent=ChatAgent(), history=[{"role": "user", "content": "calculate"}], model="mock"
         )
         self.assertEqual(result.text, "56088")
@@ -164,23 +164,23 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("UNKNOWN_TOOL", result.trace[0]["result"])
 
     async def test_tool_call_limit_is_enforced(self):
-        calls = tuple(ToolCall(f"c{i}", "calculator", '{"operator":"add","a":1,"b":1}') for i in range(13))
-        runner = AgentRunner(ScriptedProvider([ModelReply(tool_calls=calls)]), ToolRegistry([CalculatorTool()]))
+        calls = tuple(ToolCall(f"c{i}", "fixture_arithmetic", '{"operator":"add","a":1,"b":1}') for i in range(13))
+        runner = AgentRunner(ScriptedProvider([ModelReply(tool_calls=calls)]), ToolRegistry([ArithmeticFixtureTool()]))
         with self.assertRaisesRegex(AgentError, "limit"):
             await runner.run(agent=ChatAgent(), history=[], model="mock")
 
     async def test_duplicate_tool_call_ids_fail_before_execution(self):
         calls = (
-            ToolCall("same", "calculator", '{"operator":"add","a":1,"b":1}'),
-            ToolCall("same", "calculator", '{"operator":"add","a":2,"b":2}'),
+            ToolCall("same", "fixture_arithmetic", '{"operator":"add","a":1,"b":1}'),
+            ToolCall("same", "fixture_arithmetic", '{"operator":"add","a":2,"b":2}'),
         )
-        runner = AgentRunner(ScriptedProvider([ModelReply(tool_calls=calls)]), ToolRegistry([CalculatorTool()]))
+        runner = AgentRunner(ScriptedProvider([ModelReply(tool_calls=calls)]), ToolRegistry([ArithmeticFixtureTool()]))
         with self.assertRaisesRegex(AgentError, "unique"):
             await runner.run(agent=ChatAgent(), history=[], model="mock")
 
     async def test_chat_sse_fragments_preserve_tool_call_identity(self):
         parsed = _parse_chat_event_stream(
-            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","function":{"name":"calculator","arguments":"{\\"a\\":"}}]}}]}\n'
+            'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","function":{"name":"fixture_arithmetic","arguments":"{\\"a\\":"}}]}}]}\n'
             'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"1}"}}]}}]}\n'
             'data: [DONE]\n'
         )
@@ -225,11 +225,11 @@ class ContextSelectionTests(unittest.IsolatedAsyncioTestCase):
     def test_tool_payload_count_and_atomic_selection(self):
         turn = [{"role": "user", "content": "compute"},
                 {"role": "assistant", "content": "", "tool_calls": [
-                    {"id": "c", "function": {"name": "calculator", "arguments": "{}"}}]},
+                    {"id": "c", "function": {"name": "fixture_arithmetic", "arguments": "{}"}}]},
                 {"role": "tool", "tool_call_id": "c", "content": "123"},
                 {"role": "assistant", "content": "done"}]
         size = sum(message_chars(m) for m in turn)
-        self.assertEqual(size, 28)
+        self.assertEqual(size, 36)
         self.assertEqual(select_context(turn, [], history_limit=size).messages, turn)
         self.assertEqual(select_context(turn, [], history_limit=size - 1).messages, [])
         with self.assertRaises(ContextError):
@@ -246,9 +246,9 @@ class ContextSelectionTests(unittest.IsolatedAsyncioTestCase):
         history = self.turn("old" * 100) + self.turn("new")
         current = {"role": "user", "content": "calculate"}
         provider = ScriptedProvider([
-            ModelReply(tool_calls=(ToolCall("c", "calculator", '{"operator":"multiply","a":3,"b":4}'),)),
+            ModelReply(tool_calls=(ToolCall("c", "fixture_arithmetic", '{"operator":"multiply","a":3,"b":4}'),)),
             ModelReply("12")])
-        runner = AgentRunner(provider, ToolRegistry([CalculatorTool()]), RunnerLimits(max_history_chars=5))
+        runner = AgentRunner(provider, ToolRegistry([ArithmeticFixtureTool()]), RunnerLimits(max_history_chars=5))
         result = await runner.run(agent=ChatAgent(), history=[*history, current], model="mock")
         self.assertEqual(result.context_report["historyChars"], 5)
         self.assertGreater(result.context_report["currentChars"], 5)
@@ -379,7 +379,7 @@ class PythonProviderTests(unittest.IsolatedAsyncioTestCase):
         stream = _ResponsesStream(events.append)
         stream.feed(None, json.dumps({"type": "response.output_text.delta", "delta": "你"}))
         stream.feed(None, json.dumps({"type": "response.output_item.added", "output_index": 1,
-                                      "item": {"type": "function_call", "call_id": "c1", "name": "calculator", "arguments": ""}}))
+                                      "item": {"type": "function_call", "call_id": "c1", "name": "fixture_arithmetic", "arguments": ""}}))
         stream.feed(None, json.dumps({"type": "response.function_call_arguments.delta", "output_index": 1, "delta": "{\"a\":"}))
         stream.feed(None, json.dumps({"type": "response.function_call_arguments.delta", "output_index": 1, "delta": "2}"}))
         stream.feed(None, json.dumps({"type": "response.completed", "response": {"output": []}}))

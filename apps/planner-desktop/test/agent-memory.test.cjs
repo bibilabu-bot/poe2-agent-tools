@@ -18,7 +18,7 @@ test("durable memory: four strategies, UTF-8, restart, cancellation and SSE roll
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-    const memory = JSON.parse(body.messages.find(m => m.content?.startsWith("[MEMORY_CONTEXT_DATA]\n")).content.split("\n").slice(1).join("\n"));
+    const memory = JSON.parse(body.messages.find(m => m.content?.startsWith("[记忆上下文数据]\n")).content.split("\n").slice(1).join("\n"));
     const lastUser = body.messages.findLast(m => m.role === "user").content;
     observed.push({ memory, body, lastUser });
     const afterTools = body.messages.at(-1).role === "tool";

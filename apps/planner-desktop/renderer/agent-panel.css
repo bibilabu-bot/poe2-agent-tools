@@ -42,7 +42,12 @@
 .prompt-inspector summary{cursor:pointer;font-weight:600;margin-bottom:12px}
 .prompt-inspector p{margin:12px 0}
 .prompt-inspection-text{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 Consolas,monospace;color:#c8c3b8;margin:14px 0;user-select:text}
-.prompt-editor{width:min(850px,calc(100vw - 24px));max-height:calc(100vh - 32px);overflow:auto;padding:20px;background:#101216;color:#eee9df;border:1px solid #555a63;border-radius:12px;color-scheme:dark;scrollbar-width:thin}
+.prompt-editor{width:min(850px,calc(100vw - 24px));max-height:calc(100vh - 32px);overflow:hidden;padding:0;background:#101216;color:#eee9df;border:1px solid #555a63;border-radius:12px;color-scheme:dark}
+.prompt-editor[open]{display:flex;flex-direction:column}
+.prompt-editor>header{flex:0 0 auto;padding:16px 20px;background:#101216;border-bottom:1px solid #3c4048;z-index:2}
+.prompt-editor-body{overflow:auto;min-height:0;padding:0 20px 20px;scrollbar-width:thin}
+#closePromptEditor{flex:0 0 auto;white-space:nowrap;min-height:36px}
+#closePromptEditor:focus-visible{outline:2px solid #ffe4b2;outline-offset:3px}
 .prompt-editor::backdrop{background:#000b}
 .prompt-editor header,.prompt-editor footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .prompt-editor h2{margin:0;font-size:18px}.prompt-editor section{margin:18px 0}.prompt-editor label{display:block;margin-bottom:8px;font-size:13px;color:#d8c49b}

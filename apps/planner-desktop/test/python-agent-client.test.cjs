@@ -14,7 +14,7 @@ test("real process selects 100k historical characters without dropping stored tu
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
     observed.push(body);
     const hasTool = body.messages.at(-1).role === "tool";
-    const message = !hasTool && body.tools?.length
+    const message = !hasTool && observed.length === 1
       ? { content: "", tool_calls: [{ id: "calc-1", type: "function", function: { name: "calculator", arguments: '{"operator":"multiply","a":3,"b":4}' } }] }
       : { content: "12" };
     response.writeHead(200, { "content-type": "application/json" });
@@ -32,7 +32,9 @@ test("real process selects 100k historical characters without dropping stored tu
   const result = await client.request("send", { model: "mock", text: "本轮🙂", toolsEnabled: true });
   assert.equal(result.context.historyChars, 100_000);
   assert.equal(result.context.omittedTurns, 1);
-  assert.equal(result.trace[0].ok, true);
+  assert.equal(result.trace[0].ok, false);
+  assert.match(result.trace[0].result,/UNKNOWN_TOOL/);
+  assert.ok(observed.every(body=>!(body.tools||[]).some(tool=>tool.function.name==="calculator")));
   assert.deepEqual(result.history.slice(0, history.length), history);
   assert.equal(observed.length, 2);
   for (const body of observed) {
@@ -90,6 +92,8 @@ test("real Python process streams text and tool phases before the final committe
   const result = await client.request("send", { model: "mock", text: "2+3", toolsEnabled: true }, { onEvent: event => events.push(event) });
   assert.equal(result.text, "答案：5");
   assert.equal(result.trace[0].name, "calculator");
+  assert.equal(result.trace[0].ok, false);
+  assert.match(result.trace[0].result,/UNKNOWN_TOOL/);
   assert.deepEqual(events.filter(event => event.type === "text_delta").map(event => event.text), ["答", "案：5"]);
   assert.ok(events.some(event => event.type === "tool_started" && event.name === "calculator"));
   assert.ok(events.every((event, index) => index === 0 || event.seq > events[index - 1].seq));

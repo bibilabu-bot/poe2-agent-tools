@@ -1,17 +1,16 @@
-"""Built-in side-effect-free tools."""
+"""Test-only arithmetic fixture for generic tool-loop tests."""
 
 from __future__ import annotations
 
 import math
 from typing import Any, Mapping
 
-from .core import AgentError, BaseTool
-from .prompts import TOOL_DESCRIPTIONS
+from python_agent.core import AgentError, BaseTool
 
 
-class CalculatorTool(BaseTool):
-    name = "calculator"
-    description = TOOL_DESCRIPTIONS["calculator"]
+class ArithmeticFixtureTool(BaseTool):
+    name = "fixture_arithmetic"
+    description = "Test-only arithmetic fixture."
     parameters = {
         "type": "object",
         "additionalProperties": False,

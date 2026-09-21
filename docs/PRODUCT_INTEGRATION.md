@@ -1,5 +1,8 @@
 # P2AT-025A — Product integration handoff
 
+Historical integration snapshot. P2AT-028A3 removes the calculator demo described
+below; it is not a current capability. See `SYSTEM_PROMPTS.md` for current tools.
+
 Date: 2026-09-19. Status: ACCEPTED by controller at integration code commit `9b08b1036eae49704e2736be708a2f8f1692f739`.
 
 ## Included histories

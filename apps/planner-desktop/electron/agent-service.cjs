@@ -6,7 +6,7 @@ const { normalizeTrace } = require("../renderer/agent-trace.js");
 // bounded retrieval. Keep a finite wall-clock guard without cutting that path short.
 const RUN_TIMEOUT_MS = 300_000;
 const PROMPT_BLOCK_IDS = new Set(["base", "memory", "rag", "rag_unavailable", "memory_prefix",
-  "tool_calculator", "tool_search_memory", "tool_read_memory", "tool_update_notebook",
+  "tool_search_memory", "tool_read_memory", "tool_update_notebook",
   "tool_read_passive_nodes", "tool_search_passive_nodes", "tool_search_memory_semantic"]);
 
 function safeError(error) {

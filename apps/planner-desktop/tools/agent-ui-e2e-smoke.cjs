@@ -55,9 +55,6 @@ const ready = await waitFor(`(() => {
 if (process.env.P2AT_UI_SMOKE_MODEL) {
   await evaluate(`document.getElementById('agentModel').value = ${JSON.stringify(process.env.P2AT_UI_SMOKE_MODEL)}`);
 }
-if (process.env.P2AT_UI_REQUIRE_TOOL === "1") {
-  await evaluate("document.getElementById('agentToolsEnabled').checked = true; true");
-}
 if (restoredText) {
   await waitFor(`(() => [...document.querySelectorAll('#agentMessages .agent-message')].some((item) => item.textContent.includes(${JSON.stringify(restoredText)})))()`);
 }
@@ -101,7 +98,7 @@ if (!visibleResult) throw new Error("Last response exists but is not visible");
 if (!lastMessage?.role.includes(expectedError ? "error" : "assistant") || !lastMessage.text.includes(expectedError || expectedText)) {
   throw new Error(`live UI chat failed: ${JSON.stringify(lastMessage)}`);
 }
-const expectedTool = process.env.P2AT_UI_EXPECT_TOOL || (process.env.P2AT_UI_REQUIRE_TOOL === "1" ? "calculator" : "");
+const expectedTool = process.env.P2AT_UI_EXPECT_TOOL || "";
 if (expectedTool && !completed.toolTrace.includes(expectedTool)) {
   throw new Error("Expected tool trace was not displayed");
 }

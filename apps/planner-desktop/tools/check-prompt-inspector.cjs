@@ -15,7 +15,7 @@ app.whenReady().then(async()=>{
   ipcMain.handle("agent:save-prompts",handlers.savePrompts);
   const html=fs.readFileSync(path.join(renderer,"index.html"),"utf8").replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,"")
     .replace('<link rel="stylesheet" href="agent-panel.css">',`<style>${fs.readFileSync(path.join(renderer,"agent-panel.css"),"utf8")}</style>`);
-  const run=code=>win.webContents.executeJavaScript(code);
+  const run=async code=>{try{return await win.webContents.executeJavaScript(code);}catch(error){throw new Error(`Synthetic UI evaluation failed: ${code.slice(0,250)}`,{cause:error});}};
   const wait=async condition=>{for(let i=0;i<160;i++){if(await run(condition))return;await new Promise(r=>setTimeout(r,40));}throw Error("Inspector UI timed out");};
   try{
     await win.loadURL("data:text/html;charset=utf-8,"+encodeURIComponent(html));
@@ -32,11 +32,11 @@ app.whenReady().then(async()=>{
     await run(`document.querySelector('#inspectPrompt').click()`);await wait(`!document.querySelector('#inspectPrompt').disabled`);
     assert.deepEqual(calls.slice(start),["inspect_prompt"]);
     const result=await run(`({text:document.querySelector('#promptInspectionText').textContent,status:document.querySelector('#promptInspectionStatus').textContent,chat:document.querySelector('#agentMessages').textContent})`);
-    assert.match(result.text,/MEMORY_CONTEXT_DATA/);assert.match(result.text,/Retrieval is currently unavailable/);
+    assert.match(result.text,/记忆上下文数据/);assert.match(result.text,/检索当前不可用/);
     assert.doesNotMatch(JSON.stringify(result),/PRIVATE_/);assert.doesNotMatch(result.chat,/You are a concise/);
     const direct=await client.request("inspect_prompt");assert.equal(result.text,direct.text);
     await run(`document.querySelector('#promptInspector').scrollIntoView()`);await new Promise(r=>setTimeout(r,150));
-    const output=path.resolve(__dirname,"../../../docs/assets/screenshots/p2at-028a2");fs.mkdirSync(output,{recursive:true});
+    const output=path.resolve(__dirname,"../../../docs/assets/screenshots/p2at-028a3");fs.mkdirSync(output,{recursive:true});
     fs.writeFileSync(path.join(output,"prompt-inspector.png"),(await win.webContents.capturePage()).toPNG());
     service.active={kind:"synthetic-run"};
     await run(`document.querySelector('#inspectPrompt').click()`);await wait(`!document.querySelector('#inspectPrompt').disabled`);
@@ -48,37 +48,88 @@ app.whenReady().then(async()=>{
     await run(fs.readFileSync(path.join(renderer,"prompt-editor.js"),"utf8"));
     await run(`document.querySelector('#settingsView').hidden=true;document.querySelector('#agentView').hidden=false;document.querySelector('#openPromptEditor').click()`);
     await wait(`!document.querySelector('#savePromptBlocks').disabled`);
-    assert.equal(await run(`document.querySelectorAll('#promptEditorBlocks textarea').length`),12);
+    assert.equal(await run(`document.querySelectorAll('#promptEditorBlocks textarea').length`),11);
+    assert.equal(await run(`document.querySelector('#prompt-block-tool_calculator')`),null);
+    assert.equal(await run(`document.querySelector('#closePromptEditor').getAttribute('aria-label')`),"关闭提示词维护");
+    const checkCloseVisible=async()=>{
+      const state=await run(`(()=>{const d=document.querySelector('#promptEditor'),b=document.querySelector('#closePromptEditor'),r=b.getBoundingClientRect(),h=b.parentElement.getBoundingClientRect();const top=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {visible:r.top>=0&&r.bottom<=innerHeight&&r.width>0&&r.height>0&&r.top>=h.top&&r.bottom<=h.bottom,hit:top===b||b.contains(top),top:r.top,dialogScroll:d.scrollTop};})()`);
+      assert.equal(state.visible,true);assert.equal(state.hit,true);assert.equal(state.dialogScroll,0);return state.top;
+    };
+    const headerTop=await checkCloseVisible();
+    for(const fraction of [0.5,1]){
+      await run(`document.querySelector('.prompt-editor-body').scrollTop=document.querySelector('.prompt-editor-body').scrollHeight*${fraction}`);
+      assert.ok(await run(`document.querySelector('.prompt-editor-body').scrollTop>0`));
+      assert.equal(await checkCloseVisible(),headerTop);
+    }
+    // Short content and a smaller viewport use the same non-scrolling header.
+    await run(`document.querySelector('#promptEditorBlocks').hidden=true`);
+    await checkCloseVisible();
+    await run(`document.querySelector('#promptEditorBlocks').hidden=false;document.querySelector('.prompt-editor-body').scrollTop=0`);
+    win.setContentSize(600,480);
+    await run(`document.querySelector('.prompt-editor-body').scrollTop=99999`);
+    await checkCloseVisible();
+    win.setContentSize(1100,850);
+    await run(`document.querySelector('#closePromptEditor').click()`);
+    assert.equal(await run(`document.querySelector('#promptEditor').open`),false);
+    await run(`document.querySelector('#openPromptEditor').click()`);await wait(`!document.querySelector('#savePromptBlocks').disabled`);
     const visibleCount=()=>run(`document.querySelectorAll('#promptEditorBlocks section:not([hidden])').length`);
     assert.equal(await visibleCount(),5);
     assert.deepEqual(await run(`Object.fromEntries([...document.querySelectorAll('#promptEditorBlocks textarea')].map(f=>[f.dataset.block,f.value]))`),
       Object.fromEntries((await client.request("inspect_prompt")).blocks.map(b=>[b.id,b.text])));
     await run(`document.querySelector('#prompt-block-base').value='You are a concise assistant. CUSTOM_UI_FIXTURE';document.querySelector('#prompt-block-base').dispatchEvent(new Event('input'));document.querySelector('#toolPromptCategory').click()`);
-    assert.equal(await visibleCount(),7);
-    await run(`document.querySelector('#prompt-block-tool_calculator').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_calculator').dispatchEvent(new Event('input'));document.querySelector('#systemPromptCategory').click()`);
+    assert.equal(await visibleCount(),6);
+    await run(`document.querySelector('#prompt-block-tool_search_memory').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#systemPromptCategory').click()`);
     assert.match(await run(`document.querySelector('#prompt-block-base').value`),/CUSTOM_UI_FIXTURE/);
     await run(`document.querySelector('#savePromptBlocks').click()`);
     await wait(`document.querySelector('#promptEditorStatus').textContent.includes('已保存')`);
     assert.match((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
     client.terminate();
     assert.match((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
-    assert.match((await client.request("inspect_prompt")).blocks.find(b=>b.id==="tool_calculator").text,/CUSTOM_TOOL_FIXTURE/);
+    assert.match((await client.request("inspect_prompt")).blocks.find(b=>b.id==="tool_search_memory").text,/CUSTOM_TOOL_FIXTURE/);
     await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"system-prompts.png"),(await win.webContents.capturePage()).toPNG());
-    await run(`document.querySelector('#toolPromptCategory').click();document.querySelector('#promptEditor').scrollTop=0`);
+    await run(`document.querySelector('#toolPromptCategory').click();document.querySelector('.prompt-editor-body').scrollTop=0`);
     await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"tool-prompts.png"),(await win.webContents.capturePage()).toPNG());
     service.active={kind:"synthetic-run"};
     await run(`document.querySelector('#savePromptBlocks').click()`);await wait(`!document.querySelector('#savePromptBlocks').disabled`);
     assert.match(await run(`document.querySelector('#promptEditorStatus').textContent`),/操作结束/);service.active=null;
     await run(`window.confirm=()=>true;document.querySelector('#resetPromptBlocks').click()`);await wait(`!document.querySelector('#savePromptBlocks').disabled`);
     assert.doesNotMatch((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
-    assert.doesNotMatch((await client.request("inspect_prompt")).blocks.find(b=>b.id==="tool_calculator").text,/CUSTOM_TOOL_FIXTURE/);
-    await run(`document.querySelector('#prompt-block-tool_calculator').value='x'.repeat(4001);document.querySelector('#prompt-block-tool_calculator').dispatchEvent(new Event('input'));document.querySelector('#savePromptBlocks').click()`);
+    assert.doesNotMatch((await client.request("inspect_prompt")).blocks.find(b=>b.id==="tool_search_memory").text,/CUSTOM_TOOL_FIXTURE/);
+    await run(`document.querySelector('#prompt-block-tool_search_memory').value='x'.repeat(4001);document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#savePromptBlocks').click()`);
     await wait(`!document.querySelector('#savePromptBlocks').disabled`);
     assert.match(await run(`document.querySelector('#promptEditorStatus').textContent`),/4000/);
-    assert.equal(await run(`document.querySelector('#prompt-block-tool_calculator').value.length`),4001);
+    assert.equal(await run(`document.querySelector('#prompt-block-tool_search_memory').value.length`),4001);
     await run(`window.confirm=()=>false;document.querySelector('#closePromptEditor').click()`);
     assert.equal(await run(`document.querySelector('#promptEditor').open`),true);
-    console.log("PASS: 5 system/7 tool blocks fully match runtime, category drafts preserved, both save/restart/reset, busy rejection, overlength preserved, unsaved-close confirmation");
+    const cancel=()=>run(`document.querySelector('#promptEditor').dispatchEvent(new Event('cancel',{cancelable:true}))`);
+    await cancel();assert.equal(await run(`document.querySelector('#promptEditor').open`),true);
+    assert.equal(await run(`document.querySelector('#prompt-block-tool_search_memory').value.length`),4001);
+    await run(`window.confirm=()=>true;document.querySelector('#closePromptEditor').click()`);
+    assert.equal(await run(`document.querySelector('#promptEditor').open`),false);
+    await run(`document.querySelector('#openPromptEditor').click()`);await wait(`!document.querySelector('#savePromptBlocks').disabled`);
+    await run(`document.querySelector('#prompt-block-base').value='中文草稿🙂';document.querySelector('#prompt-block-base').dispatchEvent(new Event('input'));window.confirm=()=>true;true`);
+    // Native Escape follows the same confirmation path as the button.
+    win.webContents.sendInputEvent({type:"keyDown",keyCode:"Escape"});win.webContents.sendInputEvent({type:"keyUp",keyCode:"Escape"});
+    await wait(`!document.querySelector('#promptEditor').open`);
+    await run(`document.querySelector('#openPromptEditor').click()`);await wait(`!document.querySelector('#savePromptBlocks').disabled`);
+    let releaseSave;
+    const previousRequest=client.request;
+    client.request=(method,...args)=>method==="save_prompts"?new Promise(resolve=>{releaseSave=()=>resolve(previousRequest.call(client,method,...args));}):previousRequest.call(client,method,...args);
+    await run(`document.querySelector('#savePromptBlocks').click()`);
+    await wait(`document.querySelector('#closePromptEditor').disabled`);
+    await run(`document.querySelector('#closePromptEditor').click()`);await cancel();
+    assert.equal(await run(`document.querySelector('#promptEditor').open`),true);
+    assert.equal(typeof releaseSave,"function");releaseSave();
+    await wait(`!document.querySelector('#closePromptEditor').disabled`);
+    client.request=previousRequest;
+    assert.equal(await run(`document.querySelector('#promptEditor').open`),true);
+    await run(`document.querySelector('.prompt-editor-body').scrollTop=99999`);await checkCloseVisible();
+    assert.ok(await run(`(()=>{const b=document.querySelector('.prompt-editor-body');return b.scrollTop>0&&Math.abs(b.scrollHeight-b.clientHeight-b.scrollTop)<2;})()`));
+    await new Promise(resolve=>setTimeout(resolve,150));
+    fs.writeFileSync(path.join(output,"close-at-bottom.png"),(await win.webContents.capturePage()).toPNG());
+    await cancel();assert.equal(await run(`document.querySelector('#promptEditor').open`),false);
+    console.log("PASS: close always visible/hittable at top/middle/bottom, short content and small viewport; clean/dirty button and native Escape, cancel preserves draft, busy prevents close and late-save loss");
+    console.log("PASS: 5 system/6 tool blocks fully match runtime, category drafts preserved, both save/restart/reset, busy rejection, overlength preserved, unsaved-close confirmation");
     console.log("PASS: production Python/preload/settings inspector; explicit read only, exact text, state labels, no private data/chat writes, busy rejection, stale clearing; zero network");
   }finally{win.destroy();client.terminate();ipcMain.removeHandler("agent:inspect-prompt");ipcMain.removeHandler("agent:save-prompts");app.quit();}
 }).catch(error=>{console.error(error);app.exit(1)});

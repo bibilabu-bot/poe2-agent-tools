@@ -18,7 +18,7 @@ def pair(question, answer):
 
 def block(request):
     content = next(m["content"] for m in request["messages"]
-                   if m["content"].startswith("[MEMORY_CONTEXT_DATA]"))
+                   if m["content"].startswith("[记忆上下文数据]"))
     return json.loads(content.split("\n", 1)[1])
 
 

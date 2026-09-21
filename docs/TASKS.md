@@ -6,6 +6,24 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-028A3 — Persistent prompt close control and Chinese defaults
+
+- Status: `REVIEW`
+- Assignment target: `Codex local executor`
+- Baseline: main 5d74d195; accepted P2AT-028A2
+- Owner request: always-visible accessible close control, common Escape/button
+  dirty/busy handling; translate all 5 system and 6 retained tool blocks to Chinese,
+  remove the calculator demonstration and its production implementation/UI/schema.
+- Preserve tool schemas/permissions/conditions/budgets and genuine overrides.
+  Migrate exact old default values only, without implicit disk writes. Test scroll,
+  close/cancel/confirm/busy and v1/v2 default/custom/reset/restart/provider parity.
+  Synthetic evidence only, full tests/check and independent review, REVIEW only.
+- P2AT-028B remains paused pending controller acceptance of this hotfix.
+
+Evidence: Node 196/196 (zero skips), Python 60/60, prompt-specific 16/16,
+syntax/diff checks, real synthetic Electron prompt/agent UI regressions and
+independent review APPROVE. Screenshots: `docs/assets/screenshots/p2at-028a3/`.
+
 ### P2AT-028A2 — Categorized complete prompt maintenance
 
 - Status: `ACCEPTED`

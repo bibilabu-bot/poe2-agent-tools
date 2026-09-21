@@ -1,11 +1,11 @@
 "use strict";
 
-const { BaseTool } = require("./base-tool.js");
+const { BaseTool } = require("../../src/agent-core/base-tool.js");
 
-class CalculatorTool extends BaseTool {
+class ArithmeticFixtureTool extends BaseTool {
   constructor() {
     super({
-      name: "calculator",
+      name: "fixture_arithmetic",
       description: "Safely add, subtract, multiply, or divide two finite numbers.",
       parameters: {
         type: "object",
@@ -29,4 +29,4 @@ class CalculatorTool extends BaseTool {
   }
 }
 
-module.exports = { CalculatorTool };
+module.exports = { ArithmeticFixtureTool };

@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const { AgentRunner } = require("../src/agent-core/agent-runner.js");
 const { ChatAgent } = require("../src/agent-core/base-agent.js");
 const { ToolRegistry } = require("../src/agent-core/tool-registry.js");
-const { CalculatorTool } = require("../src/agent-core/calculator-tool.js");
+const { ArithmeticFixtureTool } = require("./helpers/arithmetic-fixture.cjs");
 const { BaseTool } = require("../src/agent-core/base-tool.js");
 
 class QueueProvider {
@@ -14,8 +14,8 @@ class QueueProvider {
 }
 
 function call(id, name, args) { return { id, name, arguments: typeof args === "string" ? args : JSON.stringify(args) }; }
-function runner(provider, tools = [new CalculatorTool()], limits) { return new AgentRunner({ provider, registry: new ToolRegistry(tools), limits }); }
-const agent = new ChatAgent();
+function runner(provider, tools = [new ArithmeticFixtureTool()], limits) { return new AgentRunner({ provider, registry: new ToolRegistry(tools), limits }); }
+const agent = new ChatAgent({ systemPrompt: "Test-only instruction for protocol accounting." });
 
 test("plain multi-turn chat completes without tools", async () => {
   const provider = new QueueProvider([{ content: "hello", toolCalls: [] }]);
@@ -23,8 +23,8 @@ test("plain multi-turn chat completes without tools", async () => {
   assert.equal(result.text, "hello"); assert.equal(result.rounds, 1); assert.equal(result.toolCalls, 0);
 });
 
-test("single calculator call is paired by call ID before the model continues", async () => {
-  const provider = new QueueProvider([{ content: "", toolCalls: [call("c1", "calculator", { operator: "multiply", a: 12, b: 3 })] }, { content: "36", toolCalls: [] }]);
+test("single fixture_arithmetic call is paired by call ID before the model continues", async () => {
+  const provider = new QueueProvider([{ content: "", toolCalls: [call("c1", "fixture_arithmetic", { operator: "multiply", a: 12, b: 3 })] }, { content: "36", toolCalls: [] }]);
   const result = await runner(provider).run({ agent, history: [{ role: "user", content: "12*3" }], model: "m" });
   const second = provider.requests[1].messages;
   assert.equal(second.at(-1).tool_call_id, "c1"); assert.match(second.at(-1).content, /36/); assert.equal(result.text, "36");
@@ -40,8 +40,8 @@ test("multiple tool calls execute in declared order", async () => {
 
 for (const [name, toolCall, expected] of [
   ["unknown tool", call("x", "shell", {}), "failed safely"],
-  ["bad JSON", call("x", "calculator", "{"), "valid JSON"],
-  ["schema violation", call("x", "calculator", { operator: "add", a: 1 }), "required"],
+  ["bad JSON", call("x", "fixture_arithmetic", "{"), "valid JSON"],
+  ["schema violation", call("x", "fixture_arithmetic", { operator: "add", a: 1 }), "required"],
 ]) test(`${name} becomes a controlled tool result`, async () => {
   const provider = new QueueProvider([{ content: "", toolCalls: [toolCall] }, { content: "handled", toolCalls: [] }]);
   const result = await runner(provider).run({ agent, history: [], model: "m" });
@@ -57,17 +57,17 @@ test("tool exceptions become controlled results", async () => {
 
 test("oversized or duplicate tool-call batches are bounded before entering history", async () => {
   const huge = "x".repeat(20_000);
-  const provider = new QueueProvider([{ content: "", toolCalls: [call("same", "calculator", huge), call("same", "calculator", {})] }, { content: "handled", toolCalls: [] }]);
+  const provider = new QueueProvider([{ content: "", toolCalls: [call("same", "fixture_arithmetic", huge), call("same", "fixture_arithmetic", {})] }, { content: "handled", toolCalls: [] }]);
   const result = await runner(provider).run({ agent, history: [], model: "m" });
   assert.ok(provider.requests[1].messages[1].tool_calls[0].function.arguments.length <= 16_385);
   assert.notEqual(provider.requests[1].messages[1].tool_calls[0].id, provider.requests[1].messages[1].tool_calls[1].id);
   assert.equal(result.trace.every((item) => item.ok === false), true);
-  const tooMany = new QueueProvider([{ content: "", toolCalls: Array.from({ length: 13 }, (_, i) => call(`c${i}`, "calculator", {})) }]);
+  const tooMany = new QueueProvider([{ content: "", toolCalls: Array.from({ length: 13 }, (_, i) => call(`c${i}`, "fixture_arithmetic", {})) }]);
   await assert.rejects(() => runner(tooMany).run({ agent, history: [], model: "m" }), { code: "TOOL_CALL_LIMIT" });
 });
 
 test("model round and tool-call limits stop explicitly", async () => {
-  const repeated = Array.from({ length: 4 }, (_, index) => ({ content: "", toolCalls: [call(`c${index}`, "calculator", { operator: "add", a: 1, b: 1 })] }));
+  const repeated = Array.from({ length: 4 }, (_, index) => ({ content: "", toolCalls: [call(`c${index}`, "fixture_arithmetic", { operator: "add", a: 1, b: 1 })] }));
   await assert.rejects(() => runner(new QueueProvider(repeated), undefined, { maxModelRounds: 2 }).run({ agent, history: [], model: "m" }), { code: "MODEL_ROUND_LIMIT" });
   await assert.rejects(() => runner(new QueueProvider(repeated), undefined, { maxToolCalls: 1 }).run({ agent, history: [], model: "m" }), { code: "TOOL_CALL_LIMIT" });
 });
