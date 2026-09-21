@@ -6,6 +6,19 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-028B — Bounded read-only live tree tools
+
+- Status: `READY`
+- Assignment target: external coding executor, owner-forwarded prompt and GitHub delivery
+- Owner resumed development after P2AT-029A zero-skip environment verification.
+- Scope: bounded tree/Build snapshot, node lookup, lexical search, neighborhood,
+  eligible candidate paths and Build summary through the existing Python tool loop.
+  Reuse Planner graph/classification; no allocations, saving or write tools.
+- Require immutable per-run snapshot identity, bounded responses, session isolation,
+  Chinese governed tool descriptions and no full-tree model context dump.
+- Full Node/Python, locked-tree and synthetic Electron tool-loop regressions plus
+  independent review required. Deliver REVIEW; controller alone accepts/merges.
+
 ### P2AT-029A — External executor environment bootstrap
 
 - Status: `ACCEPTED`
