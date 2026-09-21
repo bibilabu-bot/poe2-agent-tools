@@ -90,6 +90,7 @@
       classStartId: String(catalog.classStartIds.get(base)),
       selectedAscendancyId: ascendancyId,
       ascStartId: ascendancyId ? String(catalog.ascendancyStartIds.get(ascendancyId)) : null,
+      freeAscendancyIds: new Set([...(catalog.freeAscendancyIds?.get(ascendancyId) || [])].map(String)),
       maxPoints: current.maxPoints,
       maxWeaponPoints: current.maxWeaponPoints,
       maxAscPoints: current.maxAscPoints,
@@ -118,7 +119,9 @@
     const general=Math.max(0,candidate.allocated.size-(candidate.classStartId ? 1 : 0));
     const weaponSet1=candidate.weaponSet1Allocated.size;
     const weaponSet2=candidate.weaponSet2Allocated.size;
-    const ascendancy=Math.max(0,candidate.ascAllocated.size-(candidate.ascStartId ? 1 : 0));
+    const freeAscendancyIds=new Set(candidate.freeAscendancyIds || []);
+    if(candidate.ascStartId) freeAscendancyIds.add(String(candidate.ascStartId));
+    const ascendancy=[...candidate.ascAllocated].filter(id=>!freeAscendancyIds.has(String(id))).length;
     return Object.freeze({general,weaponSet1,weaponSet2,ascendancy,effectivePassive:general+Math.max(weaponSet1,weaponSet2)});
   }
 

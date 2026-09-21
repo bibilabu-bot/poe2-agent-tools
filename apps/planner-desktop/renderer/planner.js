@@ -3820,10 +3820,17 @@ async function readWeGamePreview(event) {
 }
 
 function weGamePlannerCatalog() {
-  const normalIds=new Set(), ordinarySocketIds=new Set(), ascendancyIds=new Map();
+  const normalIds=new Set(), ordinarySocketIds=new Set(), ascendancyIds=new Map(), freeAscendancyIds=new Map();
   for(const node of nodes) {
     const id=idOf(node);
-    if(node.asc) ascendancyIds.set(id,String(node.asc));
+    if(node.asc) {
+      const ascendancyId=String(node.asc);
+      ascendancyIds.set(id,ascendancyId);
+      if(kind(node)==="ascstart" || node.isAscendancyStart===true) {
+        if(!freeAscendancyIds.has(ascendancyId)) freeAscendancyIds.set(ascendancyId,new Set());
+        freeAscendancyIds.get(ascendancyId).add(id);
+      }
+    }
     else if(node.isJewelSocket===true || kind(node)==="jewel") ordinarySocketIds.add(id);
     else if(!isMasteryVisual(node) && !isInstillExclusiveNode(node) && !isClassStart(node) && !isLegacyStartArtifact(node)) normalIds.add(id);
   }
@@ -3831,7 +3838,7 @@ function weGamePlannerCatalog() {
   return {
     ...catalogs,
     ascendanciesByClass:new Map(classOptions.map(entry=>[entry.name,new Set(ascendanciesForClassName(entry.name).map(a=>a.id))])),
-    nodeIds:new Set(byId.keys()), normalIds, ordinarySocketIds, ascendancyIds,
+    nodeIds:new Set(byId.keys()), normalIds, ordinarySocketIds, ascendancyIds, freeAscendancyIds,
     weaponEligibleIds:new Set(nodes.filter(weaponSetEligible).map(idOf))
   };
 }

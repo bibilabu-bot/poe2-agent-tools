@@ -28,6 +28,7 @@ function catalog() {
   return {
     classStartIds: new Map([["Mercenary", "start"]]),
     ascendancyStartIds: new Map([["Mercenary3", "astart"]]),
+    freeAscendancyIds: new Map([["Mercenary3", new Set(["astart"])]]),
     ascendanciesByClass: new Map([["Mercenary", new Set(["Mercenary3"])]]),
     nodeIds: new Set(["1", "2", "3", "4", "5"]), normalIds: new Set(["1"]),
     ordinarySocketIds: new Set(["3"]), ascendancyIds: new Map([["2", "Mercenary3"]]),
@@ -109,4 +110,13 @@ test("missing Planner weapon nodes are bounded explicit omissions", () => {
 test("budget summary uses general plus max weapon set and excludes free starts", () => {
   const result=ui.createPlannerCandidate(fixture(),{baseClassName:"Mercenary",ascendancyId:"Mercenary3",partialImportAcknowledged:true},current(),catalog());
   assert.deepEqual(ui.summarizeApplicationBudget(result),{general:2,weaponSet1:1,weaponSet2:1,ascendancy:1,effectivePassive:3});
+});
+test("budget summary excludes every imported free ascendancy start artifact", () => {
+  const value=fixture();
+  value.candidate.active.ascendancy.push({numericId:"6",officialId:"free-bridge",active:true});
+  const catalogs=catalog();
+  catalogs.nodeIds.add("6"); catalogs.ascendancyIds.set("6","Mercenary3");
+  catalogs.freeAscendancyIds.get("Mercenary3").add("6");
+  const result=ui.createPlannerCandidate(value,{baseClassName:"Mercenary",ascendancyId:"Mercenary3",partialImportAcknowledged:true},current(),catalogs);
+  assert.equal(ui.summarizeApplicationBudget(result).ascendancy,1);
 });
