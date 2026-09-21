@@ -237,7 +237,11 @@
     });
     var fallbackAscUsed = sortedIds(state.ascAllocated || []).filter(function(nodeId) {
       var node = (state.nodes || []).find(function(candidate) { return idOf(candidate) === nodeId; });
-      return nodeId !== state.ascStartId && !(node && (nodeKind(node) === "ascstart" || node.isAscendancyStart === true));
+      return nodeId !== state.ascStartId && !(node && (
+        nodeKind(node) === "ascstart"
+        || node.isAscendancyStart === true
+        || node.isMultipleChoiceOption === true
+      ));
     }).length;
     return {
       baseClassName: state.baseClassName || null,

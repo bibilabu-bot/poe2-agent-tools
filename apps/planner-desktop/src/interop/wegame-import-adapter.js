@@ -99,7 +99,11 @@
         seen.add(numericId);
         const identity = mapper.numericToOfficial(numericId); const classification = mapper.classifyNumeric(numericId);
         if (identity.status !== "mapped" || classification.status !== "mapped") { unresolved.push({ source: path, numericId, reason: identity.status }); diagnostics.add("UNKNOWN_PASSIVE_ID", "warning", path, `Passive ${numericId} is not present in the locked tree.`); continue; }
-        target.push(Object.freeze({ numericId, officialId: identity.officialId, classification: classification.classification, active: activeAllowed }));
+        const node=officialTree.nodes[numericId];
+        target.push(Object.freeze({
+          numericId, officialId: identity.officialId, classification: classification.classification, active: activeAllowed,
+          pointCost: node?.isMultipleChoiceOption===true ? 0 : 1,
+        }));
       }
     }
     const mappedHashes = []; mapList(tree.hashes, "talent_tree.hashes", mappedHashes, true);

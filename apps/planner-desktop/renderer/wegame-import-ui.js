@@ -50,6 +50,7 @@
     const asc = new Set();
     const weapon1 = new Set();
     const weapon2 = new Set();
+    const importedFreeAscendancyIds = new Set();
     const weaponSetOmissions=[];
     const seen = new Set();
     function accept(records, expected, target) {
@@ -61,6 +62,7 @@
         if (expected === "normal" && !catalog.normalIds.has(id)) throw new Error(`Imported passive ${id} is not an ordinary Planner passive.`);
         if (expected === "socket" && !catalog.ordinarySocketIds.has(id)) throw new Error(`Imported passive ${id} is not a supported ordinary socket.`);
         if (expected === "ascendancy" && catalog.ascendancyIds.get(id) !== ascendancyId) throw new Error(`Imported passive ${id} conflicts with the confirmed ascendancy.`);
+        if (expected === "ascendancy" && record.pointCost === 0) importedFreeAscendancyIds.add(id);
         target.add(id);
       }
     }
@@ -90,7 +92,10 @@
       classStartId: String(catalog.classStartIds.get(base)),
       selectedAscendancyId: ascendancyId,
       ascStartId: ascendancyId ? String(catalog.ascendancyStartIds.get(ascendancyId)) : null,
-      freeAscendancyIds: new Set([...(catalog.freeAscendancyIds?.get(ascendancyId) || [])].map(String)),
+      freeAscendancyIds: new Set([
+        ...[...(catalog.freeAscendancyIds?.get(ascendancyId) || [])].map(String),
+        ...importedFreeAscendancyIds,
+      ]),
       maxPoints: current.maxPoints,
       maxWeaponPoints: current.maxWeaponPoints,
       maxAscPoints: current.maxAscPoints,

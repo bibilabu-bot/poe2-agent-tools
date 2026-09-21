@@ -12,6 +12,14 @@ function evidenceTree() {
   }
   return { nodes, jewelSlots };
 }
+test("marks ascendancy multiple-choice effects as zero-cost", () => {
+  const tree=evidenceTree();
+  tree.nodes["37397"].isMultipleChoiceOption=true;
+  const result=adaptWeGamePassiveImport({roleInfo:fixture.roleInfo,talentTree:fixture.talentTree},tree);
+  const choice=result.candidate.active.ascendancy.find(item=>item.numericId==="37397");
+  assert.equal(choice.pointCost,0);
+  assert.ok(result.candidate.active.ascendancy.filter(item=>item.numericId!=="37397").every(item=>item.pointCost===1));
+});
 test("fixture creates active passive candidates and preserves inactive semantics without mutation", () => {
   const input = structuredClone({ roleInfo: fixture.roleInfo, talentTree: fixture.talentTree }); input.roleInfo.role.openid = "role-open"; input.roleInfo.role.role_id = "role-id"; input.roleInfo.share_code = "share-secret"; const before = JSON.stringify(input);
   const result = adaptWeGamePassiveImport(input, evidenceTree());

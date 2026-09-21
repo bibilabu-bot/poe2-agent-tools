@@ -120,3 +120,11 @@ test("budget summary excludes every imported free ascendancy start artifact", ()
   const result=ui.createPlannerCandidate(value,{baseClassName:"Mercenary",ascendancyId:"Mercenary3",partialImportAcknowledged:true},current(),catalogs);
   assert.equal(ui.summarizeApplicationBudget(result).ascendancy,1);
 });
+test("budget summary excludes imported ascendancy multiple-choice options", () => {
+  const value=fixture();
+  value.candidate.active.ascendancy.push({numericId:"6",officialId:"choice-option",active:true,pointCost:0});
+  const catalogs=catalog();
+  catalogs.nodeIds.add("6"); catalogs.ascendancyIds.set("6","Mercenary3");
+  const result=ui.createPlannerCandidate(value,{baseClassName:"Mercenary",ascendancyId:"Mercenary3",partialImportAcknowledged:true},current(),catalogs);
+  assert.equal(ui.summarizeApplicationBudget(result).ascendancy,1);
+});

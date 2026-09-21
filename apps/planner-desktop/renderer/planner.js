@@ -365,6 +365,8 @@ async function loadOfficialHiddenSidecar() {
     if(!current) continue;
     if(raw.unlockConstraint && !current.unlockConstraint) current.unlockConstraint=raw.unlockConstraint;
     if(raw.isBlighted) current.isBlighted=true;
+    if(raw.isMultipleChoiceOption===true) current.isMultipleChoiceOption=true;
+    if(raw.multipleChoiceParent!=null) current.multipleChoiceParent=String(raw.multipleChoiceParent);
   }
 
   let injected=0;
@@ -2470,12 +2472,20 @@ function usedPoints() {
 function usedAscPoints() {
   let used=0;
   for(const id of ascAllocated) {
-    if(id===ascStartId) continue;
     const node=byId.get(String(id));
-    if(node && (kind(node)==="ascstart" || node.isAscendancyStart===true)) continue;
+    if(isFreeAscendancyNode(node,id)) continue;
     used++;
   }
   return used;
+}
+
+function isFreeAscendancyNode(node,id=null) {
+  return String(id??idOf(node))===String(ascStartId)
+    || Boolean(node && (
+      kind(node)==="ascstart"
+      || node.isAscendancyStart===true
+      || node.isMultipleChoiceOption===true
+    ));
 }
 
 function remainingPoints() {
@@ -2702,7 +2712,7 @@ function previewCost() {
 
 function ascPreviewCost() {
   let cost=0;
-  for(const id of ascPreviewIds) if(id!==ascStartId) cost++;
+  for(const id of ascPreviewIds) if(!isFreeAscendancyNode(byId.get(String(id)),id)) cost++;
   return cost;
 }
 
@@ -2994,7 +3004,7 @@ function allocateAscTarget(n) {
   }
 
   const newIds=path.filter(x=>!ascAllocated.has(x));
-  const cost=newIds.filter(x=>x!==ascStartId).length;
+  const cost=newIds.filter(x=>!isFreeAscendancyNode(byId.get(String(x)),x)).length;
   if(cost>remainingAscPoints()) {
     updatePlannerUI(`升华点不足：需要 ${cost}，剩余 ${remainingAscPoints()}。`);
     return;
@@ -3434,7 +3444,7 @@ function showTip(ev,n) {
       p.textContent=id===ascStartId ? "升华起点（0 点）" : "点击：取消升华节点";
     } else {
       const path=ascPathToAllocated(id);
-      const cost=path.filter(x=>!ascAllocated.has(x)&&x!==ascStartId).length;
+      const cost=path.filter(x=>!ascAllocated.has(x)&&!isFreeAscendancyNode(byId.get(String(x)),x)).length;
       p.textContent=path.length ? `升华最低路径 +${cost} 点` : "升华路径不可到达";
     }
   } else if(isHiddenConditional(n) && hiddenNodeLocked(n)) {
@@ -3826,7 +3836,7 @@ function weGamePlannerCatalog() {
     if(node.asc) {
       const ascendancyId=String(node.asc);
       ascendancyIds.set(id,ascendancyId);
-      if(kind(node)==="ascstart" || node.isAscendancyStart===true) {
+      if(kind(node)==="ascstart" || node.isAscendancyStart===true || node.isMultipleChoiceOption===true) {
         if(!freeAscendancyIds.has(ascendancyId)) freeAscendancyIds.set(ascendancyId,new Set());
         freeAscendancyIds.get(ascendancyId).add(id);
       }
@@ -4251,6 +4261,11 @@ async function load() {
     populateClassSelect();
     populateAscendancySelect(null,null);
 
+    // Point-cost semantics (including zero-cost ascendancy choice effects) live
+    // in the canonical export, so do not expose build/import/Agent state until
+    // that metadata has been merged into the slim renderer tree.
+    await loadOfficialHiddenSidecar();
+
     document.querySelectorAll("button,input,select").forEach(x=>x.disabled=false);
     setBuildControlsReady(true);
     $("#undo").disabled=true; $("#redo").disabled=true; $("#resetBuild").disabled=true;
@@ -4261,17 +4276,6 @@ async function load() {
     fit();
     updatePlannerUI();
     renderInstillCatalog();
-
-    // The slim renderer dataset intentionally omits some isBlighted-only nodes.
-    // Load GGG's official full export as a non-blocking sidecar and inject only
-    // the known tree-external display passives at their canonical positions.
-    loadOfficialHiddenSidecar().catch(err=>{
-      console.error("[official-hidden]",err);
-      officialHiddenSidecarError=err;
-      officialHiddenSidecarReady=false;
-      renderInstillCatalog();
-      scheduleDraw();
-    });
 
     loadChineseI18n().catch(()=>{}); // display-only layer; graph remains usable if it fails
 

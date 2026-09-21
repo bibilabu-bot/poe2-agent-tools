@@ -121,6 +121,16 @@ test("ascendancy usage excludes every zero-cost ascendancy start artifact", () =
   assert.equal(captureBuildState(state).budgetUsage.ascendancy, 2);
 });
 
+test("ascendancy usage excludes multiple-choice effects", () => {
+  const state = {
+    nodes:[{skill:"start",kind:"ascstart"},{skill:"parent",kind:"notable"},{skill:"choice",kind:"asc",isMultipleChoiceOption:true}],
+    allocated:new Set(), weaponSet1Allocated:new Set(), weaponSet2Allocated:new Set(),
+    ascAllocated:new Set(["start","parent","choice"]), instillAllocated:new Set(), ascStartId:"start",
+    maxPoints:123,maxWeaponPoints:24,maxAscPoints:8,selectedAscendancyId:"Mercenary3",ascendancyOptions:[],
+  };
+  assert.equal(captureBuildState(state).budgetUsage.ascendancy, 1);
+});
+
 test("complete catalog ignores canvas filters and publishes node 54814 with every Chinese stat", () => {
   const nodes = [
     {skill:"1", name:"职业起点", kind:"classstart", classesStart:[0], stats:[], x:0, y:0},
