@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-028A2 — Categorized complete prompt maintenance
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Assignment target: `Codex local executor`
 - Depends on: accepted P2AT-028A; main 571e187
 - Owner request: switch between System and Tool prompt categories; expose every
@@ -17,7 +17,9 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
   schemas/permissions, and default model-facing bytes. No stage-2/3 work here.
 - Acceptance: editing both categories survives switching/save/restart, actual
   provider requests use overrides, defaults restore, atomic/bounded saves and
-  synthetic UI regressions pass. Deliver REVIEW on its own branch.
+  synthetic UI regressions pass. Accepted by controller on 2026-09-21 after
+  195 Node tests (194 pass, one environment-gated skip), 57 Python tests,
+  syntax checks, synthetic Electron prompt checks and two independent reviews.
 
 ### P2AT-028A — Govern and inspect effective system prompts
 
