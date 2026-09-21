@@ -4330,3 +4330,57 @@ new ResizeObserver(resize).observe(wrap);
 window.addEventListener("resize",resize);
 resize();
 load();
+
+// --- Narrow Build state capture for external read-only tools ---
+// Accessed by agent-panel.js before sending; only the listed keys leave the renderer.
+window.captureBuildState = function() {
+  var state = {};
+  if (typeof baseClassName === "string") state.baseClassName = baseClassName;
+  state.selectedAscendancyId = selectedAscendancyId || null;
+  state.classStartId = classStartId || null;
+  state.ascStartId = ascStartId || null;
+  state.maxPoints = Number.isFinite(maxPoints) ? maxPoints : 0;
+  state.maxWeaponPoints = Number.isFinite(maxWeaponPoints) ? maxWeaponPoints : 0;
+  state.maxAscPoints = Number.isFinite(maxAscPoints) ? maxAscPoints : 0;
+  if (typeof effectivePassivePointsUsed === "function") state.passivePointsUsed = effectivePassivePointsUsed();
+  state.ascPointsUsed = ascAllocated ? (ascStartId ? Math.max(0, ascAllocated.size - 1) : ascAllocated.size) : 0;
+  state.allocated = _plannerSortedIds(allocated);
+  state.weaponSet1Allocated = _plannerSortedIds(weaponSet1Allocated);
+  state.weaponSet2Allocated = _plannerSortedIds(weaponSet2Allocated);
+  state.ascAllocated = _plannerSortedIds(ascAllocated);
+  state.instillAllocated = Array.from(instillAllocated || []).sort();
+  state.ascendancyOptions = (ascendancyOptions || []).map(function(a) { return { id: a.id, name: a.name }; });
+  state.showAscendancy = Boolean(showAsc);
+  state.showLockedConditional = Boolean(showLockedConditional);
+  state.showInstillOnGraph = Boolean(showInstillOnGraph);
+  state.showSmall = Boolean(showSmall);
+  state.weaponMode = weaponMode || null;
+  if (!i18n.ready) {
+    state._projectionError = "Chinese passive-tree localization is not ready";
+    return state;
+  }
+  var pn = [], node;
+  for (var i = 0; i < nodes.length; i++) {
+    node = nodes[i]; if (!node) continue;
+    if (typeof isMasteryVisual === "function" && isMasteryVisual(node)) continue;
+    if (typeof isLegacyStartArtifact === "function" && isLegacyStartArtifact(node)) continue;
+    var nid = typeof idOf === "function" ? idOf(node) : String(node.skill);
+    if (!nid || nid === "undefined") continue;
+    pn.push({id:nid,name:String(node.name||""),localizedName:displayNodeName(node,"zh"),localizedStats:Array.isArray(node.stats)?node.stats.map(function(stat){return displayStat(stat,"zh",node)}):[],stats:Array.isArray(node.stats)?node.stats:[],kind:node.kind||"small",x:Number.isFinite(node.x)?node.x:null,y:Number.isFinite(node.y)?node.y:null,asc:node.asc||null,isJewelSocket:Boolean(node.isJewelSocket),isBlighted:Boolean(node.isBlighted),isNotable:(node.kind||"small")==="notable",isKeystone:(node.kind||"small")==="keystone",unlockConstraint:node.unlockConstraint||null});
+  }
+  state.nodes = pn;
+  var pe = [], re = edges || [];
+  for (var j = 0; j < re.length; j++) {
+    var e = re[j]; if (!e || typeof e.f === "undefined") continue;
+    pe.push({f:String(e.f),t:String(e.t)});
+  }
+  state.edges = pe;
+  if (JSON.stringify(state).length > 8000000) { state.nodes = []; state.edges = []; state._projectionError = "snapshot exceeds 8 MiB safety bound"; }
+  return state;
+};
+function _plannerSortedIds(coll) {
+  if (!coll) return [];
+  var a = coll instanceof Set ? Array.from(coll) : Array.isArray(coll) ? coll : [];
+  return a.map(String).sort(function(x,y){return String(x)<String(y)?-1:String(x)>String(y)?1:0});
+}
+;

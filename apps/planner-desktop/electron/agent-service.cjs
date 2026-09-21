@@ -7,7 +7,9 @@ const { normalizeTrace } = require("../renderer/agent-trace.js");
 const RUN_TIMEOUT_MS = 300_000;
 const PROMPT_BLOCK_IDS = new Set(["base", "memory", "rag", "rag_unavailable", "memory_prefix",
   "tool_search_memory", "tool_read_memory", "tool_update_notebook",
-  "tool_read_passive_nodes", "tool_search_passive_nodes", "tool_search_memory_semantic"]);
+  "tool_read_passive_nodes", "tool_search_passive_nodes", "tool_search_memory_semantic",
+  "tool_tree_summary", "tool_read_tree_nodes", "tool_search_tree_nodes",
+  "tool_read_tree_neighborhood", "tool_find_tree_path", "tool_build_summary"]);
 
 function safeError(error) {
   const known = error instanceof PythonAgentError || ["SECURE_STORAGE_UNAVAILABLE", "CREDENTIAL_CACHE_INVALID"].includes(error?.code);
@@ -135,6 +137,26 @@ class AgentService {
           if (["CANCELLED", "RUN_TIMEOUT"].includes(error?.code)) throw error;
           // Optional retrieval failures must not disable the base chat service.
           await this.client.request("rag_configure", {profiles:null, unavailable:true});
+        }
+        checkActive();
+      }
+      if (this.treeSnapshotProvider) {
+        try {
+          const buildState = value?.buildState;
+          if (buildState) {
+            const snapshot = await this.treeSnapshotProvider(buildState);
+            checkActive();
+            if (snapshot) {
+              await this.client.request("tree_snapshot", {snapshot, generation: String(generation)});
+            }
+          } else {
+            // No build state means tree data unavailable — clear old snapshot.
+            await this.client.request("tree_snapshot", {snapshot:null, generation: String(generation)});
+          }
+        } catch (error) {
+          checkActive();
+          if (["CANCELLED", "RUN_TIMEOUT"].includes(error?.code)) throw error;
+          await this.client.request("tree_snapshot", {snapshot:null, generation: String(generation)});
         }
         checkActive();
       }

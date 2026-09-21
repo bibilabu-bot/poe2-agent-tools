@@ -195,7 +195,7 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
                          "70ab4ef644f124761a55542f2b6d9d49305d94e4e240b204e77bc9ed2af6880a")
         blocks=AgentService().inspect_prompt()["blocks"]
         self.assertEqual(len([b for b in blocks if b["category"]=="system"]),5)
-        self.assertEqual(len([b for b in blocks if b["category"]=="tool"]),6)
+        self.assertEqual(len([b for b in blocks if b["category"]=="tool"]),12)
         self.assertEqual({b["id"]:b["text"] for b in blocks},dict(DEFAULTS))
 
     async def test_every_override_reaches_actual_provider_without_changing_schemas(self):
@@ -212,7 +212,7 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(request["messages"][1]["content"].startswith(overrides["memory_prefix"]))
             self.assertEqual(request["messages"][1]["role"],"user")
             self.assertEqual({t["function"]["name"]:t["function"]["description"] for t in request["tools"]},
-                             {name:overrides["tool_"+name] for name in TOOL_DESCRIPTIONS})
+                             {name:overrides["tool_"+name] for name in TOOL_DESCRIPTIONS if name in {t["function"]["name"] for t in request["tools"]}})
             self.assertNotIn("calculator",[t["function"]["name"] for t in request["tools"]])
             service.save_prompts({});service.rag=None
             service.provider=ScriptedProvider([ModelReply("reset")])

@@ -162,8 +162,8 @@ class RagIndex:
 
 
 class RagTool(BaseTool):
-    def __init__(self, index: RagIndex, name: str, memory=None) -> None:
-        self.index, self.name, self.memory = index,name,memory
+    def __init__(self, index: RagIndex, name: str, memory=None, tree_snapshot=None) -> None:
+        self.index, self.name, self.memory, self.tree_snapshot = index,name,memory,tree_snapshot
         reading = name == "read_passive_nodes"
         self.description = TOOL_DESCRIPTIONS[name]
         self.parameters = {"type":"object","additionalProperties":False,"required":["ids" if reading else "query"],"properties":
@@ -189,8 +189,24 @@ class RagTool(BaseTool):
             return {**await self.index.search(arguments["query"],records),"metadata_only":True,"coverage":"completed_turn_summaries"}
         records = self.index.records()
         if self.name == "search_passive_nodes":
-            return {**await self.index.search(arguments["query"],records),"version":self.index.status()["version"]}
+            result = {**await self.index.search(arguments["query"],records),"version":self.index.status()["version"]}
+            if self.tree_snapshot:
+                from .tree_tools import path_summary
+                for match in result.get("matches", []):
+                    node_id = str(match.get("id", ""))
+                    if self.tree_snapshot.has(node_id):
+                        match["currentBuildPath"] = path_summary(self.tree_snapshot, node_id)
+                result["liveSnapshotId"] = self.tree_snapshot.snapshot_id
+            return result
         found = [{k:v for k,v in r.items() if k != "text"} for r in records if r["id"] in arguments["ids"]]
+        if self.tree_snapshot:
+            from .tree_tools import path_summary
+            for node in found:
+                node_id = str(node.get("id", ""))
+                if self.tree_snapshot.has(node_id):
+                    node["currentBuildPath"] = path_summary(self.tree_snapshot, node_id)
         result = {"nodes":found,"missing":[i for i in arguments["ids"] if i not in {r["id"] for r in found}],"version":self.index.status()["version"]}
+        if self.tree_snapshot:
+            result["liveSnapshotId"] = self.tree_snapshot.snapshot_id
         if len(encode(result))>7000: raise AgentError("RAG_READ_LIMIT","节点原文超出读取预算，请减少节点数量")
         return result

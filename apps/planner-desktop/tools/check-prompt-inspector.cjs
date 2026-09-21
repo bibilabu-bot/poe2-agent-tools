@@ -48,7 +48,7 @@ app.whenReady().then(async()=>{
     await run(fs.readFileSync(path.join(renderer,"prompt-editor.js"),"utf8"));
     await run(`document.querySelector('#settingsView').hidden=true;document.querySelector('#agentView').hidden=false;document.querySelector('#openPromptEditor').click()`);
     await wait(`!document.querySelector('#savePromptBlocks').disabled`);
-    assert.equal(await run(`document.querySelectorAll('#promptEditorBlocks textarea').length`),11);
+    assert.equal(await run(`document.querySelectorAll('#promptEditorBlocks textarea').length`),17);
     assert.equal(await run(`document.querySelector('#prompt-block-tool_calculator')`),null);
     assert.equal(await run(`document.querySelector('#closePromptEditor').getAttribute('aria-label')`),"关闭提示词维护");
     const checkCloseVisible=async()=>{
@@ -77,7 +77,7 @@ app.whenReady().then(async()=>{
     assert.deepEqual(await run(`Object.fromEntries([...document.querySelectorAll('#promptEditorBlocks textarea')].map(f=>[f.dataset.block,f.value]))`),
       Object.fromEntries((await client.request("inspect_prompt")).blocks.map(b=>[b.id,b.text])));
     await run(`document.querySelector('#prompt-block-base').value='You are a concise assistant. CUSTOM_UI_FIXTURE';document.querySelector('#prompt-block-base').dispatchEvent(new Event('input'));document.querySelector('#toolPromptCategory').click()`);
-    assert.equal(await visibleCount(),6);
+    assert.equal(await visibleCount(),12);
     await run(`document.querySelector('#prompt-block-tool_search_memory').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#systemPromptCategory').click()`);
     assert.match(await run(`document.querySelector('#prompt-block-base').value`),/CUSTOM_UI_FIXTURE/);
     await run(`document.querySelector('#savePromptBlocks').click()`);
@@ -129,7 +129,7 @@ app.whenReady().then(async()=>{
     fs.writeFileSync(path.join(output,"close-at-bottom.png"),(await win.webContents.capturePage()).toPNG());
     await cancel();assert.equal(await run(`document.querySelector('#promptEditor').open`),false);
     console.log("PASS: close always visible/hittable at top/middle/bottom, short content and small viewport; clean/dirty button and native Escape, cancel preserves draft, busy prevents close and late-save loss");
-    console.log("PASS: 5 system/6 tool blocks fully match runtime, category drafts preserved, both save/restart/reset, busy rejection, overlength preserved, unsaved-close confirmation");
+    console.log("PASS: 5 system/12 tool blocks fully match runtime, category drafts preserved, both save/restart/reset, busy rejection, overlength preserved, unsaved-close confirmation");
     console.log("PASS: production Python/preload/settings inspector; explicit read only, exact text, state labels, no private data/chat writes, busy rejection, stale clearing; zero network");
   }finally{win.destroy();client.terminate();ipcMain.removeHandler("agent:inspect-prompt");ipcMain.removeHandler("agent:save-prompts");app.quit();}
 }).catch(error=>{console.error(error);app.exit(1)});

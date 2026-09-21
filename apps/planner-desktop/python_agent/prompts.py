@@ -39,6 +39,15 @@ TOOL_DESCRIPTIONS = {
     "search_passive_nodes": "对天赋树节点进行语义检索并重排序；返回 ID 和元数据，不是穷尽列表。回答前请使用 read_passive_nodes。",
     "search_memory_semantic": "对当前会话已完成轮次的摘要进行语义检索，只返回元数据。使用 read_memory 读取原始证据。",
 }
+TREE_TOOL_DESCRIPTIONS = {
+    "tree_summary": "查看当前天赋树快照的概要信息：规模、坐标范围、节点类型统计、职业/升华信息、珠宝孔数量和快照身份。只读，不分配节点。",
+    "read_tree_nodes": "按 ID 精确读取天赋节点的完整信息：名称、属性列表（支持分页）、类型、坐标、邻接节点数和 ID、当前分配状态。未知 ID 会明确标记。只读，不分配节点。",
+    "search_tree_nodes": "对天赋树节点进行确定性文字搜索：支持中文、英文和精确数字 ID。匹配名称前缀、名称包含和属性包含，不依赖付费向量或重排服务。只读，不分配节点。",
+    "read_tree_neighborhood": "按有界跳数和节点数查看节点邻域：返回真实连接关系，限定可加点方向或全部方向。明确标注裁切和分页。只读，不分配节点。",
+    "find_tree_path": "从当前已分配起点集（或指定节点）寻找目标节点的最短候选路径。使用现有加点资格判断和确定性 BFS；报告路径方向、类别和需要新加的点数。无法确认合法性时明确说明。只读，不分配节点。",
+    "build_summary": "查看当前构建摘要：职业、升华、预算与使用量、普通/武器组 I/武器组 II/升华/涂油各类别分配，注明快照身份。只读，不分配节点。",
+}
+TOOL_DESCRIPTIONS.update(TREE_TOOL_DESCRIPTIONS)
 SYSTEM_DEFAULTS = (("base", BASE), ("memory", MEMORY), ("rag", RAG), ("rag_unavailable", RAG_UNAVAILABLE), ("memory_prefix", MEMORY_PREFIX))
 DEFAULTS = SYSTEM_DEFAULTS + tuple(("tool_" + name, text) for name, text in TOOL_DESCRIPTIONS.items())
 BLOCK_LABELS = {
@@ -48,6 +57,12 @@ BLOCK_LABELS = {
     "tool_read_memory": "读取原始记忆", "tool_update_notebook": "更新笔记",
     "tool_read_passive_nodes": "读取天赋节点", "tool_search_passive_nodes": "搜索天赋节点",
     "tool_search_memory_semantic": "语义搜索记忆",
+    "tool_tree_summary": "天赋树概要",
+    "tool_read_tree_nodes": "读取天赋节点详情",
+    "tool_search_tree_nodes": "文字搜索天赋节点",
+    "tool_read_tree_neighborhood": "查看节点邻域",
+    "tool_find_tree_path": "候选路径查找",
+    "tool_build_summary": "构建摘要",
 }
 
 

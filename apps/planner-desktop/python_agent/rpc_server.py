@@ -26,6 +26,28 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
         service.rag_unavailable = bool(params.get("unavailable"))
         service.rag = RagIndex(params["path"],RetrievalProvider(params["profiles"]),params.get("sourceVersion","")) if params.get("profiles") else None
         return service.rag.status() if service.rag else {"ready":False,"count":0}
+    if method == "tree_snapshot":
+        from .tree_tools import TreeSnapshot
+        gen = params.get("generation")
+        if gen is not None and service._active_generation is not None and str(gen) != str(service._active_generation):
+            return {"ready": False, "nodeCount": 0, "stale": True}
+        if not params or not params.get("snapshot"):
+            service.tree_snapshot = None
+            return {"ready": False, "nodeCount": 0}
+        if params["snapshot"].get("_error"):
+            service.tree_snapshot = None
+            return {"ready": False, "nodeCount": 0, "error": "当前天赋树快照不可用"}
+        snap = TreeSnapshot(
+            snapshot_id=params["snapshot"].get("snapshotId", ""),
+            node_count=params["snapshot"].get("nodeCount", 0),
+            nodes={n["id"]: n for n in params["snapshot"].get("nodes", [])},
+            adjacency=params["snapshot"].get("adjacency", {}),
+            build=params["snapshot"].get("build", {}),
+            _path_index=params["snapshot"].get("_pathIndex", {}),
+            _error=params["snapshot"].get("_error"),
+        )
+        service.tree_snapshot = snap
+        return {"ready": True, "nodeCount": snap.node_count, "snapshotId": snap.snapshot_id}
     if method == "rag_build":
         if not service.rag: raise AgentError("RAG_NOT_CONFIGURED","请先保存向量化和重排序配置")
         def progress(completed, total):
@@ -35,7 +57,7 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
     if method == "rag_search":
         from .rag import RagTool
         if not service.rag: raise AgentError("RAG_NOT_CONFIGURED","请先配置 RAG")
-        tool = RagTool(service.rag,params.get("tool","search_passive_nodes"))
+        tool = RagTool(service.rag,params.get("tool","search_passive_nodes"),tree_snapshot=service.tree_snapshot)
         tool.validate(params["arguments"])
         return await tool.execute(params["arguments"])
     if method == "status":

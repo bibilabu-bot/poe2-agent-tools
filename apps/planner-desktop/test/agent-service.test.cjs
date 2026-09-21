@@ -10,6 +10,7 @@ class MockPythonClient {
     this.calls.push({ method, params: structuredClone(params) });
     if (method === "status") return { configured: this.configured };
     if (method === "rag_configure") return { ready: false };
+    if (method === "tree_snapshot") return { ready: Boolean(params.snapshot), nodeCount: params.snapshot?.nodeCount || 0 };
     if (method === "configure") { this.configured = true; return { configured: true, baseUrl: params.baseUrl }; }
     if (method === "clear") { this.configured = false; return { configured: false }; }
     if (method === "reset") return { ok: true };
@@ -88,6 +89,22 @@ test("service delegates configuration, models, and chat to Python", async () => 
   assert.equal((await service.send({ model: "m", text: "hi", toolsEnabled: true })).text, "ok");
   assert.equal(client.calls.at(-1).method, "send");
   assert.ok(!JSON.stringify(service.status()).includes("secret"));
+});
+
+test("production service publishes the immutable tree snapshot before the model run", async () => {
+  const client = new MockPythonClient();
+  const service = new AgentService({ client });
+  service.treeSnapshotProvider = async buildState => ({snapshotId:"snap-fixture",nodeCount:1,
+    nodes:[{id:"54814",name:"烈焰之心",stats:["火焰伤害提高 12%"]}],adjacency:{"54814":[]},
+    build:{allocations:{normal:["54814"]},budgets:{passive:122}}});
+  await service.configure({ baseUrl: "https://example.com/v1", apiKey: "synthetic" });
+  const result = await service.send({model:"mock",text:"读取节点 54814",buildState:{allocated:["54814"]}});
+  assert.equal(result.ok, true);
+  const methods = client.calls.map(call => call.method);
+  assert.ok(methods.indexOf("tree_snapshot") < methods.lastIndexOf("send"));
+  const published = client.calls.find(call => call.method === "tree_snapshot").params.snapshot;
+  assert.equal(published.nodes[0].name, "烈焰之心");
+  assert.deepEqual(published.nodes[0].stats, ["火焰伤害提高 12%"]);
 });
 
 test("session switching blocks concurrent sends and ignores late session results", async () => {
