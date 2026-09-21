@@ -8,7 +8,11 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-029A — External executor environment bootstrap
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
+- Controller acceptance: remote commit `5bc22cfb72791a8af765eeb1826811a167ad3f0d`
+  inspected; only the setup report and this status changed. Executor reports
+  Node 193 pass/3 cache-dependent skips and Python 60 pass, plus synthetic UI checks.
+  This accepts environment setup, not complete real-tree coverage or new features.
 - Assignment target: external repository-capable coding agent, owner-forwarded prompt
 - Scope: isolated clone/worktree, Node/Python dependencies, baseline offline checks
   and optional synthetic Electron checks; no product implementation.

@@ -88,7 +88,7 @@ Both ran with a real Windows Electron instance. Electron binary was installed vi
 
 ## Limitations
 
-1. Node test count (196) exceeds controller reference (196) — counts match; Python matches exactly at 60/60.
+1. Node test count (196) matches the controller reference; Python matches at 60/60. Three Node tests remain skipped, so this is not equivalent to zero-skip coverage.
 2. 3 Node tests skipped due to missing official tree cache. This is expected on a fresh checkout. The controller's cache path (`C:\Users\xty12\P2AT-004C-acceptance\user-data\game-data\core`) does not exist here.
 3. Electron GPU warnings (`GPU state invalid after WaitForGetOffsetInRange`) are cosmetic and did not affect test results.
 4. No real model calls, paid API keys, vector index rebuilds, or user session databases were accessed.
