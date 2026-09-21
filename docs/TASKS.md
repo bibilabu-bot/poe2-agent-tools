@@ -6,9 +6,21 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-029A — External executor environment bootstrap
+
+- Status: `READY`
+- Assignment target: external repository-capable coding agent, owner-forwarded prompt
+- Scope: isolated clone/worktree, Node/Python dependencies, baseline offline checks
+  and optional synthetic Electron checks; no product implementation.
+- Deliver `docs/EXTERNAL_EXECUTOR_SETUP.md` on `task/P2AT-029A-executor-bootstrap`,
+  recording exact baseline, environment versions, reproducible setup commands,
+  test results, expected cache-dependent skips and remaining blockers. No secrets,
+  local caches, dependency folders or user data. Do not mark ACCEPTED or merge main.
+- P2AT-028B and tree writes remain paused until separately dispatched by controller.
+
 ### P2AT-028A3 — Persistent prompt close control and Chinese defaults
 
-- Status: `REVIEW`
+- Status: `ACCEPTED`
 - Assignment target: `Codex local executor`
 - Baseline: main 5d74d195; accepted P2AT-028A2
 - Owner request: always-visible accessible close control, common Escape/button
@@ -18,7 +30,8 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
   Migrate exact old default values only, without implicit disk writes. Test scroll,
   close/cancel/confirm/busy and v1/v2 default/custom/reset/restart/provider parity.
   Synthetic evidence only, full tests/check and independent review, REVIEW only.
-- P2AT-028B remains paused pending controller acceptance of this hotfix.
+- Controller accepted commit `86a1764d37b201702946f00b485b2d81b57fd3d9` on 2026-09-21.
+- P2AT-028B remains paused by owner request; external-executor setup comes first.
 
 Evidence: Node 196/196 (zero skips), Python 60/60, prompt-specific 16/16,
 syntax/diff checks, real synthetic Electron prompt/agent UI regressions and
