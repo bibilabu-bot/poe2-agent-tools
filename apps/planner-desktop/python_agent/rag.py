@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .core import AgentError, BaseTool
+from .prompts import TOOL_DESCRIPTIONS
 from .provider import OpenAICompatibleProvider
 
 
@@ -164,9 +165,7 @@ class RagTool(BaseTool):
     def __init__(self, index: RagIndex, name: str, memory=None) -> None:
         self.index, self.name, self.memory = index,name,memory
         reading = name == "read_passive_nodes"
-        self.description = ("Read original passive node evidence by IDs; preserve all conditions and drawbacks. Read-only, never allocates nodes." if reading else
-                            "Semantic retrieval plus reranking of passive tree nodes; returns IDs/metadata, not exhaustive. Use read_passive_nodes before answering." if name == "search_passive_nodes" else
-                            "Semantic retrieval of current conversation's completed turns (summaries), returns metadata only. Use read_memory for original evidence.")
+        self.description = TOOL_DESCRIPTIONS[name]
         self.parameters = {"type":"object","additionalProperties":False,"required":["ids" if reading else "query"],"properties":
                            {"ids":{"type":"array","minItems":1,"maxItems":3,"items":{"type":"string"}}} if reading else
                            {"query":{"type":"string","maxLength":300}}}

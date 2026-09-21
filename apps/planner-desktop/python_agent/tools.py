@@ -6,11 +6,12 @@ import math
 from typing import Any, Mapping
 
 from .core import AgentError, BaseTool
+from .prompts import TOOL_DESCRIPTIONS
 
 
 class CalculatorTool(BaseTool):
     name = "calculator"
-    description = "Safely add, subtract, multiply, or divide two finite numbers."
+    description = TOOL_DESCRIPTIONS["calculator"]
     parameters = {
         "type": "object",
         "additionalProperties": False,

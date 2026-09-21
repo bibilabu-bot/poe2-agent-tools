@@ -6,6 +6,19 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-028A2 — Categorized complete prompt maintenance
+
+- Status: `REVIEW`
+- Assignment target: `Codex local executor`
+- Depends on: accepted P2AT-028A; main 571e187
+- Owner request: switch between System and Tool prompt categories; expose every
+  fixed instruction in full for editing, including tool descriptions and memory
+  context prefix. Preserve existing overrides across migration, runtime tool
+  schemas/permissions, and default model-facing bytes. No stage-2/3 work here.
+- Acceptance: editing both categories survives switching/save/restart, actual
+  provider requests use overrides, defaults restore, atomic/bounded saves and
+  synthetic UI regressions pass. Deliver REVIEW on its own branch.
+
 ### P2AT-028A — Govern and inspect effective system prompts
 
 - Status: `ACCEPTED`

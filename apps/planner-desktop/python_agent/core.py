@@ -14,7 +14,7 @@ from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
 
 from .context import ContextError, HISTORY_CONTEXT_CHARS, select_context
-from .prompts import build_system_prompt
+from .prompts import build_system_prompt, MEMORY_PREFIX
 
 
 class AgentError(Exception):
@@ -116,8 +116,9 @@ class BaseTool(ABC):
 
 
 class ToolRegistry:
-    def __init__(self, tools: Sequence[BaseTool] = ()) -> None:
+    def __init__(self, tools: Sequence[BaseTool] = (), description_overrides: Mapping[str, str] | None = None) -> None:
         self._tools: dict[str, BaseTool] = {}
+        self._description_overrides = dict(description_overrides or {})
         for tool in tools:
             self.register(tool)
 
@@ -126,6 +127,8 @@ class ToolRegistry:
             raise ValueError("Tool name is invalid")
         if tool.name in self._tools:
             raise ValueError(f"Duplicate tool: {tool.name}")
+        if tool.name in self._description_overrides:
+            tool.description = self._description_overrides[tool.name]
         self._tools[tool.name] = tool
 
     def get(self, name: str) -> BaseTool | None:
@@ -179,11 +182,13 @@ class AgentRunner:
         limits: RunnerLimits | None = None,
         memory_context: Callable[[], dict[str, Any]] | None = None,
         on_event: Callable[[dict[str, Any]], None] | None = None,
+        memory_prefix: str = MEMORY_PREFIX,
     ) -> None:
         self.provider = provider
         self.registry = registry
         self.limits = limits or RunnerLimits()
         self.memory_context = memory_context
+        self.memory_prefix = memory_prefix
         self.on_event = on_event
         self._run_lock = asyncio.Lock()
         graph = StateGraph(RunState)
@@ -234,7 +239,7 @@ class AgentRunner:
         memory = self.memory_context() if self.memory_context else None
         memory_chars = 0
         if memory is not None:
-            text = "[MEMORY_CONTEXT_DATA]\n" + json.dumps(memory, ensure_ascii=False, separators=(",", ":"))
+            text = self.memory_prefix + json.dumps(memory, ensure_ascii=False, separators=(",", ":"))
             memory_chars = len(text)
             if memory_chars > self.limits.max_history_chars:
                 raise AgentError("MEMORY_DIRECTORY_FULL", "Full memory directory and notebook exceed the history budget")

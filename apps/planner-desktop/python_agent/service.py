@@ -13,7 +13,7 @@ from .memory import MemorySession, MemoryStore
 from .provider import OpenAICompatibleProvider
 from .tools import CalculatorTool
 from .session_display import redact
-from .prompts import build_system_prompt, PromptStore, DEFAULTS
+from .prompts import build_system_prompt, PromptStore, DEFAULTS, BLOCK_LABELS, TOOL_DESCRIPTIONS
 
 MAX_INPUT_CHARS = 12_000
 MAX_HISTORY_MESSAGES = 60
@@ -130,7 +130,12 @@ class AgentService:
         # Describe template selection only; never call MemorySession/model_context here.
         return {**self.prompt_spec().describe(), "configured": self.provider is not None,
                 "basis": "runtime-state-at-inspection", "privateContextIncluded": False,
-                "blocks": [{"id": name, "text": text, "custom": text != dict(DEFAULTS)[name]} for name,text in self.prompts.blocks],
+                "blocks": [{"id": name, "text": text, "custom": text != dict(DEFAULTS)[name],
+                            "label": BLOCK_LABELS[name], "category": "tool" if name.startswith("tool_") else "system",
+                            "usage": ("随该工具启用发送；仅修改描述，不改变参数和权限" if name.startswith("tool_") else
+                                      "记忆启用时放在动态上下文前；上下文仍为用户数据，不提升权限" if name == "memory_prefix" else
+                                      "按功能状态拼入系统消息，保留原文及空白")}
+                           for name,text in self.prompts.blocks],
                 "storageError": self.prompts.error}
 
     def save_prompts(self, overrides: dict) -> dict[str, Any]:
@@ -164,7 +169,9 @@ class AgentService:
             raise AgentError("INVALID_INPUT", f"Message must contain 1-{MAX_INPUT_CHARS} characters")
         candidate = [*self.history, {"role": "user", "content": text}]
         memory = MemorySession(self.memory_store, self.conversation_id) if self.memory_store and self.conversation_id else None
-        registry = ToolRegistry([CalculatorTool()] if tools_enabled else [])
+        prompt_values = dict(self.prompts.blocks)
+        registry = ToolRegistry([CalculatorTool()] if tools_enabled else [],
+                                {name: prompt_values["tool_" + name] for name in TOOL_DESCRIPTIONS})
         agent = BaseAgent("chat", self.prompt_spec().text)
         if memory:
             for tool in memory.tools():
@@ -176,7 +183,7 @@ class AgentService:
             if memory:
                 registry.register(RagTool(self.rag,"search_memory_semantic",memory))
         runner = AgentRunner(self._provider(), registry, memory_context=memory.model_context if memory else None,
-                             on_event=on_event)
+                             on_event=on_event, memory_prefix=prompt_values["memory_prefix"])
         result = await runner.run(agent=agent, history=candidate, model=model, tools_enabled=bool(memory) or bool(self.rag) or tools_enabled)
         completed_history = [message for message in result.messages if message.get("role") != "system"]
         retained = _trim_history(completed_history)

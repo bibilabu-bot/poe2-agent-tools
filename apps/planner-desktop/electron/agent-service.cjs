@@ -5,6 +5,9 @@ const { normalizeTrace } = require("../renderer/agent-trace.js");
 // A tool round can legitimately contain two 90-second provider requests plus
 // bounded retrieval. Keep a finite wall-clock guard without cutting that path short.
 const RUN_TIMEOUT_MS = 300_000;
+const PROMPT_BLOCK_IDS = new Set(["base", "memory", "rag", "rag_unavailable", "memory_prefix",
+  "tool_calculator", "tool_search_memory", "tool_read_memory", "tool_update_notebook",
+  "tool_read_passive_nodes", "tool_search_passive_nodes", "tool_search_memory_semantic"]);
 
 function safeError(error) {
   const known = error instanceof PythonAgentError || ["SECURE_STORAGE_UNAVAILABLE", "CREDENTIAL_CACHE_INVALID"].includes(error?.code);
@@ -23,7 +26,7 @@ class AgentService {
     return this.promptOperation("inspect_prompt");
   }
   async savePrompts(overrides) {
-    if (!overrides || typeof overrides !== "object" || Array.isArray(overrides) || Object.keys(overrides).some(key => !["base","memory","rag","rag_unavailable"].includes(key)) || Object.values(overrides).some(text => typeof text !== "string" || !text.trim() || text.length > 8000)) return {ok:false,error:{code:"INVALID_PROMPT",message:"提示词块格式无效或过长"}};
+    if (!overrides || typeof overrides !== "object" || Array.isArray(overrides) || Object.keys(overrides).some(key => !PROMPT_BLOCK_IDS.has(key)) || Object.values(overrides).some(text => typeof text !== "string" || !text.trim() || text.length > 8000)) return {ok:false,error:{code:"INVALID_PROMPT",message:"提示词块格式无效或过长"}};
     return this.promptOperation("save_prompts", { overrides });
   }
   async promptOperation(method, params = {}) {

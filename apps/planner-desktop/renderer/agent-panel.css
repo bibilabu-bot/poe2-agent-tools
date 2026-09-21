@@ -94,6 +94,9 @@
 #agentView .agent-message.user{border:0;background:#24262b}
 #agentView .agent-composer{border:0;width:min(900px,100%);margin:auto;padding:16px 24px}
 #agentView .agent-composer textarea{min-width:0}
+.prompt-categories{display:flex;gap:8px;position:sticky;top:0;background:#151a21;padding:10px 0;z-index:1}
+.prompt-categories button[aria-pressed="true"]{background:#3a3020;border-color:#cba96a;color:#ffe4b2}
+#promptEditorBlocks section[hidden]{display:none}
 #agentView .agent-layout.sessions-collapsed{grid-template-columns:64px minmax(0,1fr)}
 .sessions-collapsed .session-sidebar{padding-inline:4px}
 .sessions-collapsed #sessionToggle{font-size:11px;text-align:center;padding:8px 2px;white-space:normal}

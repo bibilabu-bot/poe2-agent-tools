@@ -8,8 +8,11 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from python_agent.prompts import build_system_prompt, PROMPT_VERSION, PromptStore
+from python_agent.prompts import build_system_prompt, PROMPT_VERSION, PromptStore, DEFAULTS, TOOL_DESCRIPTIONS
 from python_agent.core import ChatAgent, ModelReply
+from python_agent.tools import CalculatorTool
+from python_agent.memory import MemoryTool
+from python_agent.rag import RagTool
 from python_agent.service import AgentService
 from test_python_agent_runtime import ScriptedProvider
 
@@ -34,8 +37,8 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
             try:
                 for name in ("memory","rag","rag_unavailable"):
                     with self.assertRaises(Exception):
-                        service.save_prompts({name:"x"*4000})
-                    service.save_prompts({name:"x"*3999})
+                        service.save_prompts({name:"x"*4001})
+                    service.save_prompts({name:"x"*4000})
                     self.assertEqual(len(dict(service.prompts.blocks)[name]),4000)
                     service.inspect_prompt()
                     restarted=AgentService(filename)
@@ -87,7 +90,7 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("".join(sections),build_system_prompt(memory=True,rag=True,rag_unavailable=True).text)
 
     def test_all_combinations_preserve_exact_legacy_text(self):
-        self.assertEqual(PROMPT_VERSION,"chat-system-v1")
+        self.assertEqual(PROMPT_VERSION,"chat-prompts-v2")
         for flags in itertools.product((False,True),repeat=3):
             with self.subTest(flags=flags):
                 spec=build_system_prompt(memory=flags[0],rag=flags[1],rag_unavailable=flags[2])
@@ -127,3 +130,73 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result["text"],ChatAgent().system_prompt)
             self.assertEqual(before,service.memory_store.db.total_changes)
         finally: service.memory_store.db.close()
+
+    def test_all_fixed_descriptions_are_catalogued_with_unchanged_defaults(self):
+        tools=[CalculatorTool()]+[MemoryTool(None,n) for n in ("search_memory","read_memory","update_notebook")]
+        tools += [RagTool(None,n) for n in ("read_passive_nodes","search_passive_nodes","search_memory_semantic")]
+        digest=hashlib.sha256(json.dumps([t.definition() for t in tools],sort_keys=True).encode()).hexdigest()
+        self.assertEqual(digest,"46c67817a4fc203295283bab4eeed264a822c6af83d027197546a21f2a0cdcdc")
+        blocks=AgentService().inspect_prompt()["blocks"]
+        self.assertEqual(len([b for b in blocks if b["category"]=="system"]),5)
+        self.assertEqual(len([b for b in blocks if b["category"]=="tool"]),7)
+        self.assertEqual({b["id"]:b["text"] for b in blocks},dict(DEFAULTS))
+
+    async def test_every_override_reaches_actual_provider_without_changing_schemas(self):
+        service=AgentService(":memory:")
+        try:
+            service.configure("http://127.0.0.1:9999/v1","SYNTHETIC")
+            service.rag=object();service.rag_unavailable=True
+            overrides={name:f" [{name} 自定义全文🙂] \n" for name,_ in DEFAULTS}
+            service.save_prompts(overrides)
+            provider=ScriptedProvider([ModelReply("ok")]);service.provider=provider
+            await service.send("mock","hello",True)
+            request=provider.requests[0]
+            self.assertEqual(request["messages"][0]["content"],"".join(overrides[k] for k in ("base","memory","rag","rag_unavailable")))
+            self.assertTrue(request["messages"][1]["content"].startswith(overrides["memory_prefix"]))
+            self.assertEqual(request["messages"][1]["role"],"user")
+            self.assertEqual({t["function"]["name"]:t["function"]["description"] for t in request["tools"]},
+                             {name:overrides["tool_"+name] for name in TOOL_DESCRIPTIONS})
+            calculator=next(t["function"] for t in request["tools"] if t["function"]["name"]=="calculator")
+            self.assertEqual(calculator["parameters"],CalculatorTool().parameters)
+            service.save_prompts({});service.rag=None
+            service.provider=ScriptedProvider([ModelReply("reset")])
+            await service.send("mock","again",True)
+            self.assertEqual(service.provider.requests[0]["tools"][0]["function"]["description"],TOOL_DESCRIPTIONS["calculator"])
+        finally:service.memory_store.db.close()
+
+    def test_v1_migration_preserves_text_and_adds_tool_defaults(self):
+        with tempfile.TemporaryDirectory() as folder:
+            filename=Path(folder)/"prompts.json"
+            old={"version":"chat-system-v1","overrides":{"base":"旧配置🙂", "memory":"  原有空白\n"}}
+            filename.write_text(json.dumps(old),encoding="utf-8")
+            before=filename.read_bytes();store=PromptStore(str(filename))
+            self.assertIsNone(store.error);self.assertEqual(filename.read_bytes(),before)
+            self.assertEqual(dict(store.blocks)["memory"],old["overrides"]["memory"])
+            self.assertEqual(dict(store.blocks)["tool_calculator"],TOOL_DESCRIPTIONS["calculator"])
+            values=dict(store.blocks);values["tool_calculator"]="工具自定义\n 全文"
+            store.save(values)
+            self.assertEqual(json.loads(filename.read_text(encoding="utf-8"))["version"],PROMPT_VERSION)
+            self.assertEqual(dict(PromptStore(str(filename)).blocks),values)
+
+    def test_v1_maximum_system_budget_migrates_without_writes_or_truncation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            filename=Path(folder)/"prompts.json"
+            overrides={"base":"x"*4000,"memory":" "*999+"m","rag":" "*1999+"r","rag_unavailable":" "*999+"u"}
+            filename.write_text(json.dumps({"version":"chat-system-v1","overrides":overrides}),encoding="utf-8")
+            before=filename.read_bytes();store=PromptStore(str(filename))
+            self.assertIsNone(store.error);self.assertEqual(filename.read_bytes(),before)
+            text=build_system_prompt(memory=True,rag=True,rag_unavailable=True,overrides=dict(store.blocks)).text
+            self.assertEqual(len(text),8000);self.assertEqual(text,"".join(overrides.values()))
+
+    def test_tool_budget_and_failed_save_are_atomic_and_corruption_recoverable(self):
+        with tempfile.TemporaryDirectory() as folder:
+            filename=Path(folder)/"prompts.json";store=PromptStore(str(filename))
+            store.save({"tool_calculator":"原文"});before=filename.read_bytes()
+            with self.assertRaises(ValueError):store.save({"tool_"+name:"x"*4000 for name in TOOL_DESCRIPTIONS})
+            with patch("python_agent.prompts.os.replace",side_effect=OSError("synthetic")):
+                with self.assertRaises(OSError):store.save({"tool_calculator":"不能保存"})
+            self.assertEqual(filename.read_bytes(),before)
+            self.assertEqual(dict(store.blocks)["tool_calculator"],"原文")
+            filename.write_text("corrupt",encoding="utf-8")
+            broken=PromptStore(str(filename));self.assertIsNotNone(broken.error)
+            broken.save({});self.assertIsNone(broken.error);self.assertEqual(broken.blocks,DEFAULTS)
