@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-029A — External executor environment bootstrap
 
-- Status: `READY`
+- Status: `REVIEW`
 - Assignment target: external repository-capable coding agent, owner-forwarded prompt
 - Scope: isolated clone/worktree, Node/Python dependencies, baseline offline checks
   and optional synthetic Electron checks; no product implementation.
