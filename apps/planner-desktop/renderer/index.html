@@ -380,6 +380,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
       <div class="agent-chat-head">
         <div><b id="agentChatTarget">未连接服务</b><span id="agentRunState">空闲</span></div>
         <button id="agentOlderHistory" hidden>加载更早记录</button>
+        <button id="openPromptEditor" type="button">提示词维护</button>
       </div>
       <div id="agentMessages" class="agent-messages" role="log" aria-live="polite">
         <div class="agent-empty">连接服务后即可普通聊天。可询问“123 × 456 等于多少？”验证真实工具闭环。</div>
@@ -404,6 +405,13 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
   <main class="settings-scroll" tabindex="0" aria-label="模型设置内容">
   <div class="settings-content">
     <div id="chatSettingsHost"></div>
+    <details id="promptInspector" class="prompt-inspector">
+      <summary>系统提示词 · 只读查看</summary>
+      <p class="agent-help">查看当前 Python 运行时按功能状态选用的公开模板，不展开私有历史、笔记本或 MEMORY_CONTEXT_DATA。不会发起模型请求，也不会写入聊天记录。</p>
+      <button id="inspectPrompt" type="button">读取当前模板与状态</button>
+      <p id="promptInspectionStatus" class="agent-status" role="status">尚未读取。每次查看均需主动读取；这不是下一次请求的保证，RAG 状态会在发送时重新检查。</p>
+      <pre id="promptInspectionText" class="prompt-inspection-text" hidden></pre>
+    </details>
     <section class="retrieval-settings" data-profile="embedding">
       <h2>向量化 · Embedding</h2><p class="agent-help">将天赋描述、查询及当前会话摘要转换为向量。保存不发送资料，构建索引或语义查询时才调用。</p>
       <label for="embeddingUrl">API 基础地址（HTTPS）</label><input id="embeddingUrl" type="text" value="https://dashscope.aliyuncs.com/compatible-mode/v1" autocomplete="off">
@@ -423,6 +431,13 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
   </main>
 </section>
 
+<dialog id="promptEditor" class="prompt-editor" aria-labelledby="promptEditorTitle">
+  <header><h2 id="promptEditorTitle">提示词维护</h2><button id="closePromptEditor" type="button" aria-label="关闭提示词维护">关闭</button></header>
+  <p class="agent-help">本机所有会话共用。保存后用于后续请求，不改变工具权限或功能触发条件。请勿填写密钥、个人资料或私有历史；这些文字会随聊天发送给你选择的模型服务。</p>
+  <p id="promptEditorStatus" role="status"></p>
+  <div id="promptEditorBlocks"></div>
+  <footer><button id="resetPromptBlocks" type="button">恢复默认</button><button id="savePromptBlocks" type="button" disabled>保存提示词</button></footer>
+</dialog>
 <script src="stat-utils.js"></script>
 <script src="localization-engine.js"></script>
 <script src="build-codec.js"></script>
@@ -435,6 +450,8 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
 <script src="agent-trace.js"></script>
 <script src="agent-panel.js"></script>
 <script src="retrieval-settings.js"></script>
+<script src="prompt-inspector.js"></script>
+<script src="prompt-editor.js"></script>
 
 <script>
 window.addEventListener("DOMContentLoaded", async () => {

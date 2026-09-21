@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld("desktopAPI", {
   importWeGamePassives: (url) => ipcRenderer.invoke("wegame:import-passives", { url }),
   agent: Object.freeze({
     getStatus: () => ipcRenderer.invoke("agent:status"),
+    inspectPrompt: () => ipcRenderer.invoke("agent:inspect-prompt"),
+    savePrompts: (overrides) => ipcRenderer.invoke("agent:save-prompts", { overrides }),
     configure: (request) => ipcRenderer.invoke("agent:configure", request),
     clearConfig: () => ipcRenderer.invoke("agent:clear-config"),
     listModels: () => ipcRenderer.invoke("agent:list-models"),

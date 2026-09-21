@@ -40,6 +40,10 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
         return await tool.execute(params["arguments"])
     if method == "status":
         return service.status()
+    if method == "inspect_prompt":
+        return service.inspect_prompt()
+    if method == "save_prompts":
+        return service.save_prompts(params.get("overrides"))
     if method == "configure":
         return service.configure(params.get("baseUrl", ""), params.get("apiKey", ""))
     if method == "clear":

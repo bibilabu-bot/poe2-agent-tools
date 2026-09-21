@@ -24,6 +24,22 @@ class MockPythonClient {
   terminate(error) { this.configured = false; this.terminatedWith = error; }
 }
 
+test("prompt inspection is local, guarded, non-configuring and rejects stale results", async () => {
+  const calls=[]; let release;
+  const client={request:async method=>{calls.push(method);return new Promise(resolve=>{release=resolve;});},terminate:()=>{}};
+  const service=new AgentService({client});
+  const handlers=createAgentIpcHandlers(service,e=>e.trusted);
+  await assert.rejects(()=>handlers.inspectPrompt({trusted:false}),{code:"UNTRUSTED_SENDER"});
+  const pending=handlers.inspectPrompt({trusted:true});
+  assert.equal((await service.inspectPrompt()).error.code,"RUN_IN_PROGRESS");
+  assert.equal((await service.send({})).error.code,"RUN_IN_PROGRESS");
+  release({text:"public",privateContextIncluded:false});
+  assert.equal((await pending).prompt.text,"public");
+  assert.deepEqual(calls,["inspect_prompt"]);
+  const stale=service.inspectPrompt();service.cancel();release({text:"stale"});
+  assert.equal((await stale).error.code,"CANCELLED");
+});
+
 test("cancel or timeout during RAG profile loading cannot resurrect a model request", async () => {
   for (const mode of ["cancel", "timeout"]) {
     const client = new MockPythonClient();

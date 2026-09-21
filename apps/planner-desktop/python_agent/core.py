@@ -14,6 +14,7 @@ from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
 
 from .context import ContextError, HISTORY_CONTEXT_CHARS, select_context
+from .prompts import build_system_prompt
 
 
 class AgentError(Exception):
@@ -74,11 +75,7 @@ class ChatAgent(BaseAgent):
     def __init__(self) -> None:
         super().__init__(
             name="chat",
-            system_prompt=(
-                "You are a concise, helpful general assistant. Use the calculator "
-                "when enabled and arithmetic is needed. Never claim a tool ran "
-                "unless a tool result is present."
-            ),
+            system_prompt=build_system_prompt().text,
         )
 
 

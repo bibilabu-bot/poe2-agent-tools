@@ -19,6 +19,25 @@ class AgentService {
     return { configured: Boolean(this.config), baseUrl: this.config?.baseUrl || null, targetHost: this.config ? new URL(this.config.baseUrl).host : null, running: Boolean(this.active), credentialStored: this.credentialStored };
   }
   setCredentialStored(value) { this.credentialStored = Boolean(value); return this.status(); }
+  async inspectPrompt() {
+    return this.promptOperation("inspect_prompt");
+  }
+  async savePrompts(overrides) {
+    if (!overrides || typeof overrides !== "object" || Array.isArray(overrides) || Object.keys(overrides).some(key => !["base","memory","rag","rag_unavailable"].includes(key)) || Object.values(overrides).some(text => typeof text !== "string" || !text.trim() || text.length > 8000)) return {ok:false,error:{code:"INVALID_PROMPT",message:"提示词块格式无效或过长"}};
+    return this.promptOperation("save_prompts", { overrides });
+  }
+  async promptOperation(method, params = {}) {
+    if (this.active) return { ok: false, error: { code: "RUN_IN_PROGRESS", message: "请等当前操作结束后再查看提示词" } };
+    const token = { kind: "prompt-inspection" }, generation = this.generation;
+    this.active = token;
+    try {
+      // Do not configure providers, read credentials, restore history or initialize RAG.
+      const prompt = await this.client.request(method, params);
+      if (this.active !== token || generation !== this.generation) throw new PythonAgentError("CANCELLED", "状态已变化，请重新查看");
+      return { ok: true, prompt };
+    } catch (error) { return { ok: false, error: safeError(error) }; }
+    finally { if (this.active === token) this.active = null; }
+  }
   async configure({ baseUrl, apiKey }) {
     await this.clearConfig();
     const result = await this.client.request("configure", { baseUrl, apiKey });
@@ -157,6 +176,8 @@ function createAgentIpcHandlers(service, isTrustedSender, credentialStore = null
   const mutate = (operation) => { const result = credentialMutation.then(operation, operation); credentialMutation = result.catch(() => {}); return result; };
   return {
     status: async (event) => { guard(event); return service.status(); },
+    inspectPrompt: async (event) => { guard(event); return service.inspectPrompt(); },
+    savePrompts: async (event, value) => { guard(event); return service.savePrompts(value?.overrides); },
     configure: async (event, value) => { guard(event); return mutate(async () => { try { const config = validateConfigure(value); await service.configure(config); if (credentialStore) { await credentialStore.save(config); service.setCredentialStored(true); } return { ok: true, ...service.status() }; } catch (error) { await service.clearConfig(); return { ok: false, error: safeError(error), ...service.status() }; } }); },
     clear: async (event) => { guard(event); return mutate(async () => { await service.clearConfig(); try { if (credentialStore) await credentialStore.clear(); return { ok: true, ...service.status() }; } catch (error) { service.setCredentialStored(true); return { ok: false, error: safeError(error), ...service.status() }; } }); },
     models: async (event) => { guard(event); return service.models(); }, send: async (event, value) => {

@@ -6,6 +6,25 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-028A — Govern and inspect effective system prompts
+
+- Status: `REVIEW`
+- Assignment target: `Codex local executor`
+- Depends on: accepted P2AT-026A and P2AT-027C; main eb60779
+- Scope: behavior-preserving versioned Python prompt builder, safe settings inspection,
+  full template/trigger documentation, combination and privacy regressions.
+
+Owner addition (2026-09-21): Agent-page editor for all four prompt blocks, bounded
+local durable overrides, explicit save/default reset, no running-request mutation.
+Default prompts remain byte-identical; editing does not change tool permissions.
+
+Acceptance: exact existing base/memory/RAG/unavailable text and ordering retained;
+all flag combinations locked by tests; settings shows runtime template and feature
+state, never expanded private MEMORY_CONTEXT_DATA, keys or conversation content.
+No hosted model calls, tree tools, archive changes or stages 2/3 before acceptance.
+Independent review, offline/full regression and real synthetic UI evidence required.
+Deliver a separate task branch/commit in REVIEW; controller owns acceptance/merge.
+
 Controller acceptance (2026-09-20): P2AT-026A and P2AT-027A/B/C are accepted for the developer build at `88f8e837e7748c3e81f10c788bb71e435ada769d`, including user-approved context/memory/settings/read-only retrieval follow-ups and atomic session-selection correction. Earlier REVIEW/no-main statements below describe executor delivery gates, superseded by this controller acceptance. This is not installer or bundled-Python acceptance. Independent Node 193/193, Python 44/44 and real synthetic Electron regressions passed; no private archive/Key or paid service was used. See `docs/CONTROLLER_ACCEPTANCE_027.md`.
 
 ### P2AT-027A — Unify page navigation and left Planner tools
