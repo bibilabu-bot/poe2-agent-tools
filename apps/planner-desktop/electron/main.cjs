@@ -233,6 +233,8 @@ app.whenReady().then(async()=>{
       return buildPassiveCorpus({official:JSON.parse(official),runtime:JSON.parse(runtime),translation,wegame,sourceVersion:upstreamLock.snapshotId});
     }});
   agentService.ragConfiguration=ragManager.configuration;
+  const treeTools = require("./tree-tools.cjs");
+  agentService.treeSnapshotProvider = treeTools.createTreeSnapshotProvider(localResourceResponse, upstreamLock.snapshotId);
   ipcMain.handle("rag:status",ragManager.status);
   ipcMain.handle("rag:build",ragManager.build);
   ipcMain.handle("rag:cancel",ragManager.cancel);

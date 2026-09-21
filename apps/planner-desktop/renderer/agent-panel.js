@@ -378,7 +378,7 @@
     const timer = setInterval(() => { activity.entry.durationMs = Date.now() - startedAt; activity.render(); }, 1000);
     let result;
     try {
-      result = await api.send({ model, text });
+      result = await api.send({ model, text, buildState: typeof window !== "undefined" && window.captureBuildState ? window.captureBuildState() : null });
     } catch {
       result = { ok: false, error: { message: "桌面与智能体通信失败，请重试；若持续失败请重新启动应用" } };
     }

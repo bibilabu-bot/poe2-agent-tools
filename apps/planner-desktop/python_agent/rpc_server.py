@@ -26,6 +26,20 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
         service.rag_unavailable = bool(params.get("unavailable"))
         service.rag = RagIndex(params["path"],RetrievalProvider(params["profiles"]),params.get("sourceVersion","")) if params.get("profiles") else None
         return service.rag.status() if service.rag else {"ready":False,"count":0}
+    if method == "tree_snapshot":
+        from .tree_tools import TreeSnapshot
+        if not params or not params.get("snapshot"):
+            service.tree_snapshot = None
+            return {"ready": False, "nodeCount": 0}
+        snap = TreeSnapshot(
+            snapshot_id=params["snapshot"].get("snapshotId", ""),
+            node_count=params["snapshot"].get("nodeCount", 0),
+            nodes={n["id"]: n for n in params["snapshot"].get("nodes", [])},
+            adjacency=params["snapshot"].get("adjacency", {}),
+            build=params["snapshot"].get("build", {}),
+        )
+        service.tree_snapshot = snap
+        return {"ready": True, "nodeCount": snap.node_count, "snapshotId": snap.snapshot_id}
     if method == "rag_build":
         if not service.rag: raise AgentError("RAG_NOT_CONFIGURED","请先保存向量化和重排序配置")
         def progress(completed, total):

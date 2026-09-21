@@ -26,6 +26,7 @@ class AgentService:
         self.memory_store = MemoryStore(memory_path) if memory_path else None
         self.conversation_id: str | None = None
         self.rag = None
+        self.tree_snapshot = None
         self.running = False
         self.prompts = PromptStore(str(Path(memory_path).with_suffix(".prompts.json")) if memory_path and memory_path != ":memory:" else None)
 
@@ -180,6 +181,10 @@ class AgentService:
                 registry.register(RagTool(self.rag,name))
             if memory:
                 registry.register(RagTool(self.rag,"search_memory_semantic",memory))
+        if self.tree_snapshot:
+            from .tree_tools import register_tree_tools
+            for tool in register_tree_tools(self.tree_snapshot):
+                registry.register(tool)
         runner = AgentRunner(self._provider(), registry, memory_context=memory.model_context if memory else None,
                              on_event=on_event, memory_prefix=prompt_values["memory_prefix"])
         result = await runner.run(agent=agent, history=candidate, model=model, tools_enabled=bool(memory) or bool(self.rag) or tools_enabled)

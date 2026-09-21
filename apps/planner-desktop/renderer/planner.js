@@ -4330,3 +4330,30 @@ new ResizeObserver(resize).observe(wrap);
 window.addEventListener("resize",resize);
 resize();
 load();
+
+// --- Narrow Build state capture for external read-only tools ---
+// Accessed by agent-panel.js before sending; only the listed keys leave the renderer.
+window.captureBuildState = function() {
+  const state = {};
+  if (typeof baseClassName === "string") state.baseClassName = baseClassName;
+  state.selectedAscendancyId = selectedAscendancyId || null;
+  state.classStartId = classStartId || null;
+  state.ascStartId = ascStartId || null;
+  state.maxPoints = Number.isFinite(maxPoints) ? maxPoints : 0;
+  state.maxWeaponPoints = Number.isFinite(maxWeaponPoints) ? maxWeaponPoints : 0;
+  state.maxAscPoints = Number.isFinite(maxAscPoints) ? maxAscPoints : 0;
+  state.allocated = [...(allocated || [])];
+  state.weaponSet1Allocated = [...(weaponSet1Allocated || [])];
+  state.weaponSet2Allocated = [...(weaponSet2Allocated || [])];
+  state.ascAllocated = [...(ascAllocated || [])];
+  state.instillAllocated = [...(instillAllocated || [])];
+  state.ascendancyOptions = (ascendancyOptions || []).map(function(a) { return { id: a.id, name: a.name }; });
+  state.camera = camera ? { x: camera.x, y: camera.y, scale: camera.scale } : null;
+  state.showAsc = Boolean(showAsc);
+  state.showLockedConditional = Boolean(showLockedConditional);
+  state.showInstillOnGraph = Boolean(showInstillOnGraph);
+  state.showSmall = Boolean(showSmall);
+  state.weaponMode = weaponMode || null;
+  state.snapshotId = "planner-" + Date.now();
+  return state;
+};

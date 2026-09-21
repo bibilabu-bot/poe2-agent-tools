@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-028B — Bounded read-only live tree tools
 
-- Status: `READY`
+- Status: `REVIEW`
 - Assignment target: external coding executor, owner-forwarded prompt and GitHub delivery
 - Owner resumed development after P2AT-029A zero-skip environment verification.
 - Scope: bounded tree/Build snapshot, node lookup, lexical search, neighborhood,
