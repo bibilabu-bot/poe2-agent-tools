@@ -202,6 +202,10 @@ class _TreeTool(BaseTool):
             if key not in self.parameters["properties"]:
                 raise AgentError("INVALID_TOOL_ARGUMENTS", f"未知参数: {key}")
 
+    def _require_tree_catalog(self) -> None:
+        if self._snapshot._error:
+            raise AgentError("TREE_SNAPSHOT_UNAVAILABLE", f"当前天赋树目录不可用：{self._snapshot._error}")
+
     async def execute(self, arguments: Mapping[str, Any]) -> Any:
         raise NotImplementedError
 
@@ -214,6 +218,7 @@ class TreeSummaryTool(_TreeTool):
         return {"required": [], "properties": {}}
 
     async def execute(self, arguments: Mapping[str, Any]) -> Any:
+        self._require_tree_catalog()
         s = self._snapshot
         b = s.build
         nodes = list(s.nodes.values())
@@ -269,6 +274,7 @@ class ReadTreeNodesTool(_TreeTool):
             raise AgentError("INVALID_TOOL_ARGUMENTS", f"IDs 数量需在 1-{MAX_READ_IDS} 之间")
 
     async def execute(self, arguments: Mapping[str, Any]) -> Any:
+        self._require_tree_catalog()
         ids = arguments["ids"]
         off = arguments.get("statsOffset", 0)
         lim = arguments.get("statsLimit", MAX_STATS_PER_BATCH)
@@ -299,6 +305,7 @@ class SearchTreeNodesTool(_TreeTool):
             raise AgentError("INVALID_TOOL_ARGUMENTS", "搜索文本不能为空")
 
     async def execute(self, arguments: Mapping[str, Any]) -> Any:
+        self._require_tree_catalog()
         query = arguments["query"].strip().lower()
         offset = arguments.get("offset", 0)
         # Exact ID match
@@ -347,6 +354,7 @@ class ReadTreeNeighborhoodTool(_TreeTool):
         }}
 
     def validate(self, arguments: Mapping[str, Any]) -> None:
+        self._require_tree_catalog()
         super().validate(arguments)
         nid = arguments.get("nodeId", "")
         if not isinstance(nid, str) or not nid.strip():
@@ -355,6 +363,7 @@ class ReadTreeNeighborhoodTool(_TreeTool):
             raise AgentError("NODE_NOT_FOUND", f"节点 {nid} 在当前天赋树快照中不存在")
 
     async def execute(self, arguments: Mapping[str, Any]) -> Any:
+        self._require_tree_catalog()
         center = str(arguments["nodeId"])
         max_hops = min(arguments.get("maxHops", 2), MAX_NEIGHBORHOOD_HOPS)
         max_nodes = min(arguments.get("maxNodes", 30), MAX_NEIGHBORHOOD_NODES)
@@ -404,6 +413,7 @@ class FindTreePathTool(_TreeTool):
         }}
 
     def validate(self, arguments: Mapping[str, Any]) -> None:
+        self._require_tree_catalog()
         super().validate(arguments)
         tid = arguments.get("targetId", "")
         if not isinstance(tid, str) or not tid.strip():
@@ -418,6 +428,7 @@ class FindTreePathTool(_TreeTool):
             raise AgentError("NODE_NOT_FOUND", f"起始节点 {sid} 在当前天赋树快照中不存在")
 
     async def execute(self, arguments: Mapping[str, Any]) -> Any:
+        self._require_tree_catalog()
         target = str(arguments["targetId"])
         start_id = arguments.get("startId")
         category = arguments.get("category", "general")
@@ -499,6 +510,8 @@ class BuildSummaryTool(_TreeTool):
             },
             "highlights": b.get("highlights", [])[:40],
         }
+        if self._snapshot._error:
+            result["treeSnapshotWarning"] = self._snapshot._error
         # Truncation markers
         for cat in ("normal", "weaponSet1", "weaponSet2", "ascendancy", "instilled"):
             if len(allocs.get(cat, [])) > 50:

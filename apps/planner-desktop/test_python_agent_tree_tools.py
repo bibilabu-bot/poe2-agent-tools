@@ -106,8 +106,31 @@ class ToolRegistrationTests(unittest.TestCase):
     def test_tool_names_match_convention(self):
         self.assertGreaterEqual(len(tree_tool_names()), 6)
 
+    def test_error_snapshot_still_registers_all_tools(self):
+        snap = _make_fixture_snapshot()
+        snap._error = "localization unavailable"
+        self.assertEqual({tool.name for tool in register_tree_tools(snap)},
+                         {"tree_summary", "read_tree_nodes", "search_tree_nodes",
+                          "read_tree_neighborhood", "find_tree_path", "build_summary"})
+
 
 class ToolExecutionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_error_snapshot_keeps_build_summary_and_fails_tree_explicitly(self):
+        snap = _make_fixture_snapshot()
+        snap._error = "localization unavailable"
+        tools = {tool.name: tool for tool in register_tree_tools(snap)}
+        summary = await tools["build_summary"].execute({})
+        self.assertEqual(summary["budgets"]["passive"]["used"], 1)
+        self.assertEqual(summary["treeSnapshotWarning"], "localization unavailable")
+        with self.assertRaisesRegex(AgentError, "当前天赋树目录不可用"):
+            await tools["tree_summary"].execute({})
+        for name, arguments in (
+            ("read_tree_neighborhood", {"nodeId": "100"}),
+            ("find_tree_path", {"targetId": "400"}),
+        ):
+            with self.subTest(name=name), self.assertRaisesRegex(AgentError, "当前天赋树目录不可用"):
+                tools[name].validate(arguments)
+
     async def test_rag_search_adds_distance_to_current_build(self):
         class FakeIndex:
             def records(self):

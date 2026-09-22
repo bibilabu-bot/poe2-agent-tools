@@ -34,9 +34,6 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
         if not params or not params.get("snapshot"):
             service.tree_snapshot = None
             return {"ready": False, "nodeCount": 0}
-        if params["snapshot"].get("_error"):
-            service.tree_snapshot = None
-            return {"ready": False, "nodeCount": 0, "error": "当前天赋树快照不可用"}
         snap = TreeSnapshot(
             snapshot_id=params["snapshot"].get("snapshotId", ""),
             node_count=params["snapshot"].get("nodeCount", 0),
@@ -47,7 +44,9 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
             _error=params["snapshot"].get("_error"),
         )
         service.tree_snapshot = snap
-        return {"ready": True, "nodeCount": snap.node_count, "snapshotId": snap.snapshot_id}
+        return {"ready": not bool(snap._error), "buildReady": True,
+                "nodeCount": snap.node_count, "snapshotId": snap.snapshot_id,
+                "error": snap._error}
     if method == "rag_build":
         if not service.rag: raise AgentError("RAG_NOT_CONFIGURED","请先保存向量化和重排序配置")
         def progress(completed, total):
