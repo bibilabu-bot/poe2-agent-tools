@@ -297,7 +297,7 @@ function deriveOfficialToCurrentTransform(data,orbitCounts) {
   for(const [id,raw] of Object.entries(data?.nodes||{})) {
     if(pairs.length>=1400) break;
     const current=byId.get(String(id));
-    if(!current || isAsc(current) || isMasteryVisual(current)) continue;
+    if(!current || raw.isBlighted || current._officialHiddenSidecar || isAsc(current) || isMasteryVisual(current)) continue;
     if(!Number.isFinite(current.x)||!Number.isFinite(current.y)) continue;
 
     const p=officialNodePosition(data,raw,orbitCounts);
@@ -387,15 +387,20 @@ async function loadOfficialHiddenSidecar() {
       }
 
       if(rawNode) {
+        // Names can differ between upstream snapshots; numeric identity cannot.
+        node=byId.get(String(rawId));
         const officialPos=officialNodePosition(data,rawNode,orbitCounts);
         if(officialPos) {
           const displayPos=transformOfficialPoint(officialPos);
-          node=makeOfficialHiddenNode(rawId,rawNode,displayPos,rec);
-
-          nodes.push(node);
+          const officialNode=makeOfficialHiddenNode(rawId,rawNode,displayPos,rec);
+          if(node) {
+            nodes[nodes.indexOf(node)]=officialNode;
+          } else {
+            nodes.push(officialNode);
+            injected++;
+          }
+          node=officialNode;
           byId.set(String(rawId),node);
-          addSpatial(node);
-          injected++;
 
           // Use official current descriptions where available.
           if(Array.isArray(rawNode.stats)&&rawNode.stats.length) {
@@ -410,6 +415,10 @@ async function loadOfficialHiddenSidecar() {
 
   officialHiddenSidecarReady=true;
   officialHiddenSidecarError=null;
+
+  // Replaced nodes may have moved from stale slim-tree coordinates.
+  spatial=new Map();
+  for(const node of nodes) addSpatial(node);
 
   // Sidecar may have restored unlockConstraint on ordinary nodes.
   rebuildPathIndex();

@@ -107,6 +107,18 @@ test("production service publishes the immutable tree snapshot before the model 
   assert.deepEqual(published.nodes[0].stats, ["火焰伤害提高 12%"]);
 });
 
+test("snapshot failures clear stale data and stop before sending a tool-less model request", async () => {
+  const client = new MockPythonClient();
+  const service = new AgentService({client});
+  await service.configure({baseUrl:"https://example.com/v1",apiKey:"synthetic"});
+  service.treeSnapshotProvider = async () => { throw new TypeError("duplicate node ID: 11184"); };
+  const result = await service.send({model:"mock",text:"你能看到我的bd吗",buildState:{nodes:[]}});
+  assert.equal(result.ok,false);
+  assert.equal(result.error.code,"TREE_SNAPSHOT_FAILED");
+  assert.equal(client.calls.some(call=>call.method==="send"),false);
+  assert.equal(client.calls.find(call=>call.method==="tree_snapshot").params.snapshot,null);
+});
+
 test("session switching blocks concurrent sends and ignores late session results", async () => {
   const client=new MockPythonClient(),original=client.request.bind(client);
   let release;

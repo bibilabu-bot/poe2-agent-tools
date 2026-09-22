@@ -157,6 +157,7 @@ class AgentService {
           checkActive();
           if (["CANCELLED", "RUN_TIMEOUT"].includes(error?.code)) throw error;
           await this.client.request("tree_snapshot", {snapshot:null, generation: String(generation)});
+          throw new PythonAgentError("TREE_SNAPSHOT_FAILED", "当前 BD 快照读取失败，本次消息未发送。请检查天赋树数据后重试。");
         }
         checkActive();
       }

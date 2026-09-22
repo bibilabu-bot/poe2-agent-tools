@@ -38,6 +38,7 @@ function createTreeSnapshotProvider(_localResourceResponse, _upstreamSnapshotId)
       ascAllocated: new Set(buildState.ascAllocated || []),
       instillAllocated: new Set(buildState.instillAllocated || []),
       classStartId: buildState.classStartId || null,
+      baseClassName: buildState.baseClassName || null,
       ascStartId: buildState.ascStartId || null,
       selectedAscendancyId: buildState.selectedAscendancyId || null,
       maxPoints: buildState.maxPoints || 0,
