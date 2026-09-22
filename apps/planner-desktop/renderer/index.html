@@ -433,15 +433,18 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
 <dialog id="promptEditor" class="prompt-editor" aria-labelledby="promptEditorTitle">
   <header><h2 id="promptEditorTitle">提示词维护</h2><button id="closePromptEditor" type="button" aria-label="关闭提示词维护" autofocus><span aria-hidden="true">×</span> 关闭</button></header>
   <div class="prompt-editor-body">
-  <p class="agent-help">本机所有会话共用。保存后用于后续请求，不改变工具权限或功能触发条件。请勿填写密钥、个人资料或私有历史；这些文字会随聊天发送给你选择的模型服务。</p>
-  <p id="promptEditorStatus" role="status"></p>
-  <nav class="prompt-categories" aria-label="提示词分类">
-    <button id="systemPromptCategory" type="button" aria-pressed="true">系统提示词</button>
-    <button id="toolPromptCategory" type="button" aria-pressed="false">工具提示词</button>
-  </nav>
-  <p id="promptCategoryHelp" class="agent-help"></p>
-  <div id="promptEditorBlocks"></div>
-  <footer><button id="resetPromptBlocks" type="button">全部恢复默认</button><button id="savePromptBlocks" type="button" disabled>保存全部修改</button></footer>
+    <div class="prompt-editor-intro">
+      <p class="agent-help">本机所有会话共用。保存后用于后续请求，不改变工具权限或功能触发条件。请勿填写密钥、个人资料或私有历史；这些文字会随聊天发送给你选择的模型服务。</p>
+      <p id="promptEditorStatus" role="status"></p>
+    </div>
+    <div class="prompt-editor-workspace">
+      <nav id="promptPageNav" class="prompt-page-nav" aria-label="提示词页面"></nav>
+      <main class="prompt-page-content">
+        <p id="promptCategoryHelp" class="agent-help"></p>
+        <div id="promptEditorBlocks"></div>
+      </main>
+    </div>
+    <footer><button id="resetPromptBlocks" type="button">全部恢复默认</button><button id="savePromptBlocks" type="button" disabled>保存全部修改</button></footer>
   </div>
 </dialog>
 <script src="stat-utils.js"></script>

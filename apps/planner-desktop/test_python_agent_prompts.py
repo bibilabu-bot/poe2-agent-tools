@@ -15,20 +15,29 @@ from python_agent.rag import RagTool
 from python_agent.service import AgentService
 from test_python_agent_runtime import ScriptedProvider
 
-# Chinese v3 combinations, in memory/rag/unavailable bit order.
+# Chinese v4 combinations, in memory/rag/unavailable bit order.
 BASELINE = {
-    "100": "2850d1b54af36589cfe22948d0a046657417cf9bee80bc45e0d067d804182c41",
-    "101": "e2cbcc833b6a1aaff440c6f1f8e38cce54820e2ee73380aae053fd265c5f9525",
-    "110": "83bf5455701e0569c799be8a44cf800d3abe8cf92ff98ccab2680b47b1d0bec8",
-    "111": "c7c3a14c60712a73dbeab9187711f59c0e0df9ef507602aaec1e000b63a999a3",
-    "000": "c34d3048456ec911b1fa36f45b1dca5ba283ab6fd5f701da1b4f18b7dbab845b",
-    "001": "64505790d3fe1fa9db2d9f0fc0366c3256c4d39da60f683f99d6f0079b4d9b78",
-    "010": "d7840d38ef5e2dce14aafa9287a244b6c15b334f4b231d84e0fd5c52bdf9f32f",
-    "011": "0087c2842e811bec8dd5ed60702fec61df713b22bbf969ffd4c4d975247b3805"
+    "100": "36d044d68037709971c89ac20448b9c9ac7fefddadf4fef0d488d7a6fc35d788",
+    "101": "8b2e1a5e4aecdc1f50086c069dc07360be59ab3c01c680658bb7642669ecb53c",
+    "110": "6874c8a1f0ba594340bd4e685c2ce977e099d0091a02d42d89198effc85effb1",
+    "111": "3ef3bebd5b6b47234f10ae8ea8a034d800ece4174e45125cfea2e7205186bef3",
+    "000": "b6d7622a2351ee1294364f39b8518465f784e828277f70867456c24f89ae3df3",
+    "001": "2fa146eeee728f7dae881f6e1e5dbd1b277eeabcab98ed003f832384860d560d",
+    "010": "d6746bea35c4d8dfc4769dd7d8b382b3ada1f2935e6d8e0dda5c7362fc3b1510",
+    "011": "28ea5096a81fee930c3b7d1a03aab9e26ff3201a31277699b0e46a8769e2d69c"
 }
 
 
 class PromptTests(unittest.IsolatedAsyncioTestCase):
+    def test_v3_explicit_english_override_survives_v4_migration(self):
+        from python_agent.prompts_legacy import ENGLISH_DEFAULTS
+        with tempfile.TemporaryDirectory() as folder:
+            filename=Path(folder)/"prompts.json"
+            filename.write_text(json.dumps({"version":"chat-prompts-zh-v3","overrides":{"base":ENGLISH_DEFAULTS["base"]}}),encoding="utf-8")
+            store=PromptStore(str(filename))
+            self.assertIsNone(store.error)
+            self.assertEqual(dict(store.blocks)["base"],ENGLISH_DEFAULTS["base"])
+
     def test_english_defaults_migrate_but_custom_values_survive_and_reset_chinese(self):
         from python_agent.prompts_legacy import ENGLISH_DEFAULTS
         for version in ("chat-system-v1","chat-prompts-v2"):
@@ -141,7 +150,8 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sections,[text for _,text in DEFAULTS])
 
     def test_all_combinations_match_exact_chinese_defaults(self):
-        self.assertEqual(PROMPT_VERSION,"chat-prompts-zh-v3")
+        self.assertEqual(PROMPT_VERSION,"chat-prompts-zh-v4")
+        self.assertIn("必须先调用 build_summary",build_system_prompt().text)
         for flags in itertools.product((False,True),repeat=3):
             with self.subTest(flags=flags):
                 spec=build_system_prompt(memory=flags[0],rag=flags[1],rag_unavailable=flags[2])

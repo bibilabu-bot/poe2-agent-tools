@@ -5,10 +5,12 @@ import os
 import tempfile
 from pathlib import Path
 
-PROMPT_VERSION = "chat-prompts-zh-v3"
+PROMPT_VERSION = "chat-prompts-zh-v4"
 BASE = (
     "你是一个简洁、乐于助人的通用助手。"
     "只有存在工具结果时，才能声称工具已经执行。"
+    "当 build_summary 工具可用，且用户询问你能否看到、读取或分析当前 BD/Build/构筑时，"
+    "必须先调用 build_summary，再根据工具结果回答；不要要求用户重复提供已经位于当前 Planner 中的构筑。"
 )
 MEMORY = (
     " 记忆上下文数据提供当前轮次编号、全部已完成轮次的索引摘要，以及你的笔记。"
@@ -96,12 +98,12 @@ class PromptStore:
                     raise ValueError("oversize")
                 value = json.loads(self.path.read_text(encoding="utf-8"))
                 version = value.get("version")
-                if version not in ("chat-system-v1", "chat-prompts-v2", PROMPT_VERSION):
+                if version not in ("chat-system-v1", "chat-prompts-v2", "chat-prompts-zh-v3", PROMPT_VERSION):
                     raise ValueError("version")
                 overrides = value["overrides"]
                 if not isinstance(overrides, dict):
                     raise ValueError("overrides")
-                if version != PROMPT_VERSION:
+                if version in ("chat-system-v1", "chat-prompts-v2"):
                     from .prompts_legacy import ENGLISH_DEFAULTS
                     # Old saves materialized defaults as overrides. Only exact known
                     # default values are migrated; modified English remains untouched.

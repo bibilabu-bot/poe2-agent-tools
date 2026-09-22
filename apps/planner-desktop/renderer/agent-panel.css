@@ -42,14 +42,21 @@
 .prompt-inspector summary{cursor:pointer;font-weight:600;margin-bottom:12px}
 .prompt-inspector p{margin:12px 0}
 .prompt-inspection-text{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 Consolas,monospace;color:#c8c3b8;margin:14px 0;user-select:text}
-.prompt-editor{width:min(850px,calc(100vw - 24px));max-height:calc(100vh - 32px);overflow:hidden;padding:0;background:#101216;color:#eee9df;border:1px solid #555a63;border-radius:12px;color-scheme:dark}
+.prompt-editor{width:min(1100px,calc(100vw - 24px));height:min(820px,calc(100vh - 32px));max-height:calc(100vh - 32px);overflow:hidden;padding:0;background:#101216;color:#eee9df;border:1px solid #555a63;border-radius:12px;color-scheme:dark}
 .prompt-editor[open]{display:flex;flex-direction:column}
 .prompt-editor>header{flex:0 0 auto;padding:16px 20px;background:#101216;border-bottom:1px solid #3c4048;z-index:2}
-.prompt-editor-body{overflow:auto;min-height:0;padding:0 20px 20px;scrollbar-width:thin}
+.prompt-editor-body{display:flex;flex:1;min-height:0;flex-direction:column;overflow:hidden;padding:0}
+.prompt-editor-intro{flex:0 0 auto;padding:0 20px;border-bottom:1px solid #2b2e33}
+.prompt-editor-workspace{display:grid;grid-template-columns:220px minmax(0,1fr);flex:1;min-height:0}
+.prompt-page-nav{min-height:0;overflow:auto;padding:12px 8px;border-right:1px solid #3c4048;background:#0c0e11;display:flex;flex-direction:column;gap:4px;scrollbar-width:thin}
+.prompt-page-nav button{text-align:left;border-color:transparent;background:transparent;padding:9px 10px;white-space:normal;line-height:1.35}
+.prompt-page-nav button[aria-pressed="true"]{background:#3a3020;border-color:#cba96a;color:#ffe4b2}
+.prompt-page-content{min-width:0;overflow:auto;padding:0 20px 20px;scrollbar-width:thin}
 #closePromptEditor{flex:0 0 auto;white-space:nowrap;min-height:36px}
 #closePromptEditor:focus-visible{outline:2px solid #ffe4b2;outline-offset:3px}
 .prompt-editor::backdrop{background:#000b}
 .prompt-editor header,.prompt-editor footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.prompt-editor footer{flex:0 0 auto;padding:12px 20px;border-top:1px solid #3c4048;background:#101216}
 .prompt-editor h2{margin:0;font-size:18px}.prompt-editor section{margin:18px 0}.prompt-editor label{display:block;margin-bottom:8px;font-size:13px;color:#d8c49b}
 .prompt-editor textarea{width:100%;resize:vertical;min-height:90px;padding:10px;background:#090b0e;color:#ddd;border:1px solid #3c4048;border-radius:6px;font:12px/1.6 Consolas,monospace}
 .retrieval-settings{display:grid;gap:9px;border-top:1px solid #2b2e33;padding-top:20px}
@@ -99,9 +106,8 @@
 #agentView .agent-message.user{border:0;background:#24262b}
 #agentView .agent-composer{border:0;width:min(900px,100%);margin:auto;padding:16px 24px}
 #agentView .agent-composer textarea{min-width:0}
-.prompt-categories{display:flex;gap:8px;position:sticky;top:0;background:#151a21;padding:10px 0;z-index:1}
-.prompt-categories button[aria-pressed="true"]{background:#3a3020;border-color:#cba96a;color:#ffe4b2}
 #promptEditorBlocks section[hidden]{display:none}
+@media(max-width:700px){.prompt-editor-workspace{grid-template-columns:150px minmax(0,1fr)}.prompt-page-nav{font-size:11px}.prompt-page-content{padding-inline:12px}}
 #agentView .agent-layout.sessions-collapsed{grid-template-columns:64px minmax(0,1fr)}
 .sessions-collapsed .session-sidebar{padding-inline:4px}
 .sessions-collapsed #sessionToggle{font-size:11px;text-align:center;padding:8px 2px;white-space:normal}

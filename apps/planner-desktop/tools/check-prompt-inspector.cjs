@@ -57,16 +57,16 @@ app.whenReady().then(async()=>{
     };
     const headerTop=await checkCloseVisible();
     for(const fraction of [0.5,1]){
-      await run(`document.querySelector('.prompt-editor-body').scrollTop=document.querySelector('.prompt-editor-body').scrollHeight*${fraction}`);
-      assert.ok(await run(`document.querySelector('.prompt-editor-body').scrollTop>0`));
+      await run(`document.querySelector('.prompt-page-content').scrollTop=document.querySelector('.prompt-page-content').scrollHeight*${fraction}`);
+      assert.ok(await run(`document.querySelector('.prompt-page-content').scrollTop>0`));
       assert.equal(await checkCloseVisible(),headerTop);
     }
     // Short content and a smaller viewport use the same non-scrolling header.
     await run(`document.querySelector('#promptEditorBlocks').hidden=true`);
     await checkCloseVisible();
-    await run(`document.querySelector('#promptEditorBlocks').hidden=false;document.querySelector('.prompt-editor-body').scrollTop=0`);
+    await run(`document.querySelector('#promptEditorBlocks').hidden=false;document.querySelector('.prompt-page-content').scrollTop=0`);
     win.setContentSize(600,480);
-    await run(`document.querySelector('.prompt-editor-body').scrollTop=99999`);
+    await run(`document.querySelector('.prompt-page-content').scrollTop=99999`);
     await checkCloseVisible();
     win.setContentSize(1100,850);
     await run(`document.querySelector('#closePromptEditor').click()`);
@@ -76,9 +76,14 @@ app.whenReady().then(async()=>{
     assert.equal(await visibleCount(),5);
     assert.deepEqual(await run(`Object.fromEntries([...document.querySelectorAll('#promptEditorBlocks textarea')].map(f=>[f.dataset.block,f.value]))`),
       Object.fromEntries((await client.request("inspect_prompt")).blocks.map(b=>[b.id,b.text])));
-    await run(`document.querySelector('#prompt-block-base').value='You are a concise assistant. CUSTOM_UI_FIXTURE';document.querySelector('#prompt-block-base').dispatchEvent(new Event('input'));document.querySelector('#toolPromptCategory').click()`);
-    assert.equal(await visibleCount(),12);
-    await run(`document.querySelector('#prompt-block-tool_search_memory').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#systemPromptCategory').click()`);
+    assert.equal(await run(`document.querySelectorAll('#promptPageNav button').length`),13);
+    assert.equal(await run(`['tool_tree_summary','tool_read_tree_nodes','tool_search_tree_nodes','tool_read_tree_neighborhood','tool_find_tree_path','tool_build_summary'].every(id=>document.querySelector('#promptPageNav button[data-page="'+id+'"]'))`),true);
+    await run(`document.querySelector('#prompt-block-base').value='You are a concise assistant. CUSTOM_UI_FIXTURE';document.querySelector('#prompt-block-base').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_search_memory"]').click()`);
+    assert.equal(await visibleCount(),1);
+    await run(`document.querySelector('#prompt-block-tool_search_memory').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_build_summary"]').click()`);
+    assert.equal(await visibleCount(),1);
+    assert.equal(await run(`document.querySelector('#prompt-block-tool_build_summary').closest('section').hidden`),false);
+    await run(`document.querySelector('#promptPageNav button[data-page="system"]').click()`);
     assert.match(await run(`document.querySelector('#prompt-block-base').value`),/CUSTOM_UI_FIXTURE/);
     await run(`document.querySelector('#savePromptBlocks').click()`);
     await wait(`document.querySelector('#promptEditorStatus').textContent.includes('已保存')`);
@@ -87,7 +92,7 @@ app.whenReady().then(async()=>{
     assert.match((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
     assert.match((await client.request("inspect_prompt")).blocks.find(b=>b.id==="tool_search_memory").text,/CUSTOM_TOOL_FIXTURE/);
     await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"system-prompts.png"),(await win.webContents.capturePage()).toPNG());
-    await run(`document.querySelector('#toolPromptCategory').click();document.querySelector('.prompt-editor-body').scrollTop=0`);
+    await run(`document.querySelector('#promptPageNav button[data-page="tool_build_summary"]').click();document.querySelector('.prompt-page-content').scrollTop=0`);
     await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"tool-prompts.png"),(await win.webContents.capturePage()).toPNG());
     service.active={kind:"synthetic-run"};
     await run(`document.querySelector('#savePromptBlocks').click()`);await wait(`!document.querySelector('#savePromptBlocks').disabled`);
@@ -123,13 +128,13 @@ app.whenReady().then(async()=>{
     await wait(`!document.querySelector('#closePromptEditor').disabled`);
     client.request=previousRequest;
     assert.equal(await run(`document.querySelector('#promptEditor').open`),true);
-    await run(`document.querySelector('.prompt-editor-body').scrollTop=99999`);await checkCloseVisible();
-    assert.ok(await run(`(()=>{const b=document.querySelector('.prompt-editor-body');return b.scrollTop>0&&Math.abs(b.scrollHeight-b.clientHeight-b.scrollTop)<2;})()`));
+    await run(`document.querySelector('#promptPageNav button[data-page="system"]').click();document.querySelector('.prompt-page-content').scrollTop=99999`);await checkCloseVisible();
+    assert.ok(await run(`(()=>{const b=document.querySelector('.prompt-page-content');return b.scrollTop>0&&Math.abs(b.scrollHeight-b.clientHeight-b.scrollTop)<2;})()`));
     await new Promise(resolve=>setTimeout(resolve,150));
     fs.writeFileSync(path.join(output,"close-at-bottom.png"),(await win.webContents.capturePage()).toPNG());
     await cancel();assert.equal(await run(`document.querySelector('#promptEditor').open`),false);
     console.log("PASS: close always visible/hittable at top/middle/bottom, short content and small viewport; clean/dirty button and native Escape, cancel preserves draft, busy prevents close and late-save loss");
-    console.log("PASS: 5 system/12 tool blocks fully match runtime, category drafts preserved, both save/restart/reset, busy rejection, overlength preserved, unsaved-close confirmation");
+    console.log("PASS: 5 system blocks and 12 individual tool pages fully match runtime, tree/build pages present, page drafts preserved, save/restart/reset, busy rejection, overlength preserved, unsaved-close confirmation");
     console.log("PASS: production Python/preload/settings inspector; explicit read only, exact text, state labels, no private data/chat writes, busy rejection, stale clearing; zero network");
   }finally{win.destroy();client.terminate();ipcMain.removeHandler("agent:inspect-prompt");ipcMain.removeHandler("agent:save-prompts");app.quit();}
 }).catch(error=>{console.error(error);app.exit(1)});
