@@ -17,7 +17,7 @@
       const p=result.prompt;
       if(typeof p?.text!=="string"||p.text.length>8000||p.privateContextIncluded!==false)throw new Error("提示词查看结果无效");
       const state=p.features;
-      status.textContent=`${p.version} · ${p.configured?"运行时已连接":"运行时尚未连接"} · 记忆 ${state.memory?"启用":"未启用"} / RAG ${state.rag?"已挂载":"未挂载"} / 检索故障提示 ${state.ragUnavailable?"启用":"未启用"}。这是读取时快照；发送时会重新检查功能状态。`;
+      status.textContent=`${p.version} · ${p.configured?"运行时已连接":"运行时尚未连接"} · 记忆 ${state.memory?"启用":"未启用"} / RAG ${state.rag?"已挂载":"未挂载"} / 检索故障提示 ${state.ragUnavailable?"启用":"未启用"}。这里显示首轮系统提示词；工具的详细提示词仅在调用后加入下一轮。发送时会重新检查功能状态。`;
       output.textContent=p.text;output.hidden=false;
     }catch(error){if(request===revision)status.textContent=error.message;}
     finally{button.disabled=false;}

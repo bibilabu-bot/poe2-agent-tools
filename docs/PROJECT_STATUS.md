@@ -8,6 +8,12 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+P2AT-030A separates each tool's brief purpose/trigger sentence from its detailed
+prompt. The model sees short purposes in the tool list; after a tool call, only
+that tool's detailed prompt is added for the next model round. Existing local v5
+custom tool text is migrated unchanged. Tool schemas and permissions are unchanged.
+
+
 P2AT-028B is accepted for the developer build: the agent can inspect the current
 Build and tree, use guarded category-specific allocation/deallocation tools, and
 navigate conservative semantic clusters. WeGame import preview has a read-only

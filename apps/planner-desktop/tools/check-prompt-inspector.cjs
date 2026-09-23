@@ -16,7 +16,7 @@ app.whenReady().then(async()=>{
   const html=fs.readFileSync(path.join(renderer,"index.html"),"utf8").replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,"")
     .replace('<link rel="stylesheet" href="agent-panel.css">',`<style>${fs.readFileSync(path.join(renderer,"agent-panel.css"),"utf8")}</style>`);
   const run=async code=>{try{return await win.webContents.executeJavaScript(code);}catch(error){throw new Error(`Synthetic UI evaluation failed: ${code.slice(0,250)}`,{cause:error});}};
-  const wait=async condition=>{for(let i=0;i<160;i++){if(await run(condition))return;await new Promise(r=>setTimeout(r,40));}throw Error("Inspector UI timed out");};
+  const wait=async condition=>{for(let i=0;i<160;i++){if(await run(condition))return;await new Promise(r=>setTimeout(r,40));}throw Error("Inspector UI timed out: "+await run(`document.querySelector('#promptEditorStatus')?.textContent`));};
   try{
     await win.loadURL("data:text/html;charset=utf-8,"+encodeURIComponent(html));
     await run(fs.readFileSync(path.join(renderer,"prompt-inspector.js"),"utf8"));
@@ -48,7 +48,7 @@ app.whenReady().then(async()=>{
     await run(fs.readFileSync(path.join(renderer,"prompt-editor.js"),"utf8"));
     await run(`document.querySelector('#settingsView').hidden=true;document.querySelector('#agentView').hidden=false;document.querySelector('#openPromptEditor').click()`);
     await wait(`!document.querySelector('#savePromptBlocks').disabled`);
-    assert.equal(await run(`document.querySelectorAll('#promptEditorBlocks textarea').length`),20);
+    assert.equal(await run(`document.querySelectorAll('#promptEditorBlocks textarea').length`),34);
     assert.equal(await run(`document.querySelector('#prompt-block-tool_calculator')`),null);
     assert.equal(await run(`document.querySelector('#closePromptEditor').getAttribute('aria-label')`),"关闭提示词维护");
     const checkCloseVisible=async()=>{
@@ -80,18 +80,22 @@ app.whenReady().then(async()=>{
     assert.equal(await run(`['tool_tree_overview','tool_read_tree_nodes','tool_search_tree_nodes','tool_read_tree_neighborhood','tool_find_tree_path','tool_read_tree_cluster'].every(id=>document.querySelector('#promptPageNav button[data-page="'+id+'"]'))`),true);
     assert.equal(await run(`['tool_tree_summary','tool_build_summary','tool_list_tree_clusters'].some(id=>document.querySelector('#promptPageNav button[data-page="'+id+'"]'))`),false);
     await run(`document.querySelector('#prompt-block-base').value='You are a concise assistant. CUSTOM_UI_FIXTURE';document.querySelector('#prompt-block-base').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_search_memory"]').click()`);
-    assert.equal(await visibleCount(),1);
-    await run(`document.querySelector('#prompt-block-tool_search_memory').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_tree_overview"]').click()`);
-    assert.equal(await visibleCount(),1);
+    assert.equal(await visibleCount(),2);
+    await run(`document.querySelector('#prompt-block-tool_search_memory').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#prompt-block-purpose_search_memory').value='用户问起旧对话时使用。';document.querySelector('#prompt-block-purpose_search_memory').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_tree_overview"]').click()`);
+    assert.equal(await visibleCount(),3);
     assert.equal(await run(`document.querySelector('#prompt-block-tool_tree_overview').closest('section').hidden`),false);
+    assert.equal(await run(`document.querySelector('#prompt-block-purpose_tree_overview').closest('section').hidden`),false);
+    assert.equal(await run(`document.querySelector('#prompt-block-purpose_tree_overview').closest('section').nextElementSibling.querySelector('textarea').id`),'prompt-block-tool_tree_overview');
     await run(`document.querySelector('#promptPageNav button[data-page="system"]').click()`);
     assert.match(await run(`document.querySelector('#prompt-block-base').value`),/CUSTOM_UI_FIXTURE/);
     await run(`document.querySelector('#savePromptBlocks').click()`);
-    await wait(`document.querySelector('#promptEditorStatus').textContent.includes('已保存')`);
+    await wait(`document.querySelector('#promptEditorStatus').textContent.includes('已保存') || document.querySelector('#promptEditorStatus').textContent.includes('失败') || document.querySelector('#promptEditorStatus').textContent.includes('不能超过')`);
+    assert.match(await run(`document.querySelector('#promptEditorStatus').textContent`),/已保存/);
     assert.match((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
     client.terminate();
     assert.match((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
     assert.match((await client.request("inspect_prompt")).blocks.find(b=>b.id==="tool_search_memory").text,/CUSTOM_TOOL_FIXTURE/);
+    assert.equal((await client.request("inspect_prompt")).blocks.find(b=>b.id==="purpose_search_memory").text,"用户问起旧对话时使用。");
     await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"system-prompts.png"),(await win.webContents.capturePage()).toPNG());
     await run(`document.querySelector('#promptPageNav button[data-page="tool_tree_overview"]').click();document.querySelector('.prompt-page-content').scrollTop=0`);
     await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"tool-prompts.png"),(await win.webContents.capturePage()).toPNG());
@@ -101,6 +105,7 @@ app.whenReady().then(async()=>{
     await run(`window.confirm=()=>true;document.querySelector('#resetPromptBlocks').click()`);await wait(`!document.querySelector('#savePromptBlocks').disabled`);
     assert.doesNotMatch((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
     assert.doesNotMatch((await client.request("inspect_prompt")).blocks.find(b=>b.id==="tool_search_memory").text,/CUSTOM_TOOL_FIXTURE/);
+    assert.notEqual((await client.request("inspect_prompt")).blocks.find(b=>b.id==="purpose_search_memory").text,"用户问起旧对话时使用。");
     await run(`document.querySelector('#prompt-block-tool_search_memory').value='x'.repeat(4001);document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#savePromptBlocks').click()`);
     await wait(`!document.querySelector('#savePromptBlocks').disabled`);
     assert.match(await run(`document.querySelector('#promptEditorStatus').textContent`),/4000/);
@@ -135,7 +140,7 @@ app.whenReady().then(async()=>{
     fs.writeFileSync(path.join(output,"close-at-bottom.png"),(await win.webContents.capturePage()).toPNG());
     await cancel();assert.equal(await run(`document.querySelector('#promptEditor').open`),false);
     console.log("PASS: close always visible/hittable at top/middle/bottom, short content and small viewport; clean/dirty button and native Escape, cancel preserves draft, busy prevents close and late-save loss");
-    console.log("PASS: 5 system blocks and 12 individual tool pages fully match runtime, tree/build pages present, page drafts preserved, save/restart/reset, busy rejection, overlength preserved, unsaved-close confirmation");
+    console.log("PASS: 5 system blocks and 14 tool pages with separate short purposes and detailed prompts, drafts preserved, save/restart/reset, busy rejection, overlength preserved, unsaved-close confirmation");
     console.log("PASS: production Python/preload/settings inspector; explicit read only, exact text, state labels, no private data/chat writes, busy rejection, stale clearing; zero network");
   }finally{win.destroy();client.terminate();ipcMain.removeHandler("agent:inspect-prompt");ipcMain.removeHandler("agent:save-prompts");app.quit();}
 }).catch(error=>{console.error(error);app.exit(1)});

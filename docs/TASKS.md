@@ -6,6 +6,17 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-030A — Separate tool selection hints from detailed tool prompts
+
+- Status: `ACCEPTED` (2026-09-23)
+- Assignment target: Codex local executor; controller verified the complete offline
+  Node/Python suites, prompt-editor Electron interaction and syntax checks.
+- Each tool has a short editable purpose/trigger sentence in its function schema.
+  The previous long description remains an editable detailed prompt and is supplied
+  only after that tool is called, never as a batch of all tool prompts.
+- Existing v5 custom tool text must migrate losslessly; tool names, schemas,
+  permissions and archived conversations do not change.
+
 ### P2AT-028B — Live tree tools and semantic topology
 
 - Status: `ACCEPTED` for the developer build (2026-09-23)

@@ -8,27 +8,67 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from python_agent.prompts import build_system_prompt, PROMPT_VERSION, PromptStore, DEFAULTS, TOOL_DESCRIPTIONS
-from python_agent.core import ChatAgent, ModelReply, ToolCall
+from python_agent.prompts import build_system_prompt, PROMPT_VERSION, PromptStore, DEFAULTS, TOOL_DESCRIPTIONS, TOOL_PURPOSES
+from python_agent.core import AgentRunner, ChatAgent, ModelReply, ToolCall, ToolRegistry
 from python_agent.memory import MemoryTool
 from python_agent.rag import RagTool
 from python_agent.service import AgentService
 from test_python_agent_runtime import ScriptedProvider
+from test_arithmetic_fixture import ArithmeticFixtureTool
 
 # Chinese v5 combinations, in memory/rag/unavailable bit order.
 BASELINE = {
     "100": "2557ff364da88847335e3e8680d06621acdea77a8b8a61ef1455cff088496576",
     "101": "91d79bfda3b4b445727a1f9edf2a50994861fdf187c212056e93d9da5cdcecd1",
-    "110": "84fbc82bab44d21b9a0be1c10c2341b390921e8b9d170afc64b9af32f524fa97",
-    "111": "86e11d3df40ead6df5792fcb63184ff6062dd16bc70621a441afd19d027198a5",
+    "110": "c708346ddea5a75b42ed938437e6b8ec971c779c3d1bd64169338b284d383dc4",
+    "111": "d7980db676ae8ccbf8d487bc2a4b7be609184000782303f0fafd39a12dab5c3d",
     "000": "8324aa3aea50c87025f1021aab09a6fb816b16cfe4f6544adb30c14e8d6ff4b0",
     "001": "8143d53cc929a44d85a500b7f50f4f11438e17de9943802c095e27a3919107ee",
-    "010": "054e9b767d5033742ae7df50036c5b45b6dc41e55a8b9033bbc70be0fb56b543",
-    "011": "0d0c2ba985d70f81ab902584144f5a512b015b75a67c7d730e407842b1871f7a"
+    "010": "c08d85a19cd1bad895411acd63adc376673255677c7192c01d0178e79010163f",
+    "011": "5c8b0497265a978c2f73cf08bf1c404974cd90929a5f30b5fd9173ba0fcbb8f0"
 }
 
 
 class PromptTests(unittest.IsolatedAsyncioTestCase):
+    def test_v5_custom_tool_prompt_migrates_unchanged_with_short_purpose(self):
+        with tempfile.TemporaryDirectory() as folder:
+            filename = Path(folder) / "prompts.json"
+            original = {"version": "chat-prompts-zh-v5", "overrides":
+                        {"tool_tree_overview": "  我的完整工具规则🙂\n", "base": "自定义系统规则"}}
+            filename.write_text(json.dumps(original, ensure_ascii=False), encoding="utf-8")
+            before = filename.read_bytes()
+            store = PromptStore(str(filename))
+            self.assertIsNone(store.error)
+            self.assertEqual(filename.read_bytes(), before)
+            self.assertEqual(dict(store.blocks)["tool_tree_overview"], original["overrides"]["tool_tree_overview"])
+            self.assertEqual(dict(store.blocks)["purpose_tree_overview"], TOOL_PURPOSES["tree_overview"])
+            store.save(dict(store.blocks))
+            self.assertEqual(json.loads(filename.read_text(encoding="utf-8"))["overrides"], original["overrides"])
+
+    def test_short_purpose_is_bounded_and_does_not_change_tool_prompt(self):
+        service = AgentService()
+        with self.assertRaisesRegex(Exception, "120"):
+            service.save_prompts({"purpose_tree_overview": "字" * 121})
+        service.save_prompts({"purpose_tree_overview": "用户问当前构筑时使用。"})
+        blocks = dict(service.prompts.blocks)
+        self.assertEqual(blocks["purpose_tree_overview"], "用户问当前构筑时使用。")
+        self.assertEqual(blocks["tool_tree_overview"], TOOL_DESCRIPTIONS["tree_overview"])
+
+    async def test_detailed_prompt_is_sent_only_after_its_tool_is_called(self):
+        provider = ScriptedProvider([
+            ModelReply(tool_calls=(ToolCall("c", "fixture_arithmetic", '{"operator":"add","a":1,"b":2}'),)),
+            ModelReply("3"),
+        ])
+        runner = AgentRunner(provider, ToolRegistry([ArithmeticFixtureTool()]),
+                             tool_prompts={"fixture_arithmetic": "仅此工具的详细规则🙂",
+                                           "unused_tool": "不得提前发送的详细规则"})
+        await runner.run(agent=ChatAgent(), history=[{"role":"user","content":"计算"}], model="mock")
+        first = json.dumps(provider.requests[0]["messages"], ensure_ascii=False)
+        second = json.dumps(provider.requests[1]["messages"], ensure_ascii=False)
+        self.assertNotIn("仅此工具的详细规则", first)
+        self.assertIn("仅此工具的详细规则🙂", second)
+        self.assertNotIn("不得提前发送的详细规则", second)
+
     def test_v4_retired_overviews_migrate_without_writing(self):
         with tempfile.TemporaryDirectory() as folder:
             filename=Path(folder)/"prompts.json"
@@ -166,7 +206,7 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sections,[text for _,text in DEFAULTS])
 
     def test_all_combinations_match_exact_chinese_defaults(self):
-        self.assertEqual(PROMPT_VERSION,"chat-prompts-zh-v5")
+        self.assertEqual(PROMPT_VERSION,"chat-prompts-zh-v6")
         self.assertIn("必须先调用 tree_overview",build_system_prompt().text)
         for flags in itertools.product((False,True),repeat=3):
             with self.subTest(flags=flags):
@@ -221,7 +261,7 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
                          "70ab4ef644f124761a55542f2b6d9d49305d94e4e240b204e77bc9ed2af6880a")
         blocks=AgentService().inspect_prompt()["blocks"]
         self.assertEqual(len([b for b in blocks if b["category"]=="system"]),5)
-        self.assertEqual(len([b for b in blocks if b["category"]=="tool"]),15)
+        self.assertEqual(len([b for b in blocks if b["category"]=="tool"]),29)
         self.assertEqual({b["id"]:b["text"] for b in blocks},dict(DEFAULTS))
 
     async def test_every_override_reaches_actual_provider_without_changing_schemas(self):
@@ -234,16 +274,17 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
             provider=ScriptedProvider([ModelReply("ok")]);service.provider=provider
             await service.send("mock","hello",True)
             request=provider.requests[0]
-            self.assertEqual(request["messages"][0]["content"],"".join(overrides[k] for k in ("base","memory","rag","rag_unavailable")))
+            self.assertEqual(request["messages"][0]["content"],service.inspect_prompt()["text"])
+            self.assertNotIn(overrides["tool_search_memory"], request["messages"][0]["content"])
             self.assertTrue(request["messages"][1]["content"].startswith(overrides["memory_prefix"]))
             self.assertEqual(request["messages"][1]["role"],"user")
             self.assertEqual({t["function"]["name"]:t["function"]["description"] for t in request["tools"]},
-                             {name:overrides["tool_"+name] for name in TOOL_DESCRIPTIONS if name in {t["function"]["name"] for t in request["tools"]}})
+                             {name:overrides["purpose_"+name] for name in TOOL_PURPOSES if name in {t["function"]["name"] for t in request["tools"]}})
             self.assertNotIn("calculator",[t["function"]["name"] for t in request["tools"]])
             service.save_prompts({});service.rag=None
             service.provider=ScriptedProvider([ModelReply("reset")])
             await service.send("mock","again",True)
-            self.assertEqual(service.provider.requests[0]["tools"][0]["function"]["description"],TOOL_DESCRIPTIONS["search_memory"])
+            self.assertEqual(service.provider.requests[0]["tools"][0]["function"]["description"],TOOL_PURPOSES["search_memory"])
         finally:service.memory_store.db.close()
 
     def test_v1_migration_preserves_text_and_adds_tool_defaults(self):

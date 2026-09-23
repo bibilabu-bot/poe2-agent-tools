@@ -124,19 +124,33 @@ class AgentService:
     async def list_models(self) -> list[str]:
         return await self._provider().list_models()
 
-    def prompt_spec(self):
+    def prompt_spec(self, include_tools: bool = True):
+        names = []
+        if self.memory_store and self.conversation_id:
+            names.extend(("search_memory", "read_memory", "update_notebook"))
+        if self.rag:
+            names.extend(("search_passive_nodes", "read_passive_nodes"))
+            if self.memory_store and self.conversation_id:
+                names.append("search_memory_semantic")
+        if self.tree_snapshot:
+            from .tree_tools import tree_tool_names
+            names.extend(name for name in tree_tool_names()
+                         if name != "read_tree_cluster" or self.tree_snapshot.semantic_topology is not None)
+            if self._tree_write_callback is not None:
+                names.extend(("allocate_tree_node", "deallocate_tree_node"))
         return build_system_prompt(memory=bool(self.memory_store and self.conversation_id),
                                    rag=bool(self.rag), rag_unavailable=bool(getattr(self, "rag_unavailable", False)),
-                                   overrides=dict(self.prompts.blocks))
+                                   overrides=dict(self.prompts.blocks), tool_names=tuple(names) if include_tools else ())
 
     def inspect_prompt(self) -> dict[str, Any]:
         # Describe template selection only; never call MemorySession/model_context here.
         return {**self.prompt_spec().describe(), "configured": self.provider is not None,
                 "basis": "runtime-state-at-inspection", "privateContextIncluded": False,
                 "blocks": [{"id": name, "text": text, "custom": text != dict(DEFAULTS)[name],
-                            "label": BLOCK_LABELS[name], "category": "tool" if name.startswith(("tool_","hook_")) else "system",
-                            "page": "tool_tree_overview" if name == "hook_tree_overview" else None,
-                            "usage": ("随该工具启用发送；仅修改描述，不改变参数和权限" if name.startswith("tool_") else
+                            "label": BLOCK_LABELS[name], "category": "tool" if name.startswith(("tool_","purpose_","hook_")) else "system",
+                            "page": "tool_" + name.removeprefix("purpose_") if name.startswith("purpose_") else "tool_tree_overview" if name == "hook_tree_overview" else None,
+                            "usage": ("简短发送在函数说明中，供模型决定何时调用；不改变参数和权限" if name.startswith("purpose_") else
+                                      "该工具调用后才拼入下一轮系统消息，提供详细使用规则；不改变参数和权限" if name.startswith("tool_") else
                                       "记忆启用时放在动态上下文前；上下文仍为用户数据，不提升权限" if name == "memory_prefix" else
                                       "按功能状态拼入系统消息，保留原文及空白")}
                            for name,text in self.prompts.blocks],
@@ -174,8 +188,9 @@ class AgentService:
         candidate = [*self.history, {"role": "user", "content": text}]
         memory = MemorySession(self.memory_store, self.conversation_id) if self.memory_store and self.conversation_id else None
         prompt_values = dict(self.prompts.blocks)
-        registry = ToolRegistry(description_overrides={name: prompt_values["tool_" + name] for name in TOOL_DESCRIPTIONS})
-        agent = BaseAgent("chat", self.prompt_spec().text)
+        registry = ToolRegistry(description_overrides={name: prompt_values["purpose_" + name] for name in TOOL_DESCRIPTIONS})
+        enabled_tools = bool(memory) or bool(self.rag) or tools_enabled
+        agent = BaseAgent("chat", self.prompt_spec(include_tools=enabled_tools).text)
         if memory:
             for tool in memory.tools():
                 registry.register(tool)
@@ -201,9 +216,11 @@ class AgentService:
             if on_event:
                 on_event(event)
         runner = AgentRunner(self._provider(), registry, memory_context=memory.model_context if memory else None,
-                             on_event=progress, memory_prefix=prompt_values["memory_prefix"])
+                             on_event=progress, memory_prefix=prompt_values["memory_prefix"],
+                             tool_prompts={name: prompt_values["tool_" + name] for name in TOOL_DESCRIPTIONS
+                                           if registry.get(name) is not None})
         try:
-            result = await runner.run(agent=agent, history=candidate, model=model, tools_enabled=bool(memory) or bool(self.rag) or tools_enabled)
+            result = await runner.run(agent=agent, history=candidate, model=model, tools_enabled=enabled_tools)
         except Exception as error:
             # Diagnostics are separate from completed turns and never enter model history.
             if self.memory_store:

@@ -17,7 +17,7 @@
     for(const section of $("promptEditorBlocks").children)section.hidden=section.dataset.page!==next;
     $("promptCategoryHelp").textContent=next==="system"
       ?"全部非工具的固定提示文本，包括记忆上下文前缀。原文完整显示，换行和空格原样保存；动态历史、笔记和检索结果是数据，不是提示词模板。"
-      :"该工具发送给模型的完整说明。修改不会改变工具名称、参数类型、注册条件或执行权限；切换页面不会丢失未保存修改。";
+      :"上方简短说明帮助模型选择何时调用；下方详细工具提示词说明使用规则。两者都不会改变工具名称、参数或执行权限。";
   }
   function render(prompt){
     if(!Array.isArray(prompt?.blocks)||!prompt.blocks.length||prompt.blocks.some(b=>!b||!["system","tool"].includes(b.category)||typeof b.text!=="string"))throw Error("提示词块读取失败");
@@ -27,17 +27,20 @@
       const button=document.createElement("button");button.type="button";button.dataset.page=item.id;button.textContent=item.label;
       button.addEventListener("click",()=>selectPage(item.id));return button;
     }));
-    $("promptEditorBlocks").replaceChildren(...prompt.blocks.map(block=>{
+    const byId=new Map(prompt.blocks.map(block=>[block.id,block]));
+    const ordered=prompt.blocks.filter(block=>!block.id.startsWith("purpose_")).flatMap(block=>
+      block.id.startsWith("tool_")?[byId.get(`purpose_${block.id.slice(5)}`),block].filter(Boolean):[block]);
+    $("promptEditorBlocks").replaceChildren(...ordered.map(block=>{
       const section=document.createElement("section"),label=document.createElement("label"),field=document.createElement("textarea"),help=document.createElement("p");
       section.dataset.page=block.category==="system"?"system":(block.page||block.id);
-      field.id=`prompt-block-${block.id}`;field.dataset.block=block.id;field.value=block.text;field.rows=6;field.spellcheck=false;
+      field.id=`prompt-block-${block.id}`;field.dataset.block=block.id;field.value=block.text;field.rows=block.id.startsWith("purpose_")?2:6;field.spellcheck=false;
       field.addEventListener("input",()=>{dirty=true;status.textContent="有未保存修改；切换页面会保留草稿，请点击保存全部修改。";});
       label.htmlFor=field.id;label.textContent=`${block.label} · ${block.id}${block.category==="system"&&block.id!=="memory_prefix"?` · ${enabled.has(block.id)?"当前启用":"当前未启用"}`:""}${block.custom?" · 已自定义":" · 默认"}`;
-      help.className="agent-help";help.textContent=block.usage+"。每块最多 4000 字符。";
+      help.className="agent-help";help.textContent=block.usage+(block.id.startsWith("purpose_")?"。最多 120 字符。":"。每块最多 4000 字符。");
       section.append(label,help,field);return section;
     }));
     loaded=true;dirty=false;selectPage(page);
-    status.textContent=prompt.storageError||`${prompt.version} · 系统 ${prompt.blocks.filter(b=>b.category==="system").length} 块 / 工具 ${prompt.blocks.filter(b=>b.category==="tool").length} 块。保存后用于后续请求。`;
+    status.textContent=prompt.storageError||`${prompt.version} · 系统 ${prompt.blocks.filter(b=>b.category==="system").length} 块 / 工具 ${prompt.blocks.filter(b=>b.id.startsWith("tool_")).length} 个（各有简短说明与详细提示词）。保存后用于后续请求。`;
   }
   async function perform(action,success=""){
     if(busy)return;busy=true;controls();

@@ -183,12 +183,14 @@ class AgentRunner:
         memory_context: Callable[[], dict[str, Any]] | None = None,
         on_event: Callable[[dict[str, Any]], None] | None = None,
         memory_prefix: str = MEMORY_PREFIX,
+        tool_prompts: Mapping[str, str] | None = None,
     ) -> None:
         self.provider = provider
         self.registry = registry
         self.limits = limits or RunnerLimits()
         self.memory_context = memory_context
         self.memory_prefix = memory_prefix
+        self.tool_prompts = dict(tool_prompts or {})
         self.on_event = on_event
         self._run_lock = asyncio.Lock()
         graph = StateGraph(RunState)
@@ -236,6 +238,13 @@ class AgentRunner:
     def _prepare_context(self, state: RunState) -> dict[str, Any]:
         self._emit({"type": "phase", "phase": "preparing_context", "round": state["rounds"] + 1})
         instructions = list(state["instructions"])
+        seen_tools = set()
+        for item in state["trace"]:
+            name = item["name"]
+            if name in self.tool_prompts and name not in seen_tools:
+                seen_tools.add(name)
+                instructions.append({"role": "system", "content":
+                                     "[工具提示词 " + name + "]\n" + self.tool_prompts[name]})
         memory = self.memory_context() if self.memory_context else None
         memory_chars = 0
         if memory is not None:

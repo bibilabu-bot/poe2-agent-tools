@@ -11,6 +11,7 @@ const PROMPT_BLOCK_IDS = new Set(["base", "memory", "rag", "rag_unavailable", "m
   "tool_tree_overview", "tool_read_tree_nodes", "tool_search_tree_nodes",
   "tool_read_tree_neighborhood", "tool_find_tree_path",
   "tool_allocate_tree_node", "tool_deallocate_tree_node", "tool_read_tree_cluster"]);
+for (const id of [...PROMPT_BLOCK_IDS]) if (id.startsWith("tool_")) PROMPT_BLOCK_IDS.add(`purpose_${id.slice(5)}`);
 
 function safeError(error) {
   const known = error instanceof PythonAgentError || ["SECURE_STORAGE_UNAVAILABLE", "CREDENTIAL_CACHE_INVALID"].includes(error?.code);
