@@ -26,6 +26,16 @@ class MockPythonClient {
   terminate(error) { this.configured = false; this.terminatedWith = error; }
 }
 
+test("retrieval receives only the remaining main-owned run budget", async () => {
+  const client=new MockPythonClient(),service=new AgentService({client,runTimeoutMs:2000});
+  await service.configure({baseUrl:"https://example.com/v1",apiKey:"synthetic"});
+  service.ragConfiguration=async()=>{await new Promise(resolve=>setTimeout(resolve,25));return {profiles:null};};
+  const result=await service.send({model:"fixture",text:"fixture",_remainingMs:999999999});
+  assert.equal(result.ok,true);
+  const forwarded=client.calls.find(call=>call.method==="send").params._remainingMs;
+  assert.ok(forwarded>0 && forwarded<=1980);
+});
+
 test("write handler is gated and returns a refreshed snapshot after execution", async () => {
   for (const [enabled,refreshFails] of [[false,false],[true,false],[true,true]]) {
     const client=new MockPythonClient();let handler=null;

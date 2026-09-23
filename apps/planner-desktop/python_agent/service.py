@@ -13,6 +13,7 @@ from .memory import MemorySession, MemoryStore
 from .provider import OpenAICompatibleProvider
 from .session_display import redact
 from .prompts import build_system_prompt, PromptStore, DEFAULTS, BLOCK_LABELS, TOOL_DESCRIPTIONS
+from .retrieval_retry import retrieval_budget
 
 MAX_INPUT_CHARS = 12_000
 MAX_HISTORY_MESSAGES = 60
@@ -183,11 +184,13 @@ class AgentService:
         return self.inspect_prompt()
 
     async def send(self, model: str, text: str, tools_enabled: bool,
-                   on_event: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+                   on_event: Callable[[dict[str, Any]], None] | None = None,
+                   remaining_ms: float | None = None) -> dict[str, Any]:
         self._idle()
         self.running = True
         try:
-            return await self._send(model, text, tools_enabled, on_event)
+            with retrieval_budget(remaining_ms):
+                return await self._send(model, text, tools_enabled, on_event)
         finally:
             self.running = False
 

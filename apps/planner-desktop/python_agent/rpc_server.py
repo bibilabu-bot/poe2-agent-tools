@@ -148,7 +148,8 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
             write_message({"id": request_id, "event": "agent_run", "seq": sequence, **event})
         try:
             return await service.send(params.get("model", ""), params.get("text", ""),
-                                      bool(params.get("toolsEnabled")), progress)
+                                      bool(params.get("toolsEnabled")), progress,
+                                      remaining_ms=params.get("_remainingMs"))
         finally:
             service._tree_write_callback = None
     raise AgentError("METHOD_NOT_FOUND", "Unknown agent runtime method")

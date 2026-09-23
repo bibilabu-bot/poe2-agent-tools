@@ -71,8 +71,9 @@ class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
     async def test_disabled_rpc_does_not_wire_write_callback(self):
         from python_agent.rpc_server import dispatch
         class Service:
-            async def send(self, *args):
+            async def send(self, *args, remaining_ms=None):
                 assert self._tree_write_callback is None
+                assert remaining_ms is None
                 return {}
         await dispatch(Service(), "send", {"toolsEnabled":False})
 
