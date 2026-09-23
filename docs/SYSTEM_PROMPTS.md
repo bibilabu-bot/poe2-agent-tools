@@ -122,7 +122,7 @@ v3/v4 中显式保存的英文自定义，即使等于历史英文默认，重�
 ### tool_tree_overview
 
 ```text
-当前 BD/Build 的首选概览，只返回当前构筑涉及的簇，绝不返回全树目录或全树统计。包含职业/升华、点数预算与剩余、分配数量、BD全部簇的短名、一句话描述及其完整graph连接。默认 section=clusters 一次返回全部簇和带名称+ID的clusterEdges，不分页（忽略offset/limit）；boundaries 分页读取这些簇之间的真实边及两端是否已分配；allocations 分页读取已分配条目。仅boundaries/allocations每页最多20项；before hook自动生成簇描述：属性簇给节点数，珠宝簇标记珠宝孔，天赋簇由隔离子智能体命名、总结并缓存。描述整个簇，不等于BD已获得全部效果，不能将模型摘要当作原始属性证据。概览已是完整的当前BD簇图，不需要继续翻页；名称是辅助标签，查询仍使用原始簇ID。用 read_tree_cluster 进入感兴趣的簇、read_tree_nodes 读属性、find_tree_path 精确寻路。只读，Build只影响概览筛选，不改变簇划分。
+当前 BD/Build 的首选概览，只返回当前构筑涉及的簇，绝不返回全树目录或全树统计。包含职业/升华、点数预算与剩余、分配数量、BD全部簇的短名、一句话描述及其完整graph连接。默认 section=clusters 一次返回全部簇和带名称+ID的clusterEdges，不分页（忽略offset/limit）；boundaries 分页读取这些簇之间的真实边及两端是否已分配。仅boundaries每页最多20项；before hook自动生成簇描述：属性簇给节点数，珠宝簇标记珠宝孔，天赋簇由隔离子智能体命名、总结并缓存。描述整个簇，不等于BD已获得全部效果，不能将模型摘要当作原始属性证据。概览已是完整的当前BD簇图，不需要继续翻页；名称是辅助标签，查询仍使用原始簇ID。用 read_tree_cluster 进入感兴趣的簇、read_tree_nodes 读属性、find_tree_path 精确寻路。只读，Build只影响概览筛选，不改变簇划分。
 ```
 
 ### tool_read_tree_cluster
@@ -206,7 +206,7 @@ v3/v4 中显式保存的英文自定义，即使等于历史英文默认，重�
 ### purpose_tree_overview
 
 ```text
-用户问当前 BD、已分配天赋、点数或构筑簇概览时先使用。
+用户问当前 BD、点数预算或构筑簇图及簇间连线时先使用。
 ```
 
 ### purpose_read_tree_cluster

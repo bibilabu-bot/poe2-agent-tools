@@ -588,9 +588,9 @@ class TreeOverviewTool(SemanticTopologyTool):
 
     def _parameters(self) -> dict[str, Any]:
         return {"required":[],"properties":{
-            "section":{"type":"string","enum":["clusters","boundaries","allocations"]},
-            "offset":{"type":"integer","minimum":0,"description":"仅用于 boundaries/allocations；clusters 总是完整返回"},
-            "limit":{"type":"integer","minimum":1,"maximum":20,"description":"仅用于 boundaries/allocations；clusters 不分页"}}}
+            "section":{"type":"string","enum":["clusters","boundaries"]},
+            "offset":{"type":"integer","minimum":0,"description":"仅用于 boundaries；clusters 总是完整返回"},
+            "limit":{"type":"integer","minimum":1,"maximum":20,"description":"仅用于 boundaries；clusters 不分页"}}}
 
     async def execute(self, arguments: Mapping[str, Any]) -> Any:
         self.validate(arguments)
@@ -600,7 +600,7 @@ class TreeOverviewTool(SemanticTopologyTool):
             allocation.pop("ids",None)
             allocation.pop("truncated",None)
         build.pop("highlights",None)
-        build["detailTools"]={"attributes":"read_tree_nodes","allocatedIds":"tree_overview section=allocations"}
+        build["detailTools"]={"attributes":"read_tree_nodes"}
         budgets=build["budgets"]
         for category in ("passive","ascendancy"):
             budgets[category]["remaining"]=max(0,budgets[category]["max"]-budgets[category]["used"])
@@ -611,12 +611,6 @@ class TreeOverviewTool(SemanticTopologyTool):
         build["budgetRule"]="总天赋计费=通用计费+max(武器I,武器II)；分配节点数包含不计费起点/升华选项，不等于点数"
         build["class"]["ascendancyName"]=next((a.get("name") for a in self._snapshot.build.get("ascendancyOptions",[]) if a.get("id")==build["class"]["ascendancyId"]),None)
         result={"snapshotId":self._snapshot.snapshot_id,"scope":"current_build","build":build,"semanticTopology":None}
-        if arguments.get("section")=="allocations":
-            if "nodeId" in arguments or "clusterId" in arguments:
-                raise AgentError("INVALID_TOOL_ARGUMENTS","分配目录不接受节点或簇过滤")
-            offset,limit=arguments.get("offset",0),arguments.get("limit",20)
-            rows=[{"nodeId":node_id,"category":category} for category,ids in self._snapshot.build.get("allocations",{}).items() for node_id in ids]
-            result["allocationsPage"]={"items":rows[offset:offset+limit],"total":len(rows),"nextOffset":offset+limit if offset+limit<len(rows) else None}
         if self._snapshot._error:
             result["warning"]=self._snapshot._error
             return result
@@ -630,8 +624,8 @@ class TreeOverviewTool(SemanticTopologyTool):
         clusters=[c for c in topology["clusters"] if c["id"] in touched]
         links=[e for e in topology["clusterEdges"] if e["source"] in touched and e["target"] in touched]
         section=arguments.get("section","clusters")
-        if section not in ("clusters","boundaries","allocations"):
-            raise AgentError("INVALID_TOOL_ARGUMENTS","BD概览只支持 clusters、boundaries、allocations；簇内部请用 read_tree_cluster")
+        if section not in ("clusters","boundaries"):
+            raise AgentError("INVALID_TOOL_ARGUMENTS","BD概览只支持 clusters、boundaries；簇内部请用 read_tree_cluster")
         rows=[]
         if section=="clusters":
             # Return every touched cluster and edge, even if old callers send paging arguments.

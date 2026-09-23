@@ -34,7 +34,7 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as folder:
             filename = Path(folder) / "prompts.json"
             original = {"version": "chat-prompts-zh-v5", "overrides":
-                        {"tool_tree_overview": "  我的完整工具规则🙂\n", "base": "自定义系统规则"}}
+                        {"tool_tree_overview": "  我的旧规则🙂 section=allocations 分页\n", "base": "自定义系统规则"}}
             filename.write_text(json.dumps(original, ensure_ascii=False), encoding="utf-8")
             before = filename.read_bytes()
             store = PromptStore(str(filename))

@@ -1,11 +1,12 @@
 """Bounded read-only tree tools — snapshot, tool registration and error paths."""
 
 import copy
+import json
 import unittest
 
 
 class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
-    async def test_overview_paging_budgets_and_degraded_snapshot(self):
+    async def test_overview_budgets_and_degraded_snapshot_without_allocation_directory(self):
         snap=TreeSnapshot(build={"allocations":{"normal":[str(i) for i in range(65)]},
             "budgets":{"passive":123,"weaponSet":24,"ascendancy":8},
             "budgetUsage":{"normal":104,"weaponSet1":16,"weaponSet2":25,"ascendancy":9}})
@@ -13,10 +14,14 @@ class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue({"tree_summary","build_summary","list_tree_clusters"}.isdisjoint(tools))
         for error in (None,"fixture projection failure"):
             snap._error=error
-            result=await tools["tree_overview"].execute({"section":"allocations","offset":60})
-            self.assertEqual(result["allocationsPage"]["total"],65)
-            self.assertEqual([r["nodeId"] for r in result["allocationsPage"]["items"]],list(map(str,range(60,65))))
-            self.assertIsNone(result["allocationsPage"]["nextOffset"])
+            result=await tools["tree_overview"].execute({})
+            self.assertNotIn("allocationsPage",result)
+            self.assertNotIn("allocatedIds",result["build"]["detailTools"])
+            self.assertEqual(result["build"]["allocations"]["normal"]["count"],65)
+            self.assertNotIn("ids",result["build"]["allocations"]["normal"])
+            with self.assertRaises(AgentError) as rejected:
+                await tools["tree_overview"].execute({"section":"allocations","offset":60})
+            self.assertEqual(rejected.exception.code,"INVALID_TOOL_ARGUMENTS")
             budgets=result["build"]["budgets"]
             self.assertEqual(budgets["passive"]["remaining"],19)
             self.assertEqual(budgets["ascendancy"]["overBudget"],1)
@@ -24,6 +29,62 @@ class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(budgets["weaponSet"]["weaponSet2OverBudget"],1)
             with self.assertRaises(AgentError):
                 await tools["tree_overview"].execute({"limit":21})
+
+    async def test_overview_removed_section_rejected_by_schema_parser_and_runner(self):
+        from python_agent.core import AgentRunner, ToolCall, ToolRegistry
+        from python_agent.prompts import DEFAULTS
+        tool=register_tree_tools(TreeSnapshot())[0]
+        self.assertEqual(tool.parameters["properties"]["section"]["enum"],["clusters","boundaries"])
+        for section in ("allocations","nodes","edges"):
+            with self.assertRaises(AgentError) as rejected:
+                tool.parse_arguments(json.dumps({"section":section}))
+            self.assertEqual(rejected.exception.code,"INVALID_TOOL_ARGUMENTS")
+        runner=AgentRunner(None,ToolRegistry([tool]))
+        result,ok=await runner._execute_tool(ToolCall("old","tree_overview",'{"section":"allocations"}'))
+        self.assertFalse(ok)
+        self.assertEqual(result["error"]["code"],"INVALID_TOOL_ARGUMENTS")
+        for name,text in DEFAULTS:
+            self.assertNotIn("allocations",text,name)
+
+    async def test_overview_complete_clusters_hook_and_boundary_paging_unchanged(self):
+        ids=[str(i) for i in range(25)]
+        clusters=[{"id":"p:"+n,"type":"passive","nodeIds":[n],"edges":[]} for n in ids]
+        edges=[{"source":"p:0","target":"p:"+n,"physicalEdges":[["0",n]]} for n in ids[1:]]
+        # A real boundary can have an unallocated endpoint inside a touched cluster.
+        clusters[-1]["nodeIds"].append("unallocated")
+        edges[-1]["physicalEdges"]=[["0","unallocated"]]
+        snap=TreeSnapshot(build={"allocations":{"normal":ids}},semantic_topology={
+            "clusters":clusters,"clusterEdges":edges,"nodeToCluster":{n:"p:"+n for n in ids},
+            "excludedAscendancyNodeIds":[]})
+        before=copy.deepcopy(snap.build)
+        tool=register_tree_tools(snap)[0]
+        calls=[]
+        async def hook(touched):
+            calls.append([c["id"] for c in touched])
+            return {c["id"]:{"name":"fixture "+c["id"],"summary":"fixture summary","summarySource":"model_cache"} for c in touched}
+        tool.before_hook=hook
+        for args in ({},{"section":"clusters","offset":20,"limit":1}):
+            result=await tool.execute(args)
+            graph=result["semanticTopology"]
+            self.assertEqual(len(graph["items"]),25)
+            self.assertEqual(len(graph["clusterEdges"]),24)
+            self.assertTrue(graph["complete"])
+            self.assertIsNone(graph["nextOffset"])
+            self.assertEqual(graph["items"][0]["summary"],"fixture summary")
+            self.assertEqual(graph["clusterEdges"][0]["sourceName"],"fixture p:0")
+            self.assertNotIn("allocationsPage",result)
+        pages=[(await tool.execute({"section":"boundaries","offset":offset}))["semanticTopology"] for offset in (0,20)]
+        self.assertEqual([len(p["items"]) for p in pages],[20,4])
+        self.assertEqual([p["nextOffset"] for p in pages],[20,None])
+        self.assertEqual([p["total"] for p in pages],[24,24])
+        self.assertTrue(pages[0]["items"][0]["bothEndpointsAllocated"])
+        self.assertFalse(pages[1]["items"][-1]["bothEndpointsAllocated"])
+        self.assertEqual(pages[1]["items"][-1]["physicalEdge"],["0","unallocated"])
+        self.assertEqual(calls,[[c["id"] for c in clusters]]*2)
+        with self.assertRaises(AgentError):
+            await tool.execute({"section":"allocations"})
+        self.assertEqual(len(calls),2)
+        self.assertEqual(snap.build,before)
 
     async def test_semantic_tools_locate_page_and_retain_physical_boundaries(self):
         topology={"version":"semantic-topology-v1","clusters":[{"id":"passive:1","type":"passive","nodeIds":[str(i) for i in range(30)],"edges":[["1","2"]]}],

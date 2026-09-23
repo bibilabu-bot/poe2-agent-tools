@@ -43,7 +43,7 @@ TOOL_DESCRIPTIONS = {
     "search_memory_semantic": "对当前会话已完成轮次的摘要进行语义检索，只返回元数据。使用 read_memory 读取原始证据。",
 }
 TREE_TOOL_DESCRIPTIONS = {
-    "tree_overview": "当前 BD/Build 的首选概览，只返回当前构筑涉及的簇，绝不返回全树目录或全树统计。包含职业/升华、点数预算与剩余、分配数量、BD全部簇的短名、一句话描述及其完整graph连接。默认 section=clusters 一次返回全部簇和带名称+ID的clusterEdges，不分页（忽略offset/limit）；boundaries 分页读取这些簇之间的真实边及两端是否已分配；allocations 分页读取已分配条目。仅boundaries/allocations每页最多20项；before hook自动生成簇描述：属性簇给节点数，珠宝簇标记珠宝孔，天赋簇由隔离子智能体命名、总结并缓存。描述整个簇，不等于BD已获得全部效果，不能将模型摘要当作原始属性证据。概览已是完整的当前BD簇图，不需要继续翻页；名称是辅助标签，查询仍使用原始簇ID。用 read_tree_cluster 进入感兴趣的簇、read_tree_nodes 读属性、find_tree_path 精确寻路。只读，Build只影响概览筛选，不改变簇划分。",
+    "tree_overview": "当前 BD/Build 的首选概览，只返回当前构筑涉及的簇，绝不返回全树目录或全树统计。包含职业/升华、点数预算与剩余、分配数量、BD全部簇的短名、一句话描述及其完整graph连接。默认 section=clusters 一次返回全部簇和带名称+ID的clusterEdges，不分页（忽略offset/limit）；boundaries 分页读取这些簇之间的真实边及两端是否已分配。仅boundaries每页最多20项；before hook自动生成簇描述：属性簇给节点数，珠宝簇标记珠宝孔，天赋簇由隔离子智能体命名、总结并缓存。描述整个簇，不等于BD已获得全部效果，不能将模型摘要当作原始属性证据。概览已是完整的当前BD簇图，不需要继续翻页；名称是辅助标签，查询仍使用原始簇ID。用 read_tree_cluster 进入感兴趣的簇、read_tree_nodes 读属性、find_tree_path 精确寻路。只读，Build只影响概览筛选，不改变簇划分。",
     "read_tree_cluster": "按 clusterId 或 nodeId 定位簇并分页读取内部图。section=nodes 返回节点ID（用 read_tree_nodes 读属性），edges 返回簇内真实边，boundaries 返回邻簇及真实跨簇边。每页最多20项，按 nextOffset 继续。精确寻路仍使用 find_tree_path。",
     "read_tree_nodes": "按 ID 精确读取天赋节点的完整信息：名称、属性列表（支持分页）、类型、坐标、邻接节点数和 ID、当前分配状态。未知 ID 会明确标记。只读，不分配节点。",
     "search_tree_nodes": "对天赋树节点进行确定性文字搜索：支持中文、英文和精确数字 ID。匹配名称前缀、名称包含和属性包含，不依赖付费向量或重排服务。只读，不分配节点。",
@@ -60,7 +60,7 @@ TOOL_PURPOSES = {
     "read_passive_nodes": "已知节点 ID，需核实游戏天赋原始属性时使用。",
     "search_passive_nodes": "用户按效果或含义寻找天赋节点时使用语义检索。",
     "search_memory_semantic": "用户用不同说法回顾本会话往事时使用。",
-    "tree_overview": "用户问当前 BD、已分配天赋、点数或构筑簇概览时先使用。",
+    "tree_overview": "用户问当前 BD、点数预算或构筑簇图及簇间连线时先使用。",
     "read_tree_cluster": "用户要查看某个天赋簇的节点和连接时使用。",
     "read_tree_nodes": "用户询问指定节点的完整信息或当前分配状态时使用。",
     "search_tree_nodes": "用户按名称、属性文字或数字 ID 查找天赋节点时使用。",
