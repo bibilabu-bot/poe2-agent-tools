@@ -2,9 +2,8 @@
 
 const { PythonAgentClient, PythonAgentError } = require("./python-agent-client.cjs");
 const { normalizeTrace } = require("../renderer/agent-trace.js");
-// A tool round can legitimately contain two 90-second provider requests plus
-// bounded retrieval. Keep a finite wall-clock guard without cutting that path short.
-const RUN_TIMEOUT_MS = 300_000;
+// Chat has no overall wall-clock deadline. Request/tool guards and Stop remain active.
+const RUN_TIMEOUT_MS = null;
 const PROMPT_BLOCK_IDS = new Set(["base", "memory", "rag", "rag_unavailable", "memory_prefix", "hook_tree_overview",
   "tool_search_memory", "tool_read_memory", "tool_update_notebook",
   "tool_read_passive_nodes", "tool_search_passive_nodes", "tool_search_memory_semantic",
@@ -120,10 +119,10 @@ class AgentService {
   async send(value, onEvent = null, webContents = null) {
     if (this.active) return { ok: false, error: { code: "RUN_IN_PROGRESS", message: "当前会话已有回复正在运行" } };
     const generation = this.generation; const runToken = { lastPhase: "starting", startedAt: Date.now(), trace: [] }; this.active = runToken;
-    const timeout = setTimeout(() => {
+    const timeout = this.runTimeoutMs > 0 ? setTimeout(() => {
       runToken.failure = new PythonAgentError("RUN_TIMEOUT", `智能体运行超时，已停止（最后阶段：${phaseLabel(runToken.lastPhase)}）`);
       if (this.active === runToken) this.client.terminate(runToken.failure);
-    }, this.runTimeoutMs);
+    }, this.runTimeoutMs) : null;
     const checkActive = () => {
       if (runToken.failure) throw runToken.failure;
       if (this.active !== runToken || generation !== this.generation) throw new PythonAgentError("CANCELLED", "已停止本次回复");

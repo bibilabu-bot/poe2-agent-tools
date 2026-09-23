@@ -26,6 +26,27 @@ class MockPythonClient {
   terminate(error) { this.configured = false; this.terminatedWith = error; }
 }
 
+test("default chat survives the former five-minute budget and still supports Stop", async (t) => {
+  t.mock.timers.enable({apis:["setTimeout","Date"]});
+  for (const cancel of [false,true]) {
+    const client=new MockPythonClient();
+    const service=new AgentService({client});
+    await service.configure({baseUrl:"https://example.com/v1",apiKey:"fixture-only"});
+    let release;
+    client.block=new Promise(resolve=>{release=resolve;});
+    const pending=service.send({model:"m",text:"hi"});
+    await new Promise(resolve=>setImmediate(resolve));
+    t.mock.timers.tick(600_000);
+    assert.ok(service.active);
+    assert.equal(client.terminatedWith,undefined);
+    if(cancel) service.cancel();
+    release();
+    const result=await pending;
+    assert.equal(result.ok,!cancel);
+    if(cancel) assert.equal(result.error.code,"CANCELLED");
+  }
+});
+
 test("write handler is gated and returns a refreshed snapshot after execution", async () => {
   for (const [enabled,refreshFails] of [[false,false],[true,false],[true,true]]) {
     const client=new MockPythonClient();let handler=null;
