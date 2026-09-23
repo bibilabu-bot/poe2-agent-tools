@@ -71,6 +71,8 @@ async def _stdin_reader() -> None:
 
 async def dispatch(service: AgentService, method: str, params: dict[str, Any], request_id: Any = None) -> Any:
     if method == "rag_configure":
+        if params.get("path"):
+            service.rag_cache_path = params["path"]
         from .rag import RagIndex, RetrievalProvider
         if service.rag:
             service.rag.db.close()
@@ -128,6 +130,8 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
         return service.sessions()
     if method == "select_session":
         return service.select_session(params.get("conversationId"))
+    if method == "delete_session":
+        return service.delete_session(params.get("conversationId"), params.get("confirmed"))
     if method == "session_history":
         return service.session_history(params.get("conversationId"), params.get("before"))
     if method == "restore":

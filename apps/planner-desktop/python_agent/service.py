@@ -24,6 +24,7 @@ class AgentService:
         self.provider: OpenAICompatibleProvider | None = None
         self.history: list[dict[str, Any]] = []
         self.memory_store = MemoryStore(memory_path) if memory_path else None
+        self.rag_cache_path = str(Path(memory_path).with_name("passive-rag.sqlite3")) if memory_path and memory_path != ":memory:" else None
         self.conversation_id: str | None = None
         self.rag = None
         self.tree_snapshot = None
@@ -38,7 +39,7 @@ class AgentService:
         self.provider = OpenAICompatibleProvider(base_url, api_key)
         if self.memory_store:
             self.conversation_id = self.memory_store.activate(self.provider.base_url)
-            self.history = _trim_history(self.memory_store.recent_history(self.conversation_id))
+            self.history = _trim_history(self.memory_store.recent_history(self.conversation_id)) if self.conversation_id else []
         return self.status()
 
     def clear(self) -> dict[str, Any]:
@@ -62,10 +63,22 @@ class AgentService:
 
     def sessions(self) -> dict[str, Any]:
         self._idle()
-        if not self.memory_store or not self.conversation_id:
+        if not self.memory_store:
             raise AgentError("MEMORY_UNAVAILABLE", "持久会话暂不可用")
         return {"selectedId": self.conversation_id,
+                "legacyImportAllowed":self.memory_store.legacy_import_allowed(self._provider().base_url),
                 "sessions": self.memory_store.list_conversations(self._provider().base_url, getattr(self.provider, "_api_key", ""))}
+
+    def delete_session(self, conversation_id: str, confirmed: bool = False) -> dict[str, Any]:
+        self._idle()
+        if confirmed is not True:
+            raise AgentError("CONFIRMATION_REQUIRED", "请确认删除指定会话，此操作无法恢复")
+        self.sessions()
+        result = self.memory_store.delete_conversation(self._provider().base_url, conversation_id,
+                                                       self.rag_cache_path, getattr(self.provider, "_api_key", ""))
+        self.conversation_id = result["selectedId"]
+        self.history = _trim_history(result.pop("history"))
+        return result
 
     def select_session(self, conversation_id: str) -> dict[str, Any]:
         self._idle()
@@ -90,6 +103,9 @@ class AgentService:
         return redact(self.memory_store.display_history(self._provider().base_url, conversation_id, before), getattr(self.provider, "_api_key", ""))
 
     def restore(self, history: Any) -> dict[str, Any]:
+        self._idle()
+        if self.memory_store and (not self.conversation_id or not self.memory_store.legacy_import_allowed(self._provider().base_url)):
+            raise AgentError("LEGACY_RESTORE_DISABLED", "删除会话后不再导入旧界面记录")
         if self.memory_store and self.conversation_id and self.memory_store.directory(self.conversation_id):
             # Renderer caches only display pairs; never overwrite the full durable archive.
             self.history = _trim_history(self.memory_store.recent_history(self.conversation_id))
@@ -180,6 +196,8 @@ class AgentService:
         if self.prompts.error:
             raise AgentError("PROMPT_CONFIG_INVALID", self.prompts.error)
         started = time.monotonic()
+        if self.memory_store and not self.conversation_id:
+            raise AgentError("SESSION_REQUIRED", "请先新建会话")
         if not model or len(model) > 256:
             raise AgentError("INVALID_MODEL", "Model ID is invalid")
         text = text.strip()

@@ -6,6 +6,7 @@ No credentials enter this module. Model-facing reads are scoped to one conversat
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 import uuid
 from collections import deque
@@ -69,15 +70,20 @@ class MemoryStore:
                 conversation_id TEXT NOT NULL, turn_id INTEGER NOT NULL, details TEXT NOT NULL,
                 PRIMARY KEY(conversation_id,turn_id),
                 FOREIGN KEY(conversation_id,turn_id) REFERENCES turns(conversation_id,turn_id));
+            CREATE TABLE IF NOT EXISTS session_endpoints (
+                endpoint TEXT PRIMARY KEY, legacy_import_blocked INTEGER NOT NULL DEFAULT 0);
         """)
 
-    def activate(self, endpoint: str, *, new: bool = False) -> str:
+    def activate(self, endpoint: str, *, new: bool = False) -> str | None:
         row = self.db.execute("SELECT conversation_id FROM active_conversations WHERE endpoint=?",
                               (endpoint,)).fetchone()
         if row and not new:
             return row[0]
+        if not new and self.db.execute("SELECT 1 FROM session_endpoints WHERE endpoint=?", (endpoint,)).fetchone():
+            return None
         conversation_id = uuid.uuid4().hex
         with self.db:
+            self.db.execute("INSERT OR IGNORE INTO session_endpoints VALUES (?,0)", (endpoint,))
             self.db.execute("INSERT INTO conversations VALUES (?,?,?)",
                             (conversation_id, endpoint, encode(empty_notebook())))
             self.db.execute("INSERT OR REPLACE INTO active_conversations VALUES (?,?)",
@@ -85,6 +91,50 @@ class MemoryStore:
             self.db.execute("INSERT INTO conversation_metadata VALUES (?,?)",
                             (conversation_id, datetime.now(timezone.utc).isoformat()))
         return conversation_id
+
+    def legacy_import_allowed(self, endpoint: str) -> bool:
+        row = self.db.execute("SELECT legacy_import_blocked FROM session_endpoints WHERE endpoint=?", (endpoint,)).fetchone()
+        return not row or not row[0]
+
+    def delete_conversation(self, endpoint: str, conversation_id: str, rag_path: str | None = None,
+                            secret: str = "") -> dict[str, Any]:
+        """Delete an owned archive and exclusive derived records as one transaction."""
+        self._check_owner(endpoint, conversation_id)
+        attached = False
+        try:
+            if rag_path and Path(rag_path).is_file():
+                self.db.execute("ATTACH DATABASE ? AS deletion_rag", (rag_path,))
+                attached = True
+            with self.db:
+                active = self.db.execute("SELECT conversation_id FROM active_conversations WHERE endpoint=?", (endpoint,)).fetchone()
+                sessions = [row for row in self.list_conversations(endpoint, secret) if row["id"] != conversation_id]
+                selected = active[0] if active and active[0] != conversation_id else (sessions[0]["id"] if sessions else None)
+                history = self.selection_history(endpoint, selected) if selected else []
+                if selected:
+                    self.display_history(endpoint, selected)
+                if attached:
+                    tables = {r[0] for r in self.db.execute("SELECT name FROM deletion_rag.sqlite_master WHERE type='table'")}
+                    if "vectors" in tables:
+                        digest = lambda text: hashlib.sha256(encode(text).encode("utf-8")).hexdigest()
+                        owned = {digest(r[0]) for r in self.db.execute("SELECT summary FROM turns WHERE conversation_id=?", (conversation_id,))}
+                        shared = {digest(r[0]) for r in self.db.execute("SELECT summary FROM turns WHERE conversation_id<>?", (conversation_id,))}
+                        if "nodes" in tables:
+                            shared.update(r[0] for r in self.db.execute("SELECT hash FROM deletion_rag.nodes"))
+                        self.db.executemany("DELETE FROM deletion_rag.vectors WHERE hash=?", [(h,) for h in owned-shared])
+                self.db.execute("DELETE FROM turn_display WHERE conversation_id=?", (conversation_id,))
+                self.db.execute("DELETE FROM turns WHERE conversation_id=?", (conversation_id,))
+                self.db.execute("DELETE FROM conversation_metadata WHERE conversation_id=?", (conversation_id,))
+                if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='failed_runs' AND type='table'").fetchone():
+                    self.db.execute("DELETE FROM failed_runs WHERE conversation_id=?", (conversation_id,))
+                self.db.execute("DELETE FROM active_conversations WHERE endpoint=?", (endpoint,))
+                if selected:
+                    self.db.execute("INSERT INTO active_conversations VALUES (?,?)", (endpoint, selected))
+                self.db.execute("DELETE FROM conversations WHERE id=? AND endpoint=?", (conversation_id, endpoint))
+                self.db.execute("INSERT OR REPLACE INTO session_endpoints VALUES (?,1)", (endpoint,))
+            return {"selectedId":selected, "sessions":sessions, "history":history, "legacyImportAllowed":False}
+        finally:
+            if attached:
+                self.db.execute("DETACH DATABASE deletion_rag")
 
     def _check_owner(self, endpoint: str, conversation_id: str) -> None:
         if not isinstance(conversation_id, str) or not self.db.execute(
@@ -176,6 +226,8 @@ class MemoryStore:
 
     def _insert_turn(self, conversation_id: str, turn_id: int, messages: list[dict[str, Any]],
                      notebook: dict[str, Any]) -> None:
+        if not self.db.execute("SELECT 1 FROM conversations WHERE id=?", (conversation_id,)).fetchone():
+            raise AgentError("SESSION_NOT_FOUND", "会话已删除，拒绝迟到记录")
         validate_turn(messages, completed=True)
         summary = short_summary(messages)
         directory = self.directory(conversation_id)

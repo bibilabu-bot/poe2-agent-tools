@@ -435,6 +435,12 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
   </main>
 </section>
 
+<dialog id="deleteSessionDialog" class="session-delete-dialog" aria-labelledby="deleteSessionTitle" aria-describedby="deleteSessionWarning">
+  <h2 id="deleteSessionTitle">删除会话？</h2>
+  <p id="deleteSessionName"></p>
+  <p id="deleteSessionWarning">该会话的历史、笔记和专属检索记录将被永久删除，无法恢复。其他会话与服务配置不受影响。</p>
+  <div class="session-delete-actions"><button id="cancelSessionDelete" type="button" autofocus>取消</button><button id="confirmSessionDelete" type="button">确认删除</button></div>
+</dialog>
 <dialog id="promptEditor" class="prompt-editor" aria-labelledby="promptEditorTitle">
   <header><h2 id="promptEditorTitle">提示词维护</h2><button id="closePromptEditor" type="button" aria-label="关闭提示词维护" autofocus><span aria-hidden="true">×</span> 关闭</button></header>
   <div class="prompt-editor-body">

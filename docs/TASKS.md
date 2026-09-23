@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-031A — Delete agent conversations with confirmation
 
-- Status: `READY`
+- Status: `REVIEW`
 - Assignment target: Codex local executor, existing continuation task.
 - Add deletion to the conversation sidebar, requiring confirmation naming the
   selected conversation. Cancellation must preserve it. Delete only that session
@@ -16,6 +16,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
   coherently, including deletion of the last session. Block deletion during an
   active turn and prevent late events from restoring or contaminating deleted data.
 - Verify with synthetic sessions and real UI interaction; do not delete owner data.
+- Delivery evidence: `docs/P2AT_031A_SESSION_DELETE.md`; independent review APPROVE.
 
 ### P2AT-031B — Organize prompt maintenance by workflow
 

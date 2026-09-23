@@ -173,11 +173,16 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
             service.memory_store.db.close()
             restarted=AgentService(filename)
             try:
+                # Production connects/selects a durable session before sending.
+                restarted.configure("http://127.0.0.1:9999/v1", "synthetic")
+                self.assertIsNotNone(restarted.conversation_id)
+                expected_prompt=restarted.prompt_spec().text
                 provider=ScriptedProvider([ModelReply("ok")]);restarted.provider=provider
                 await restarted.send("mock","hello",False)
-                self.assertEqual(provider.requests[0]["messages"][0]["content"],"CUSTOM_BASE_FIXTURE")
+                self.assertTrue(expected_prompt.startswith("CUSTOM_BASE_FIXTURE"))
+                self.assertEqual(provider.requests[0]["messages"][0]["content"],expected_prompt)
                 restarted.save_prompts({})
-                self.assertEqual(restarted.inspect_prompt()["text"],ChatAgent().system_prompt)
+                self.assertEqual(restarted.inspect_prompt()["text"],build_system_prompt(memory=True).text)
                 restarted.running=True
                 with self.assertRaises(Exception):restarted.save_prompts({"base":"blocked"})
             finally:restarted.memory_store.db.close()

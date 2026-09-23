@@ -4,8 +4,10 @@ const fs=require("node:fs"),os=require("node:os"),path=require("node:path"),http
 const {PythonAgentClient}=require("../electron/python-agent-client.cjs");
 const {AgentService,createAgentIpcHandlers}=require("../electron/agent-service.cjs");
 const {spawnSync}=require("node:child_process");
+const deletion=process.argv.includes("--delete");
+app.setPath("userData",fs.mkdtempSync(path.join(os.tmpdir(),"p2at-session-ui-")));
 const atomicSelection=process.argv.includes("--atomic-selection");
-const renderer=path.resolve(__dirname,"../renderer"),output=path.resolve(__dirname,"../../../docs/assets/screenshots/p2at-027");
+const renderer=path.resolve(__dirname,"../renderer"),output=path.resolve(__dirname,deletion?"../../../docs/assets/screenshots/p2at-031a":"../../../docs/assets/screenshots/p2at-027");
 app.whenReady().then(async()=>{
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),"p2at-sessions-"));
   const requests=[];
@@ -27,7 +29,7 @@ app.whenReady().then(async()=>{
   const config={baseUrl:`http://127.0.0.1:${server.address().port}/v1`,apiKey:"synthetic-only-key"};
   await service.configure(config);
   let win;
-  const bindings={"agent:status":"status","agent:configure":"configure","agent:clear-config":"clear","agent:list-models":"models","agent:send":"send","agent:cancel":"cancel","agent:reset":"reset","agent:restore-conversation":"restore","agent:sessions":"sessions","agent:select-session":"selectSession","agent:session-history":"sessionHistory"};
+  const bindings={"agent:status":"status","agent:configure":"configure","agent:clear-config":"clear","agent:list-models":"models","agent:send":"send","agent:cancel":"cancel","agent:reset":"reset","agent:restore-conversation":"restore","agent:sessions":"sessions","agent:delete-session":"deleteSession","agent:select-session":"selectSession","agent:session-history":"sessionHistory"};
   let handlers=createAgentIpcHandlers(service,e=>e.sender===win?.webContents);
   let failHistory=false, failSelectResponse=false;
   for(const [channel,name] of Object.entries(bindings))ipcMain.handle(channel,(...args)=>{
@@ -40,28 +42,71 @@ app.whenReady().then(async()=>{
   win=new BrowserWindow({show:false,width:1200,height:800,useContentSize:true,webPreferences:{preload:path.resolve(__dirname,"../electron/preload.cjs"),sandbox:true,contextIsolation:true,offscreen:true,backgroundThrottling:false}});
   const run=code=>win.webContents.executeJavaScript(code);
   const wait=async predicate=>{for(let i=0;i<160;i++){if(await predicate())return;await new Promise(r=>setTimeout(r,50));}throw Error("UI condition timed out");};
-  async function load(){await win.loadURL("data:text/html;charset=utf-8,"+encodeURIComponent(html));for(const file of ["agent-trace.js","agent-panel.js"])await run(fs.readFileSync(path.join(renderer,file),"utf8"));await wait(()=>run(`!document.querySelector('#agentSend').disabled`));await run(`document.querySelector('#switchToAgent').click();document.querySelector('#desktopBridgeStatus').hidden=true;`);}
+  async function load(empty=false){await win.loadURL("data:text/html;charset=utf-8,"+encodeURIComponent(html));for(const file of ["agent-trace.js","agent-panel.js"])await run(fs.readFileSync(path.join(renderer,file),"utf8"));await wait(()=>run(empty?`!document.querySelector('#agentNewChat').disabled`:`!document.querySelector('#agentSend').disabled`));await run(`document.querySelector('#switchToAgent').click();document.querySelector('#desktopBridgeStatus').hidden=true;`);}
   const send=async text=>{await run(`document.querySelector('#agentInput').value=${JSON.stringify(text)};document.querySelector('#agentComposer').requestSubmit()`);await wait(()=>run(`!document.querySelector('#agentSend').disabled`));await wait(()=>Promise.resolve(!service.active));};
   try{
     await load();await send("会话甲 · 合成档案");
     await wait(()=>run(`document.querySelector('#sessionList').textContent.includes('会话甲')`));
     const first=(await service.sessionOperation("sessions")).selectedId;
     await run(`document.querySelector('#agentNewChat').click()`);await wait(()=>run(`!document.querySelector('#agentSend').disabled`));
-    await send("会话乙 · 独立档案");await wait(()=>run(`document.querySelectorAll('#sessionList button').length===2 && document.querySelector('#sessionList').textContent.includes('会话乙')`));
+    await send("会话乙 · 独立档案");await wait(()=>run(`document.querySelectorAll('#sessionList .session-select').length===2 && document.querySelector('#sessionList').textContent.includes('会话乙')`));
     const second=(await service.sessionOperation("sessions")).selectedId;
     assert.notEqual(first,second);assert.ok(!JSON.stringify(requests.at(-1)).includes("会话甲"));
+    if(deletion){
+      fs.mkdirSync(output,{recursive:true});
+      const openDelete=async id=>{
+        await run(`document.querySelector('[data-session-id="${id}"] .session-delete').click()`);
+        await wait(()=>run("document.querySelector('#deleteSessionDialog').open"));
+      };
+      await openDelete(second);
+      assert.match(await run("document.querySelector('#deleteSessionName').textContent"),/会话乙/);
+      assert.match(await run("document.querySelector('#deleteSessionWarning').textContent"),/无法恢复/);
+      await new Promise(r=>setTimeout(r,120));
+      fs.writeFileSync(path.join(output,"delete-confirm.png"),(await win.webContents.capturePage()).toPNG());
+      await run("document.querySelector('#cancelSessionDelete').click()");
+      assert.equal((await service.sessionOperation("sessions")).sessions.length,2);
+      assert.equal((await service.sessionOperation("session_history",{conversationId:second})).turns.length,1);
+      await openDelete(second);
+      await run("document.querySelector('#confirmSessionDelete').click()");
+      await wait(()=>run("!document.querySelector('#agentSend').disabled && document.querySelectorAll('.session-row').length===1"));
+      assert.equal((await service.sessionOperation("sessions")).selectedId,first);
+      assert.ok(!(await run("document.querySelector('#agentMessages').textContent")).includes("会话乙"));
+      await run("document.querySelector('#agentInput').value='取消测试';document.querySelector('#agentComposer').requestSubmit()");
+      await wait(()=>run("document.querySelector('.streaming')?.textContent.includes('取消测试')"));
+      assert.equal(await run("document.querySelector('.session-delete').disabled"),true);
+      assert.equal((await service.sessionOperation("delete_session",{conversationId:first,confirmed:true})).error.code,"RUN_IN_PROGRESS");
+      await run("document.querySelector('#agentStop').click()");
+      await wait(()=>run("!document.querySelector('#agentSend').disabled"));
+      await openDelete(first);await run("document.querySelector('#confirmSessionDelete').click()");
+      await wait(()=>run("document.querySelectorAll('.session-row').length===0 && document.querySelector('#agentMessages').textContent.includes('暂无会话')"));
+      assert.equal(await run("document.querySelector('#agentSend').disabled"),true);
+      assert.equal((await service.sessionOperation("sessions")).selectedId,null);
+      await new Promise(r=>setTimeout(r,120));
+      fs.writeFileSync(path.join(output,"sessions-empty.png"),(await win.webContents.capturePage()).toPNG());
+      client.terminate();service=new AgentService({client,modelLister:async()=>["synthetic"]});
+      await service.configure(config);handlers=createAgentIpcHandlers(service,e=>e.sender===win.webContents);
+      await load(true);
+      assert.equal((await service.sessionOperation("sessions")).sessions.length,0);
+      await run("document.querySelector('#agentNewChat').click()");
+      await wait(()=>run("!document.querySelector('#agentSend').disabled"));
+      await send("删除后全新会话");
+      assert.ok(!JSON.stringify(requests.at(-1)).includes("会话甲"));
+      assert.ok(!JSON.stringify(requests.at(-1)).includes("会话乙"));
+      console.log("PASS: delete confirmation/cancel/current/last/restart/active guard and clean new context; synthetic data only");
+      return;
+    }
     if(atomicSelection){
       failSelectResponse=true;
-      await run(`document.querySelectorAll('#sessionList button')[1].click()`);
+      await run(`document.querySelectorAll('#sessionList .session-select')[1].click()`);
       await wait(()=>run(`document.querySelector('#agentMessages').textContent.includes('会话读取失败')`));
       assert.equal(await run(`document.querySelector('#agentSend').disabled && !document.querySelector('#agentMessages').textContent.includes('会话乙')`),true);
       await run(`document.querySelector('#sessionRetry').click()`);
       await wait(()=>run(`!document.querySelector('#agentSend').disabled && document.querySelector('#agentMessages').textContent.includes('会话甲')`));
-      await run(`document.querySelectorAll('#sessionList button')[0].click()`);
+      await run(`document.querySelectorAll('#sessionList .session-select')[0].click()`);
       await wait(()=>run(`!document.querySelector('#agentSend').disabled && document.querySelector('#agentMessages').textContent.includes('会话乙')`));
     }
     failHistory=true;
-    await run(`document.querySelectorAll('#sessionList button')[1].click()`);
+    await run(`document.querySelectorAll('#sessionList .session-select')[1].click()`);
     await wait(()=>run(`document.querySelector('#agentMessages').textContent.includes('会话读取失败')`));
     assert.equal(await run(`document.querySelector('#agentSend').disabled && !document.querySelector('#agentMessages').textContent.includes('会话乙')`),true);
     await run(`document.querySelector('#sessionRetry').click()`);
@@ -73,15 +118,15 @@ app.whenReady().then(async()=>{
     await send("失败测试");const failed=await service.sessionOperation("session_history",{conversationId:first});assert.equal(failed.turns.length,1);
     await run(`document.querySelector('#agentInput').value='取消测试';document.querySelector('#agentComposer').requestSubmit()`);
     await wait(()=>run(`document.querySelector('.streaming')?.textContent.includes('取消测试')`));
-    assert.equal(await run(`[...document.querySelectorAll('#sessionList button')].every(b=>b.disabled)&&document.querySelector('#agentNewChat').disabled`),true);
+    assert.equal(await run(`[...document.querySelectorAll('#sessionList .session-select')].every(b=>b.disabled)&&document.querySelector('#agentNewChat').disabled`),true);
     assert.equal((await service.sessionOperation("select_session",{conversationId:second})).error.code,"RUN_IN_PROGRESS");
     await run(`document.querySelector('#agentStop').click()`);await wait(()=>run(`!document.querySelector('#agentSend').disabled`));
     assert.equal((await service.sessionOperation("session_history",{conversationId:first})).turns.length,1);
-    await run(`document.querySelectorAll('#sessionList button')[0].click()`);await wait(()=>run(`document.querySelector('#agentMessages').textContent.includes('会话乙') && !document.querySelector('#agentSend').disabled`));
+    await run(`document.querySelectorAll('#sessionList .session-select')[0].click()`);await wait(()=>run(`document.querySelector('#agentMessages').textContent.includes('会话乙') && !document.querySelector('#agentSend').disabled`));
     assert.equal(await run(`/失败测试|取消测试|会话甲/.test(document.querySelector('#agentMessages').textContent)`),false);
     fs.mkdirSync(output,{recursive:true});
     if(atomicSelection){
-      await run(`document.querySelectorAll('#sessionList button')[1].click()`);
+      await run(`document.querySelectorAll('#sessionList .session-select')[1].click()`);
       await wait(()=>run(`!document.querySelector('#agentSend').disabled && document.querySelector('#agentMessages').textContent.includes('会话甲')`));
       const corrupt=spawnSync(client.executable,["-X","utf8","-c",`import sqlite3,sys
 db=sqlite3.connect(sys.argv[1])
@@ -89,7 +134,7 @@ db.execute("INSERT INTO turns VALUES (?,2,'2026-09-20','synthetic-corrupt','brok
 db.commit()
 db.close()`,path.join(temp,"memory.sqlite3"),second],{windowsHide:true,encoding:"utf8"});
       assert.equal(corrupt.status,0,corrupt.stderr);
-      await run(`document.querySelectorAll('#sessionList button')[0].click()`);
+      await run(`document.querySelectorAll('#sessionList .session-select')[0].click()`);
       await wait(()=>run(`document.querySelector('#agentMessages').textContent.includes('会话读取失败')`));
       assert.equal(await run(`document.querySelector('#agentSend').disabled`),true);
       assert.equal((await service.sessionOperation("sessions")).selectedId,first);

@@ -97,6 +97,18 @@
 #agentNewChat{width:100%;margin:12px 0}
 #sessionHint{padding:4px 8px 12px}
 #sessionList{display:flex;flex-direction:column;gap:4px}
+.session-row{display:flex;align-items:center;gap:3px;min-width:0}
+.session-row .session-select{flex:1;min-width:0}
+.session-row .session-delete{flex:none;opacity:0;color:#dca4a4;padding:6px;font-size:11px}
+.session-row:hover .session-delete,.session-row:focus-within .session-delete{opacity:1}
+@media(hover:none){.session-row .session-delete{opacity:1}}
+.session-delete-dialog{width:min(440px,calc(100vw - 40px));box-sizing:border-box;padding:24px;background:#17191e;color:#e5e7eb;border:1px solid #555;border-radius:12px}
+.session-delete-dialog::backdrop{background:#0009}
+.session-delete-dialog h2{margin:0 0 16px;font-size:18px}
+#deleteSessionName{font-weight:600;overflow-wrap:anywhere}
+#deleteSessionWarning{font-size:13px;line-height:1.7;color:#bbb}
+.session-delete-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+#confirmSessionDelete{background:#753b3b;border-color:#a05a5a;color:#fff}
 #sessionList button{text-align:left;border-color:transparent;background:transparent;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
 #agentView .agent-chat{border:0;border-radius:0;background:transparent;min-height:0;min-width:0}
 #agentView .agent-chat-head{border:0;padding:12px 24px}

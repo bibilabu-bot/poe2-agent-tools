@@ -166,6 +166,26 @@ test("session switching blocks concurrent sends and ignores late session results
   assert.equal(service.active,null);
 });
 
+test("deletion requires confirmation, serializes operations and rejects cancelled run events",async()=>{
+  const client=new MockPythonClient(), original=client.request.bind(client);
+  let release,progress;
+  client.request=async(method,params,options)=>{
+    if(method==="send"){progress=options.onEvent;return new Promise(resolve=>{release=resolve;});}
+    if(method==="delete_session")return {selectedId:null,sessions:[]};
+    return original(method,params);
+  };
+  const service=new AgentService({client}),events=[];
+  await service.configure({baseUrl:"https://example.com/v1",apiKey:"synthetic"});
+  assert.equal((await service.sessionOperation("delete_session",{conversationId:"first"})).error.code,"CONFIRMATION_REQUIRED");
+  const pending=service.send({model:"m",text:"first"},e=>events.push(e));
+  await new Promise(r=>setImmediate(r));
+  assert.equal((await service.sessionOperation("delete_session",{conversationId:"first",confirmed:true})).error.code,"RUN_IN_PROGRESS");
+  service.cancel();
+  assert.equal((await service.sessionOperation("delete_session",{conversationId:"first",confirmed:true})).ok,true);
+  progress({type:"text_delta",text:"late",seq:1});release({text:"late",history:[{role:"assistant",content:"late"}]});
+  assert.equal((await pending).ok,false);assert.equal(events.length,0);assert.deepEqual(service.history,[]);
+});
+
 test("cancelled run cannot forward late events into a switched session", async () => {
   const client=new MockPythonClient(),original=client.request.bind(client);
   let release,progress;

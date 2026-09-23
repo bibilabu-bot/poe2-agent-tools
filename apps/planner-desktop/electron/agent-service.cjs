@@ -63,15 +63,16 @@ class AgentService {
   }
   async sessionOperation(method, value = {}) {
     if (this.active) return { ok: false, error: { code: "RUN_IN_PROGRESS", message: "请先停止当前回复，再切换会话" } };
-    if (!["reset", "sessions", "select_session", "session_history"].includes(method)) throw new PythonAgentError("INVALID_REQUEST", "无效会话操作");
+    if (!["reset", "sessions", "select_session", "session_history", "delete_session"].includes(method)) throw new PythonAgentError("INVALID_REQUEST", "无效会话操作");
+    if (method === "delete_session" && value?.confirmed !== true) return {ok:false,error:{code:"CONFIRMATION_REQUIRED",message:"请先确认删除会话"}};
     if (!["reset", "sessions"].includes(method) && (typeof value?.conversationId !== "string" || value.conversationId.length > 128)) return { ok: false, error: { code: "INVALID_REQUEST", message: "无效会话标识" } };
     const token = { kind: "session" }, generation = this.generation; this.active = token;
     try {
       await this.#ensureConfigured();
       if (this.active !== token || generation !== this.generation) throw new PythonAgentError("CANCELLED", "会话操作已取消");
-      const result = await this.client.request(method, { conversationId: value.conversationId, before: value.before });
+      const result = await this.client.request(method, { conversationId: value.conversationId, before: value.before, ...(method === "delete_session" ? {confirmed:true} : {}) });
       if (this.active !== token || generation !== this.generation) throw new PythonAgentError("CANCELLED", "会话操作已取消");
-      if (["select_session", "reset"].includes(method)) { this.history = []; this.generation += 1; }
+      if (["select_session", "reset", "delete_session"].includes(method)) { this.history = []; this.generation += 1; }
       return { ok: true, ...result };
     } catch (error) { return { ok: false, error: safeError(error) }; }
     finally { if (this.active === token) this.active = null; }
@@ -243,6 +244,7 @@ function createAgentIpcHandlers(service, isTrustedSender, credentialStore = null
     restore: async (event, value) => { guard(event); try { return await service.restoreConversation(value?.messages); } catch (error) { return { ok: false, error: safeError(error) }; } },
     sessions: async (event) => { guard(event); return service.sessionOperation("sessions"); },
     selectSession: async (event, value) => { guard(event); return service.sessionOperation("select_session", value); },
+    deleteSession: async (event, value) => { guard(event); return service.sessionOperation("delete_session", value); },
     sessionHistory: async (event, value) => { guard(event); return service.sessionOperation("session_history", value); },
   };
 }

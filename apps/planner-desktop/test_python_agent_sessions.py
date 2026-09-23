@@ -1,5 +1,6 @@
 """Synthetic legacy upgrade and durable session boundary regressions."""
 import json
+import asyncio
 import sqlite3
 import tempfile
 import unittest
@@ -15,6 +16,71 @@ from test_python_agent_runtime import ScriptedProvider
 
 
 class SessionTests(unittest.TestCase):
+    def test_delete_is_scoped_transactional_and_removes_exclusive_vectors(self):
+        from python_agent.rag import digest
+        with tempfile.TemporaryDirectory() as folder:
+            service=AgentService(str(Path(folder)/"memory.sqlite3"))
+            service.configure("http://localhost:9999/v1","synthetic")
+            store=service.memory_store; first=service.conversation_id
+            pair=lambda t:[{"role":"user","content":t},{"role":"assistant","content":"answer"}]
+            store.commit(first,1,pair("unique"),{**empty_notebook(),"goal":"deleted notebook"},{"trace":[]})
+            service.reset();second=service.conversation_id
+            store.commit(second,1,pair("shared"),empty_notebook())
+            store.commit(first,2,pair("shared"),empty_notebook())
+            other=store.activate("other-service")
+            store.commit(other,1,pair("other"),empty_notebook())
+            store.db.execute("CREATE TABLE failed_runs(conversation_id TEXT,details TEXT)")
+            store.db.executemany("INSERT INTO failed_runs VALUES (?,?)",[(first,"first"),(second,"second")]);store.db.commit()
+            rag=sqlite3.connect(service.rag_cache_path)
+            rag.executescript("CREATE TABLE vectors(profile TEXT,hash TEXT,vector TEXT);CREATE TABLE nodes(hash TEXT);")
+            unique=digest(store.directory(first)[0]["summary"]);shared=digest(store.directory(second)[0]["summary"])
+            rag.executemany("INSERT INTO vectors VALUES ('p',?,'[]')",[(unique,),(shared,),("public",)])
+            rag.execute("INSERT INTO nodes VALUES ('public')");rag.commit()
+            with self.assertRaises(AgentError):service.delete_session(other,True)
+            with self.assertRaises(AgentError):service.delete_session(first,False)
+            # An induced mid-delete failure must roll back both attached vector and archive writes.
+            store.db.execute("CREATE TRIGGER fail_delete BEFORE DELETE ON turns BEGIN SELECT RAISE(ABORT,'fixture'); END")
+            store.db.commit()
+            with self.assertRaises(sqlite3.IntegrityError):service.delete_session(first,True)
+            self.assertEqual(rag.execute("SELECT count(*) FROM vectors WHERE hash=?",(unique,)).fetchone()[0],1)
+            self.assertEqual(len(store.directory(first)),2)
+            store.db.execute("DROP TRIGGER fail_delete");store.db.commit()
+            result=service.delete_session(first,True)
+            self.assertEqual(result["selectedId"],second)
+            for table in ("turns","turn_display","conversation_metadata","failed_runs"):
+                self.assertEqual(store.db.execute(f"SELECT count(*) FROM {table} WHERE conversation_id=?",(first,)).fetchone()[0],0)
+            self.assertEqual(store.db.execute("SELECT count(*) FROM conversations WHERE id=?",(first,)).fetchone()[0],0)
+            self.assertEqual({r[0] for r in rag.execute("SELECT hash FROM vectors")},{shared,"public"})
+            self.assertEqual(len(store.directory(other)),1)
+            self.assertEqual(service.provider._api_key,"synthetic")
+            with self.assertRaises(AgentError):store.commit(first,1,pair("late"),empty_notebook())
+            self.assertEqual(store.db.execute("SELECT count(*) FROM conversations WHERE id=?",(first,)).fetchone()[0],0)
+            service.delete_session(second,True)
+            self.assertIsNone(service.conversation_id)
+            self.assertEqual(service.sessions()["sessions"],[])
+            with self.assertRaises(AgentError):service.restore(pair("legacy resurrection"))
+            store.db.close();rag.close()
+            restarted=AgentService(str(Path(folder)/"memory.sqlite3"))
+            restarted.configure("http://localhost:9999/v1","synthetic")
+            self.assertIsNone(restarted.conversation_id)
+            restarted.reset()
+            self.assertEqual(len(restarted.sessions()["sessions"]),1)
+            with self.assertRaises(AgentError):restarted.restore(pair("old display"))
+            restarted.memory_store.db.close()
+
+    def test_delete_current_selects_remaining_history(self):
+        service=AgentService(":memory:");service.configure("http://localhost:9999/v1","synthetic")
+        first=service.conversation_id
+        pair=[{"role":"user","content":"keep"},{"role":"assistant","content":"answer"}]
+        service.memory_store.commit(first,1,pair,empty_notebook())
+        service.reset();second=service.conversation_id
+        result=service.delete_session(second,True)
+        self.assertEqual(result["selectedId"],first)
+        self.assertEqual(service.history,pair)
+        self.assertEqual(service.memory_store.activate(service.provider.base_url),first)
+        with self.assertRaises(AgentError):service.session_history(second)
+        service.memory_store.db.close()
+
     def test_legacy_upgrade_preserves_archive_and_selected_session(self):
         with tempfile.TemporaryDirectory() as folder:
             filename = str(Path(folder) / "old.sqlite3")
@@ -64,6 +130,20 @@ class SessionTests(unittest.TestCase):
 
 
 class SessionRunTests(unittest.IsolatedAsyncioTestCase):
+    async def test_delete_rejected_during_turn_and_empty_send_rejected(self):
+        service=AgentService(":memory:");service.configure("http://localhost:9999/v1","synthetic")
+        cid=service.conversation_id;started=asyncio.Event();release=asyncio.Event()
+        async def complete(**kwargs):
+            started.set();await release.wait();return ModelReply("done")
+        service.provider.complete=complete
+        pending=asyncio.create_task(service.send("synthetic","hi",False))
+        await started.wait()
+        with self.assertRaisesRegex(AgentError,"先停止"):service.delete_session(cid,True)
+        release.set();await pending
+        self.assertEqual(len(service.memory_store.directory(cid)),1)
+        service.delete_session(cid,True)
+        with self.assertRaisesRegex(AgentError,"新建"):await service.send("synthetic","hi",False)
+        service.memory_store.db.close()
     async def test_failed_selection_keeps_memory_database_restart_and_next_send_on_a(self):
         for corruption in ("second_json", "second_unfinished", "display_read", "list_read"):
             with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as folder:

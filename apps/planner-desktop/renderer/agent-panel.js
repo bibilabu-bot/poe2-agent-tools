@@ -16,6 +16,8 @@
   let selectedSession = null, historyBefore = null, sessionBusy = false;
   let sessionReady = !api?.listSessions;
   let sessionRows = [];
+  let legacyImportAllowed = true, deleteCandidate = null;
+  const deleteDialog = byId("deleteSessionDialog");
   function sessionHint(text) { byId("sessionHint").textContent = text; }
   function clearSessionDisplay() {
     sessionReady=false; historyBefore=null; timeline=[];
@@ -32,13 +34,53 @@
       button.title = row.title || "新会话"; button.classList.toggle("active", row.id === selectedSession);
       if (row.id === selectedSession) button.setAttribute("aria-current", "true");
       button.disabled = running || sessionBusy;
-      button.addEventListener("click", () => changeSession(row.id)); return button;
+      button.classList.add("session-select");
+      button.addEventListener("click", () => changeSession(row.id));
+      const entry=document.createElement("div");entry.className="session-row";entry.dataset.sessionId=row.id;
+      const remove=document.createElement("button");remove.type="button";remove.className="session-delete";
+      remove.textContent="删除";remove.setAttribute("aria-label",`删除会话：${row.title || "新会话"}`);
+      remove.disabled=running||sessionBusy||!api?.deleteSession;
+      remove.addEventListener("click",()=>{
+        if(running||sessionBusy)return;
+        deleteCandidate=row;sessionBusy=true;updateControls();
+        byId("deleteSessionName").textContent=row.title||"新会话";
+        deleteDialog.showModal();byId("cancelSessionDelete").focus();
+      });
+      entry.append(button,remove);return entry;
     }));
   }
+  function cancelSessionDelete(){
+    deleteCandidate=null;deleteDialog.close();sessionBusy=false;updateControls();byId("agentNewChat").focus();
+  }
+  byId("cancelSessionDelete").addEventListener("click",cancelSessionDelete);
+  deleteDialog.addEventListener("cancel",event=>{event.preventDefault();cancelSessionDelete();});
+  byId("confirmSessionDelete").addEventListener("click",async()=>{
+    const target=deleteCandidate;if(!target||running)return;
+    deleteCandidate=null;deleteDialog.close();conversationId+=1;
+    try{
+      const result=await api.deleteSession(target.id);
+      if(!result.ok)throw Error(result.error?.message||"删除失败");
+      selectedSession=result.selectedId;sessionRows=result.sessions;legacyImportAllowed=false;
+      clearSessionDisplay();byId("agentInput").value="";showTrace([]);
+      await loadSessionHistory();
+      sessionHint("会话已删除，无法恢复。");
+      // Never resurrect a deleted archive from the obsolete display-only cache.
+      try{const saved=JSON.parse(localStorage.getItem(CONVERSATION_KEY)||"null");
+        if(saved?.baseUrl===connectedBaseUrl)localStorage.removeItem(CONVERSATION_KEY);}catch{}
+    }catch(error){sessionLoadFailed(error);}
+    finally{sessionBusy=false;updateControls();byId("agentNewChat").focus();}
+  });
   async function loadSessionHistory(older = false) {
     const id = selectedSession;
+    if(!id){
+      historyBefore=null;sessionReady=false;timeline=[];
+      byId("agentOlderHistory").hidden=true;byId("sessionRetry").hidden=true;
+      byId("agentMessages").replaceChildren(Object.assign(document.createElement("div"),{className:"agent-empty",textContent:"暂无会话。点击“新建会话”开始。"}));
+      return;
+    }
+    const revision=configRevision, epoch=conversationId;
     const result = await api.sessionHistory(id, older ? historyBefore : null);
-    if (id !== selectedSession) return;
+    if (id !== selectedSession || revision!==configRevision || epoch!==conversationId) return;
     if (!result.ok) throw new Error(result.error?.message || "会话读取失败");
     const list = byId("agentMessages"), oldNodes = older ? [...list.childNodes] : [];
     const oldHeight = list.scrollHeight, oldTop = list.scrollTop;
@@ -59,6 +101,7 @@
     const result = await api.listSessions();
     if (!result.ok) throw new Error(result.error?.message || "会话列表读取失败");
     selectedSession = result.selectedId; sessionRows = result.sessions; renderSessions();
+    legacyImportAllowed=result.legacyImportAllowed!==false;
     sessionHint(running ? "请先停止回复，再切换会话。" : "仅显示当前服务的本地会话。");
   }
   async function changeSession(id) {
@@ -198,10 +241,10 @@
       sessionBusy=true; clearSessionDisplay(); updateControls();
       try {
         await refreshSessions();
-        const page=await api.sessionHistory(selectedSession);
+        const page=selectedSession?await api.sessionHistory(selectedSession):{ok:true,turns:[]};
         if (!page.ok) throw new Error(page.error?.message || "会话读取失败");
         // Only an untouched initial archive can receive the old display-cache import.
-        if (sessionRows.length===1 && !page.turns.length) await restoreLegacyConversation();
+        if (legacyImportAllowed && sessionRows.length===1 && !page.turns.length) await restoreLegacyConversation();
         await refreshSessions(); await loadSessionHistory();
       } catch(error) { sessionLoadFailed(error); }
       finally { sessionBusy=false; updateControls(); }

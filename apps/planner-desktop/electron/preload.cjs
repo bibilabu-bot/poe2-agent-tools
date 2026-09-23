@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld("desktopAPI", {
     restoreConversation: (messages) => ipcRenderer.invoke("agent:restore-conversation", { messages }),
     listSessions: () => ipcRenderer.invoke("agent:sessions"),
     selectSession: (conversationId) => ipcRenderer.invoke("agent:select-session", { conversationId }),
+    deleteSession: (conversationId) => ipcRenderer.invoke("agent:delete-session", { conversationId, confirmed: true }),
     sessionHistory: (conversationId, before = null) => ipcRenderer.invoke("agent:session-history", { conversationId, before })
   })
 });
