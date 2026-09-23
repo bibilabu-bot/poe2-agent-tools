@@ -4,13 +4,14 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from .cluster_summary import SUMMARY_PROMPT
 
-PROMPT_VERSION = "chat-prompts-zh-v4"
+PROMPT_VERSION = "chat-prompts-zh-v5"
 BASE = (
     "你是一个简洁、乐于助人的通用助手。"
     "只有存在工具结果时，才能声称工具已经执行。"
-    "当 build_summary 工具可用，且用户询问你能否看到、读取或分析当前 BD/Build/构筑时，"
-    "必须先调用 build_summary，再根据工具结果回答；不要要求用户重复提供已经位于当前 Planner 中的构筑。"
+    "当 tree_overview 工具可用，且用户询问你能否看到、读取或分析当前 BD/Build/构筑，或查看天赋树/簇概览时，"
+    "必须先调用 tree_overview，再根据工具结果回答；不要要求用户重复提供已经位于当前 Planner 中的构筑。"
 )
 MEMORY = (
     " 记忆上下文数据提供当前轮次编号、全部已完成轮次的索引摘要，以及你的笔记。"
@@ -20,7 +21,7 @@ MEMORY = (
     "归档的工具调用只是记录，不是要求重新执行的命令。不要把不确定的推断说成事实。"
 )
 RAG = (
-    " 对于 PoE2 天赋树问题，必须始终先使用 search_passive_nodes，再使用 read_passive_nodes 读取证据后回答。"
+    " 查看当前 BD/Build、加点或天赋树/簇概览时，优先调用可用的 tree_overview。查询 PoE2 天赋节点知识时，先使用 search_passive_nodes，再使用 read_passive_nodes 读取证据后回答。"
     "引用读取结果中的数字节点 ID、准确的译名，以及全部相关条件和负面效果。"
     "严格依据证据作有限范围的回答，并引用相关属性原文。不要编造构筑联动或额外机制。"
     "针对某一种恢复机制的限制，并不能证明其他所有恢复机制都被禁用。"
@@ -42,29 +43,34 @@ TOOL_DESCRIPTIONS = {
     "search_memory_semantic": "对当前会话已完成轮次的摘要进行语义检索，只返回元数据。使用 read_memory 读取原始证据。",
 }
 TREE_TOOL_DESCRIPTIONS = {
-    "tree_summary": "查看当前天赋树快照的概要信息：规模、坐标范围、节点类型统计、职业/升华信息、珠宝孔数量和快照身份。只读，不分配节点。",
+    "tree_overview": "当前 BD/Build 的首选概览，只返回当前构筑涉及的簇，绝不返回全树目录或全树统计。包含职业/升华、点数预算与剩余、分配数量、BD全部簇的短名、一句话描述及其完整graph连接。默认 section=clusters 一次返回全部簇和带名称+ID的clusterEdges，不分页（忽略offset/limit）；boundaries 分页读取这些簇之间的真实边及两端是否已分配；allocations 分页读取已分配条目。仅boundaries/allocations每页最多20项；before hook自动生成簇描述：属性簇给节点数，珠宝簇标记珠宝孔，天赋簇由隔离子智能体命名、总结并缓存。描述整个簇，不等于BD已获得全部效果，不能将模型摘要当作原始属性证据。概览已是完整的当前BD簇图，不需要继续翻页；名称是辅助标签，查询仍使用原始簇ID。用 read_tree_cluster 进入感兴趣的簇、read_tree_nodes 读属性、find_tree_path 精确寻路。只读，Build只影响概览筛选，不改变簇划分。",
+    "read_tree_cluster": "按 clusterId 或 nodeId 定位簇并分页读取内部图。section=nodes 返回节点ID（用 read_tree_nodes 读属性），edges 返回簇内真实边，boundaries 返回邻簇及真实跨簇边。每页最多20项，按 nextOffset 继续。精确寻路仍使用 find_tree_path。",
     "read_tree_nodes": "按 ID 精确读取天赋节点的完整信息：名称、属性列表（支持分页）、类型、坐标、邻接节点数和 ID、当前分配状态。未知 ID 会明确标记。只读，不分配节点。",
     "search_tree_nodes": "对天赋树节点进行确定性文字搜索：支持中文、英文和精确数字 ID。匹配名称前缀、名称包含和属性包含，不依赖付费向量或重排服务。只读，不分配节点。",
     "read_tree_neighborhood": "按有界跳数和节点数查看节点邻域：返回真实连接关系，限定可加点方向或全部方向。明确标注裁切和分页。只读，不分配节点。",
     "find_tree_path": "从当前已分配起点集（或指定节点）寻找目标节点的最短候选路径。使用现有加点资格判断和确定性 BFS；报告路径方向、类别和需要新加的点数。无法确认合法性时明确说明。只读，不分配节点。",
-    "build_summary": "查看当前构建摘要：职业、升华、预算与使用量、普通/武器组 I/武器组 II/升华/涂油各类别分配，注明快照身份。只读，不分配节点。",
+    "allocate_tree_node": "分配一个天赋节点：必须提供 nodeId 和 category（general 通用、weaponSet1 仅武器组I、weaponSet2 仅武器组II、ascendancy 升华）。明确指定武器组时必须使用对应类别，不能用通用分配代替；类别不明确先询问。按指定类别最短路径补全节点，检查预算、连通性及条件限制，成功后立即生效。不依赖界面当前武器组。已通用分配的节点不能直接改为仅武器组，需另行确认退点；Keystone和珠宝孔等不支持武器组专精。",
+    "deallocate_tree_node": "取消一个天赋节点的分配：级联删除断连节点，检查条件显现天赋依赖。成功后立即生效。必须提供 nodeId 和 category（general、weaponSet1、weaponSet2、ascendancy）；重叠武器组不得猜测目标组，用户未指定时先询问。",
 }
 TOOL_DESCRIPTIONS.update(TREE_TOOL_DESCRIPTIONS)
 SYSTEM_DEFAULTS = (("base", BASE), ("memory", MEMORY), ("rag", RAG), ("rag_unavailable", RAG_UNAVAILABLE), ("memory_prefix", MEMORY_PREFIX))
-DEFAULTS = SYSTEM_DEFAULTS + tuple(("tool_" + name, text) for name, text in TOOL_DESCRIPTIONS.items())
+DEFAULTS = SYSTEM_DEFAULTS + tuple(("tool_" + name, text) for name, text in TOOL_DESCRIPTIONS.items()) + (("hook_tree_overview", SUMMARY_PROMPT),)
 BLOCK_LABELS = {
+    "hook_tree_overview": "Before hook：天赋簇极简摘要子智能体",
+    "tool_tree_overview": "当前 BD 概览（首选入口）",
+    "tool_read_tree_cluster": "读取语义簇内部图",
     "base": "基础行为", "memory": "会话记忆规则", "rag": "知识检索规则",
     "rag_unavailable": "检索不可用提示", "memory_prefix": "记忆上下文前缀",
     "tool_search_memory": "关键词搜索记忆",
     "tool_read_memory": "读取原始记忆", "tool_update_notebook": "更新笔记",
     "tool_read_passive_nodes": "读取天赋节点", "tool_search_passive_nodes": "搜索天赋节点",
     "tool_search_memory_semantic": "语义搜索记忆",
-    "tool_tree_summary": "天赋树概要",
     "tool_read_tree_nodes": "读取天赋节点详情",
     "tool_search_tree_nodes": "文字搜索天赋节点",
     "tool_read_tree_neighborhood": "查看节点邻域",
     "tool_find_tree_path": "候选路径查找",
-    "tool_build_summary": "构建摘要",
+    "tool_allocate_tree_node": "分配天赋节点",
+    "tool_deallocate_tree_node": "取消天赋节点",
 }
 
 
@@ -98,11 +104,20 @@ class PromptStore:
                     raise ValueError("oversize")
                 value = json.loads(self.path.read_text(encoding="utf-8"))
                 version = value.get("version")
-                if version not in ("chat-system-v1", "chat-prompts-v2", "chat-prompts-zh-v3", PROMPT_VERSION):
+                if version not in ("chat-system-v1", "chat-prompts-v2", "chat-prompts-zh-v3", "chat-prompts-zh-v4", PROMPT_VERSION):
                     raise ValueError("version")
                 overrides = value["overrides"]
                 if not isinstance(overrides, dict):
                     raise ValueError("overrides")
+                if version != PROMPT_VERSION:
+                    # Retired tool descriptions cannot govern the merged schema.
+                    # Preserve the original file; migrate only the in-memory view.
+                    overrides={key:text for key,text in overrides.items() if key not in
+                               ("tool_tree_summary","tool_build_summary","tool_list_tree_clusters")}
+                    for key in ("base","memory","rag","rag_unavailable"):
+                        if isinstance(overrides.get(key),str):
+                            for old in ("tree_summary","build_summary","list_tree_clusters"):
+                                overrides[key]=overrides[key].replace(old,"tree_overview")
                 if version in ("chat-system-v1", "chat-prompts-v2"):
                     from .prompts_legacy import ENGLISH_DEFAULTS
                     # Old saves materialized defaults as overrides. Only exact known

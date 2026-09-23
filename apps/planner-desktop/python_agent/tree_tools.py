@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from .core import AgentError, BaseTool
 from .prompts import TREE_TOOL_DESCRIPTIONS
@@ -107,6 +107,7 @@ class TreeSnapshot:
     build: dict[str, Any] = field(default_factory=dict)
     _path_index: dict[str, Any] = field(default_factory=dict)
     _error: str | None = None
+    semantic_topology: dict[str, Any] | None = None
 
     def has(self, node_id: str) -> bool:
         return str(node_id) in self.nodes
@@ -210,50 +211,41 @@ class _TreeTool(BaseTool):
         raise NotImplementedError
 
 
-class TreeSummaryTool(_TreeTool):
-    def __init__(self, snapshot: TreeSnapshot) -> None:
-        super().__init__(snapshot, "tree_summary")
-
-    def _parameters(self) -> dict[str, Any]:
-        return {"required": [], "properties": {}}
-
-    async def execute(self, arguments: Mapping[str, Any]) -> Any:
-        self._require_tree_catalog()
-        s = self._snapshot
-        b = s.build
-        nodes = list(s.nodes.values())
-        kinds: dict[str, int] = {}
-        min_x = min_y = float("inf")
-        max_x = max_y = float("-inf")
-        for n in nodes:
-            k = n.get("kind", "small")
-            kinds[k] = kinds.get(k, 0) + 1
-            nx = n.get("x")
-            ny = n.get("y")
-            if isinstance(nx, (int, float)):
-                min_x = min(min_x, nx)
-                max_x = max(max_x, nx)
-            if isinstance(ny, (int, float)):
-                min_y = min(min_y, ny)
-                max_y = max(max_y, ny)
-        js_total = sum(1 for n in nodes if n.get("isJewelSocket"))
-        js_ord = sum(1 for n in nodes if n.get("isOrdinaryJewelSocket"))
-        allocated_ids = set().union(*(b.get("allocations", {}).get(name, [])
-                                      for name in ("normal", "weaponSet1", "weaponSet2", "ascendancy")))
-        js_allocated = sum(1 for n in nodes if n.get("isJewelSocket") and n.get("id") in allocated_ids)
-        return {"snapshotId": s.snapshot_id, "nodeCount": s.node_count,
-                "coordinateRange": {"min": {"x": min_x if min_x != float("inf") else None,
-                                           "y": min_y if min_y != float("inf") else None},
-                                    "max": {"x": max_x if max_x != float("-inf") else None,
-                                           "y": max_y if max_y != float("-inf") else None}},
-                "nodeKinds": kinds,
-                "jewelSockets": {"scope": "entire_tree_catalog", "total": js_total,
-                                  "ordinary": js_ord, "special": js_total - js_ord,
-                                  "allocatedInCurrentBuild": js_allocated},
-                "ascendancyNodeCount": sum(1 for n in nodes if n.get("isAscendancy")),
-                "conditionalRevealCount": sum(1 for n in nodes if n.get("isConditionalReveal")),
-                "class": {"base": b.get("baseClassName"), "selectedAscendancyId": b.get("selectedAscendancyId")},
-                "ascendancyOptions": b.get("ascendancyOptions", [])}
+def _tree_overview_stats(s: TreeSnapshot) -> dict[str, Any]:
+    b = s.build
+    nodes = list(s.nodes.values())
+    kinds: dict[str, int] = {}
+    min_x = min_y = float("inf")
+    max_x = max_y = float("-inf")
+    for n in nodes:
+        k = n.get("kind", "small")
+        kinds[k] = kinds.get(k, 0) + 1
+        nx = n.get("x")
+        ny = n.get("y")
+        if isinstance(nx, (int, float)):
+            min_x = min(min_x, nx)
+            max_x = max(max_x, nx)
+        if isinstance(ny, (int, float)):
+            min_y = min(min_y, ny)
+            max_y = max(max_y, ny)
+    js_total = sum(1 for n in nodes if n.get("isJewelSocket"))
+    js_ord = sum(1 for n in nodes if n.get("isOrdinaryJewelSocket"))
+    allocated_ids = set().union(*(b.get("allocations", {}).get(name, [])
+                                  for name in ("normal", "weaponSet1", "weaponSet2", "ascendancy")))
+    js_allocated = sum(1 for n in nodes if n.get("isJewelSocket") and n.get("id") in allocated_ids)
+    return {"snapshotId": s.snapshot_id, "nodeCount": s.node_count,
+            "coordinateRange": {"min": {"x": min_x if min_x != float("inf") else None,
+                                       "y": min_y if min_y != float("inf") else None},
+                                "max": {"x": max_x if max_x != float("-inf") else None,
+                                       "y": max_y if max_y != float("-inf") else None}},
+            "nodeKinds": kinds,
+            "jewelSockets": {"scope": "entire_tree_catalog", "total": js_total,
+                              "ordinary": js_ord, "special": js_total - js_ord,
+                              "allocatedInCurrentBuild": js_allocated},
+            "ascendancyNodeCount": sum(1 for n in nodes if n.get("isAscendancy")),
+            "conditionalRevealCount": sum(1 for n in nodes if n.get("isConditionalReveal")),
+            "class": {"base": b.get("baseClassName"), "selectedAscendancyId": b.get("selectedAscendancyId")},
+            "ascendancyOptions": b.get("ascendancyOptions", [])}
 
 
 class ReadTreeNodesTool(_TreeTool):
@@ -467,88 +459,307 @@ class FindTreePathTool(_TreeTool):
         return result
 
 
-class BuildSummaryTool(_TreeTool):
-    def __init__(self, snapshot: TreeSnapshot) -> None:
-        super().__init__(snapshot, "build_summary")
+def _build_overview_stats(s: TreeSnapshot) -> dict[str, Any]:
+    b = s.build
+    allocs = b.get("allocations", {})
+    usage = b.get("budgetUsage", {})
+    budgets = b.get("budgets", {})
+
+    # Use Planner-derived usage counts (account for free starts).
+    passive_used = usage.get("normal", 0)
+    ws1_used = usage.get("weaponSet1", 0)
+    ws2_used = usage.get("weaponSet2", 0)
+    asc_used = usage.get("ascendancy", 0)
+
+    result: dict[str, Any] = {
+        "snapshotId": s.snapshot_id,
+        "class": {"base": b.get("baseClassName"), "ascendancyId": b.get("selectedAscendancyId"),
+                  "classStartId": b.get("classStartId")},
+        "budgets": {
+            "passive": {"max": budgets.get("passive", 0), "used": passive_used},
+            "weaponSet": {"max": budgets.get("weaponSet", 0),
+                          "weaponSet1Used": ws1_used, "weaponSet2Used": ws2_used},
+            "ascendancy": {"max": budgets.get("ascendancy", 0), "used": asc_used},
+        },
+        "allocations": {
+            "normal": {"count": len(allocs.get("normal", [])),
+                       "ids": allocs.get("normal", [])[:50]},
+            "weaponSet1": {"count": len(allocs.get("weaponSet1", [])),
+                           "ids": allocs.get("weaponSet1", [])[:50]},
+            "weaponSet2": {"count": len(allocs.get("weaponSet2", [])),
+                           "ids": allocs.get("weaponSet2", [])[:50]},
+            "ascendancy": {"count": len(allocs.get("ascendancy", [])),
+                           "ids": allocs.get("ascendancy", [])[:50]},
+            "instilled": {"count": len(allocs.get("instilled", [])),
+                          "ids": allocs.get("instilled", [])[:50]},
+        },
+        "highlights": b.get("highlights", [])[:40],
+    }
+    if s._error:
+        result["treeSnapshotWarning"] = s._error
+    # Truncation markers
+    for cat in ("normal", "weaponSet1", "weaponSet2", "ascendancy", "instilled"):
+        if len(allocs.get(cat, [])) > 50:
+            result["allocations"][cat]["truncated"] = True
+    return result
+
+
+class SemanticTopologyTool(_TreeTool):
+    def __init__(self, snapshot: TreeSnapshot, name: str = "read_tree_cluster") -> None:
+        super().__init__(snapshot, name)
 
     def _parameters(self) -> dict[str, Any]:
-        return {"required": [], "properties": {}}
+        return {"required": [], "properties": {
+            "nodeId": {"type":"string"}, "clusterId": {"type":"string"},
+            "section": {"type":"string", "enum":["clusters","nodes","edges","boundaries","unclassified","unclassifiedEdges","ascendancy","allocations"]},
+            "offset": {"type":"integer", "minimum":0},
+            "limit": {"type":"integer", "minimum":1, "maximum":20},
+        }}
+
+    def validate(self, arguments: Mapping[str, Any]) -> None:
+        super().validate(arguments)
+        offset,limit=arguments.get("offset",0),arguments.get("limit",20)
+        if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=20:
+            raise AgentError("INVALID_TOOL_ARGUMENTS", "分页范围无效")
+        if "section" in arguments and arguments["section"] not in self.parameters["properties"]["section"]["enum"]:
+            raise AgentError("INVALID_TOOL_ARGUMENTS", "未知拓扑分区")
+        for key in ("nodeId","clusterId"):
+            if key in arguments and (not isinstance(arguments[key],str) or not arguments[key] or len(arguments[key])>128):
+                raise AgentError("INVALID_TOOL_ARGUMENTS", "节点或簇 ID 无效")
 
     async def execute(self, arguments: Mapping[str, Any]) -> Any:
-        b = self._snapshot.build
-        allocs = b.get("allocations", {})
-        usage = b.get("budgetUsage", {})
-        budgets = b.get("budgets", {})
+        self.validate(arguments)
+        self._require_tree_catalog()
+        topology=self._snapshot.semantic_topology
+        if topology is None:
+            raise AgentError("SEMANTIC_TOPOLOGY_UNAVAILABLE", "当前快照没有语义拓扑")
+        offset,limit=arguments.get("offset",0),arguments.get("limit",20)
+        if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=20:
+            raise AgentError("INVALID_TOOL_ARGUMENTS", "分页范围无效")
+        section=arguments.get("section", "nodes" if self.name=="read_tree_cluster" else "clusters")
+        if section not in self.parameters["properties"]["section"]["enum"]:
+            raise AgentError("INVALID_TOOL_ARGUMENTS", "未知拓扑分区")
+        for key in ("nodeId","clusterId"):
+            if key in arguments and (not isinstance(arguments[key],str) or len(arguments[key])>128):
+                raise AgentError("INVALID_TOOL_ARGUMENTS", "节点或簇 ID 无效")
+        cluster_id=arguments.get("clusterId")
+        if "nodeId" in arguments:
+            node_id=arguments["nodeId"]
+            mapped=topology["nodeToCluster"].get(node_id)
+            if not mapped:
+                reason=next((n["reason"] for n in topology["unclassifiedNodes"] if n["nodeId"]==node_id),
+                            "ascendancy-excluded" if node_id in topology["excludedAscendancyNodeIds"] else "node-not-found")
+                return {"nodeId":node_id,"clusterId":None,"reason":reason}
+            if cluster_id and cluster_id!=mapped:
+                raise AgentError("INVALID_TOOL_ARGUMENTS", "节点不属于指定簇")
+            cluster_id=mapped
+        clusters=topology["clusters"]
+        cluster=next((c for c in clusters if c["id"]==cluster_id),None)
+        if cluster_id and cluster is None:
+            raise AgentError("CLUSTER_NOT_FOUND", "簇不存在")
+        if self.name=="read_tree_cluster" and cluster is None:
+            raise AgentError("INVALID_TOOL_ARGUMENTS", "请指定 clusterId 或 nodeId")
+        if section=="clusters":
+            rows=[{"id":c["id"],"type":c["type"],"nodeCount":len(c["nodeIds"]),"edgeCount":len(c["edges"])} for c in clusters if not cluster or c["id"]==cluster_id]
+        elif section=="unclassified": rows=topology["unclassifiedNodes"]
+        elif section=="unclassifiedEdges": rows=topology.get("unclassifiedEdges",[])
+        elif section=="ascendancy": rows=topology["excludedAscendancyNodeIds"]
+        elif section=="allocations":
+            rows=[{"nodeId":node_id,"category":category} for category,ids in self._snapshot.build.get("allocations",{}).items() for node_id in ids]
+        elif section=="boundaries":
+            rows=[{"source":e["source"],"target":e["target"],"physicalEdge":edge}
+                  for e in topology["clusterEdges"] if not cluster or cluster_id in (e["source"],e["target"])
+                  for edge in e["physicalEdges"]]
+        elif cluster is None:
+            raise AgentError("INVALID_TOOL_ARGUMENTS", "读取内部图须指定簇")
+        elif section=="edges": rows=cluster["edges"]
+        else: rows=cluster["nodeIds"]
+        return {"snapshotId":self._snapshot.snapshot_id,"version":topology["version"],
+                "clusterId":cluster_id,"section":section,"clusterCount":len(clusters),
+                "clusterEdgeCount":len(topology["clusterEdges"]),"total":len(rows),
+                "items":rows[offset:offset+limit],"nextOffset":offset+limit if offset+limit<len(rows) else None}
 
-        # Use Planner-derived usage counts (account for free starts).
-        passive_used = usage.get("normal", 0)
-        ws1_used = usage.get("weaponSet1", 0)
-        ws2_used = usage.get("weaponSet2", 0)
-        asc_used = usage.get("ascendancy", 0)
 
-        result: dict[str, Any] = {
-            "snapshotId": self._snapshot.snapshot_id,
-            "class": {"base": b.get("baseClassName"), "ascendancyId": b.get("selectedAscendancyId"),
-                      "classStartId": b.get("classStartId")},
-            "budgets": {
-                "passive": {"max": budgets.get("passive", 0), "used": passive_used},
-                "weaponSet": {"max": budgets.get("weaponSet", 0),
-                              "weaponSet1Used": ws1_used, "weaponSet2Used": ws2_used},
-                "ascendancy": {"max": budgets.get("ascendancy", 0), "used": asc_used},
-            },
-            "allocations": {
-                "normal": {"count": len(allocs.get("normal", [])),
-                           "ids": allocs.get("normal", [])[:50]},
-                "weaponSet1": {"count": len(allocs.get("weaponSet1", [])),
-                               "ids": allocs.get("weaponSet1", [])[:50]},
-                "weaponSet2": {"count": len(allocs.get("weaponSet2", [])),
-                               "ids": allocs.get("weaponSet2", [])[:50]},
-                "ascendancy": {"count": len(allocs.get("ascendancy", [])),
-                               "ids": allocs.get("ascendancy", [])[:50]},
-                "instilled": {"count": len(allocs.get("instilled", [])),
-                              "ids": allocs.get("instilled", [])[:50]},
-            },
-            "highlights": b.get("highlights", [])[:40],
-        }
+class TreeOverviewTool(SemanticTopologyTool):
+    """Current Build's complete named cluster graph; only detail sections paginate."""
+    def __init__(self, snapshot: TreeSnapshot) -> None:
+        super().__init__(snapshot, "tree_overview")
+        self.before_hook = None
+
+    def _parameters(self) -> dict[str, Any]:
+        return {"required":[],"properties":{
+            "section":{"type":"string","enum":["clusters","boundaries","allocations"]},
+            "offset":{"type":"integer","minimum":0,"description":"仅用于 boundaries/allocations；clusters 总是完整返回"},
+            "limit":{"type":"integer","minimum":1,"maximum":20,"description":"仅用于 boundaries/allocations；clusters 不分页"}}}
+
+    async def execute(self, arguments: Mapping[str, Any]) -> Any:
+        self.validate(arguments)
+        build=_build_overview_stats(self._snapshot)
+        build.pop("snapshotId",None)
+        for category,allocation in build["allocations"].items():
+            allocation.pop("ids",None)
+            allocation.pop("truncated",None)
+        build.pop("highlights",None)
+        build["detailTools"]={"attributes":"read_tree_nodes","allocatedIds":"tree_overview section=allocations"}
+        budgets=build["budgets"]
+        for category in ("passive","ascendancy"):
+            budgets[category]["remaining"]=max(0,budgets[category]["max"]-budgets[category]["used"])
+            budgets[category]["overBudget"]=max(0,budgets[category]["used"]-budgets[category]["max"])
+        for group in ("weaponSet1","weaponSet2"):
+            budgets["weaponSet"][group+"Remaining"]=max(0,budgets["weaponSet"]["max"]-budgets["weaponSet"][group+"Used"])
+            budgets["weaponSet"][group+"OverBudget"]=max(0,budgets["weaponSet"][group+"Used"]-budgets["weaponSet"]["max"])
+        build["budgetRule"]="总天赋计费=通用计费+max(武器I,武器II)；分配节点数包含不计费起点/升华选项，不等于点数"
+        build["class"]["ascendancyName"]=next((a.get("name") for a in self._snapshot.build.get("ascendancyOptions",[]) if a.get("id")==build["class"]["ascendancyId"]),None)
+        result={"snapshotId":self._snapshot.snapshot_id,"scope":"current_build","build":build,"semanticTopology":None}
+        if arguments.get("section")=="allocations":
+            if "nodeId" in arguments or "clusterId" in arguments:
+                raise AgentError("INVALID_TOOL_ARGUMENTS","分配目录不接受节点或簇过滤")
+            offset,limit=arguments.get("offset",0),arguments.get("limit",20)
+            rows=[{"nodeId":node_id,"category":category} for category,ids in self._snapshot.build.get("allocations",{}).items() for node_id in ids]
+            result["allocationsPage"]={"items":rows[offset:offset+limit],"total":len(rows),"nextOffset":offset+limit if offset+limit<len(rows) else None}
         if self._snapshot._error:
-            result["treeSnapshotWarning"] = self._snapshot._error
-        # Truncation markers
-        for cat in ("normal", "weaponSet1", "weaponSet2", "ascendancy", "instilled"):
-            if len(allocs.get(cat, [])) > 50:
-                result["allocations"][cat]["truncated"] = True
+            result["warning"]=self._snapshot._error
+            return result
+        topology=self._snapshot.semantic_topology
+        if topology is None:
+            result["warning"]="当前快照没有语义拓扑，仍可读取构筑信息"
+            return result
+        allocated={str(n) for category,ids in self._snapshot.build.get("allocations",{}).items()
+                   if category!="instilled" for n in ids}
+        touched={topology["nodeToCluster"][n] for n in allocated if n in topology["nodeToCluster"]}
+        clusters=[c for c in topology["clusters"] if c["id"] in touched]
+        links=[e for e in topology["clusterEdges"] if e["source"] in touched and e["target"] in touched]
+        section=arguments.get("section","clusters")
+        if section not in ("clusters","boundaries","allocations"):
+            raise AgentError("INVALID_TOOL_ARGUMENTS","BD概览只支持 clusters、boundaries、allocations；簇内部请用 read_tree_cluster")
+        rows=[]
+        if section=="clusters":
+            # Return every touched cluster and edge, even if old callers send paging arguments.
+            summaries=await self.before_hook(clusters) if self.before_hook else {}
+            rows=[{"id":c["id"],"type":c["type"],"nodeCount":len(c["nodeIds"]),
+                   "allocatedNodeCount":sum(n in allocated for n in c["nodeIds"]),
+                   **summaries.get(c["id"],{"name":{"attribute":"属性点簇","jewel":"珠宝孔簇","passive":"天赋簇"}[c["type"]],
+                       "summary":f"属性簇：{len(c['nodeIds'])}个属性节点" if c["type"]=="attribute" else "珠宝孔" if c["type"]=="jewel" else "描述暂不可用",
+                       "summarySource":"rule" if c["type"]!="passive" else "unavailable"})} for c in clusters]
+            names={row["id"]:row.get("name","天赋簇") for row in rows}
+        elif section=="boundaries":
+            rows=[{"source":e["source"],"target":e["target"],"physicalEdge":edge,
+                   "bothEndpointsAllocated":all(n in allocated for n in edge)}
+                  for e in links for edge in e["physicalEdges"]]
+        offset,limit=arguments.get("offset",0),arguments.get("limit",20)
+        result["semanticTopology"]={"scope":"current_build","section":section,
+            "clusterCount":len(clusters),"clusterEdgeCount":len(links),
+            "typeCounts":{kind:sum(c["type"]==kind for c in clusters) for kind in ("attribute","jewel","passive")},
+            "unclassifiedAllocatedNodeIds":sorted(n for n in allocated
+                if n not in topology["nodeToCluster"] and n not in topology["excludedAscendancyNodeIds"]),
+            "ascendancyAllocatedNodeIds":sorted(allocated.intersection(topology["excludedAscendancyNodeIds"])),
+            "connectionRule":"连接表示BD涉及簇之间的真实物理边，不保证两端都已分配；boundaries可查端点状态",
+            "summaryScope":"描述整个簇的潜在作用，不代表当前BD已获得全部效果；模型摘要仅作导航，详细属性以节点数据为准",
+            "summaryCache":({"scope":"all_current_build_clusters",
+                "cached":sum(v.get("summarySource")=="model_cache" for v in summaries.values()),
+                "generated":sum(v.get("summarySource")=="model" for v in summaries.values()),
+                "unavailable":sum(v.get("summarySource")=="unavailable" for v in summaries.values())}
+                if section=="clusters" else None),
+            "items":rows if section=="clusters" else rows[offset:offset+limit],"total":len(rows),
+            "complete":True if section=="clusters" else offset==0 and len(rows)<=limit,
+            "nextOffset":None if section=="clusters" else offset+limit if offset+limit<len(rows) else None}
+        if section=="clusters":
+            result["semanticTopology"]["clusterEdges"]=[
+                {"source":e["source"],"sourceName":names[e["source"]],
+                 "target":e["target"],"targetName":names[e["target"]],
+                 "allocatedBoundaryCount":sum(all(n in allocated for n in edge) for edge in e["physicalEdges"])}
+                for e in links]
         return result
 
 
 _ALL_TREE_TOOLS: list[type[_TreeTool]] = [
-    TreeSummaryTool, ReadTreeNodesTool, SearchTreeNodesTool,
-    ReadTreeNeighborhoodTool, FindTreePathTool, BuildSummaryTool,
+    TreeOverviewTool, ReadTreeNodesTool, SearchTreeNodesTool,
+    ReadTreeNeighborhoodTool, FindTreePathTool,
 ]
 
+# ── Write tools (P2AT-028B extension) ──
 
-def register_tree_tools(snapshot: TreeSnapshot) -> list[BaseTool]:
-    return [cls(snapshot) for cls in _ALL_TREE_TOOLS]
+
+class _TreeWriteTool(_TreeTool):
+    """Base for tools that mutate the live build via Electron callback."""
+
+    def __init__(self, snapshot: TreeSnapshot, name: str, write_method: str,
+                 write_callback: Callable[..., Any] | None = None) -> None:
+        super().__init__(snapshot, name)
+        self._write_method = write_method
+        self._cb = write_callback
+
+    async def execute(self, arguments: Mapping[str, Any]) -> Any:
+        self._require_tree_catalog()
+        node_id = str(arguments["nodeId"])
+        if not self._snapshot.has(node_id):
+            raise AgentError("NODE_NOT_FOUND", f"节点 {node_id} 在当前天赋树快照中不存在")
+        if not self._cb:
+            raise AgentError("TREE_WRITE_UNAVAILABLE", "天赋树写入功能未连接")
+        result = dict(await self._cb(self._write_method, dict(arguments)))
+        updated = result.pop("snapshot", None)
+        if not updated:
+            self._snapshot._error = "写入后快照不可用，请重新读取当前构筑"
+            self._snapshot.build = {}
+            self._snapshot.nodes = {}
+            self._snapshot.adjacency = {}
+            self._snapshot._path_index = {}
+            self._snapshot.node_count = 0
+            self._snapshot.snapshot_id = "write-refresh-failed"
+            self._snapshot.semantic_topology = None
+            return {**result, "refreshError": True, "message": "写入已完成，但快照刷新失败。不要重复写入；请在新消息中重新读取构筑。"}
+        # All tools (including RAG path enrichment) share this holder. Replace
+        # every published field together before the next tool executes.
+        self._snapshot.__dict__.update(
+            snapshot_id=updated.get("snapshotId", ""),
+            node_count=updated.get("nodeCount", 0),
+            nodes={n["id"]: n for n in updated.get("nodes", [])},
+            adjacency=updated.get("adjacency", {}), build=updated.get("build", {}),
+            _path_index=updated.get("_pathIndex", {}), _error=updated.get("_error"),
+            semantic_topology=updated.get("semanticTopology"),
+        )
+        result["snapshotId"] = self._snapshot.snapshot_id
+        return result
+
+
+class AllocateTreeNodeTool(_TreeWriteTool):
+    def __init__(self, snapshot: TreeSnapshot, write_callback: Callable[..., Any] | None = None) -> None:
+        super().__init__(snapshot, "allocate_tree_node", "allocate", write_callback)
+
+    def validate(self, arguments: Mapping[str, Any]) -> None:
+        super().validate(arguments)
+        if arguments["category"] not in ("general", "weaponSet1", "weaponSet2", "ascendancy"):
+            raise AgentError("INVALID_TOOL_ARGUMENTS", "无效的加点类别")
+        if not isinstance(arguments["nodeId"], str) or not arguments["nodeId"]:
+            raise AgentError("INVALID_TOOL_ARGUMENTS", "nodeId 必须是非空字符串")
+
+    def _parameters(self) -> dict[str, Any]:
+        return {"required": ["nodeId", "category"], "properties": {
+            "nodeId": {"type": "string"},
+            "category": {"type": "string", "enum": ["general", "weaponSet1", "weaponSet2", "ascendancy"]},
+        }}
+
+
+class DeallocateTreeNodeTool(_TreeWriteTool):
+    def __init__(self, snapshot: TreeSnapshot, write_callback: Callable[..., Any] | None = None) -> None:
+        super().__init__(snapshot, "deallocate_tree_node", "deallocate", write_callback)
+
+    def _parameters(self) -> dict[str, Any]:
+        return {"required": ["nodeId", "category"], "properties": {
+            "nodeId": {"type": "string"},
+            "category": {"type": "string", "enum": ["general", "weaponSet1", "weaponSet2", "ascendancy"]},
+        }}
+
+
+def register_tree_tools(snapshot: TreeSnapshot, write_callback: Callable[..., Any] | None = None) -> list[BaseTool]:
+    tools: list[BaseTool] = [cls(snapshot) for cls in _ALL_TREE_TOOLS]
+    if snapshot.semantic_topology is not None:
+        tools.append(SemanticTopologyTool(snapshot))
+    if write_callback is not None:
+        tools.append(AllocateTreeNodeTool(snapshot, write_callback))
+        tools.append(DeallocateTreeNodeTool(snapshot, write_callback))
+    return tools
 
 
 def tree_tool_names() -> list[str]:
-    names = []
-    for cls in _ALL_TREE_TOOLS:
-        # _TreeTool → tree_xxx
-        raw = cls.__name__.replace("Tool", "")
-        # CamelCase → snake_case
-        name = ""
-        for ch in raw:
-            if ch.isupper() and name:
-                name += "_" + ch.lower()
-            else:
-                name += ch.lower()
-        name = name.replace("tree_", "", 1) if name.startswith("tree_") else name
-        name = "tree_" + name if not name.startswith("tree_") else name
-        # fix specific names
-        name = name.replace("tree_read_tree_nodes", "read_tree_nodes")
-        name = name.replace("tree_search_tree_nodes", "search_tree_nodes")
-        name = name.replace("tree_read_tree_neighborhood", "read_tree_neighborhood")
-        name = name.replace("tree_find_tree_path", "find_tree_path")
-        name = name.replace("tree_tree_summary", "tree_summary")
-        name = name.replace("tree_build_summary", "build_summary")
-        names.append(name)
-    return names
+    return [cls(TreeSnapshot()).name for cls in _ALL_TREE_TOOLS] + ["read_tree_cluster"]

@@ -164,7 +164,7 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("UNKNOWN_TOOL", result.trace[0]["result"])
 
     async def test_tool_call_limit_is_enforced(self):
-        calls = tuple(ToolCall(f"c{i}", "fixture_arithmetic", '{"operator":"add","a":1,"b":1}') for i in range(13))
+        calls = tuple(ToolCall(f"c{i}", "fixture_arithmetic", '{"operator":"add","a":1,"b":1}') for i in range(101))
         runner = AgentRunner(ScriptedProvider([ModelReply(tool_calls=calls)]), ToolRegistry([ArithmeticFixtureTool()]))
         with self.assertRaisesRegex(AgentError, "limit"):
             await runner.run(agent=ChatAgent(), history=[], model="mock")
@@ -321,14 +321,14 @@ class StreamTerminationTests(unittest.IsolatedAsyncioTestCase):
                 service.restore([{"role": "user", "content": "seed"},
                                  {"role": "assistant", "content": "saved"}])
                 history = list(service.history)
-                before = list(service.memory_store.db.iterdump())
+                before = list(service.memory_store.directory(service.conversation_id))
                 try:
                     if expected_error:
                         with self.assertRaises(AgentError) as failed:
                             await service.send("mock", "unfinished", False)
                         self.assertEqual(failed.exception.code, expected_error)
                         self.assertEqual(service.history, history)
-                        self.assertEqual(list(service.memory_store.db.iterdump()), before)
+                        self.assertEqual(list(service.memory_store.directory(service.conversation_id)), before)
                     else:
                         result = await service.send("mock", "success", False)
                         self.assertEqual(result["text"], "hello")

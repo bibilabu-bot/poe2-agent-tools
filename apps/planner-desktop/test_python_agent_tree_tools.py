@@ -3,6 +3,79 @@
 import copy
 import unittest
 
+
+class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
+    async def test_overview_paging_budgets_and_degraded_snapshot(self):
+        snap=TreeSnapshot(build={"allocations":{"normal":[str(i) for i in range(65)]},
+            "budgets":{"passive":123,"weaponSet":24,"ascendancy":8},
+            "budgetUsage":{"normal":104,"weaponSet1":16,"weaponSet2":25,"ascendancy":9}})
+        tools={t.name:t for t in register_tree_tools(snap)}
+        self.assertTrue({"tree_summary","build_summary","list_tree_clusters"}.isdisjoint(tools))
+        for error in (None,"fixture projection failure"):
+            snap._error=error
+            result=await tools["tree_overview"].execute({"section":"allocations","offset":60})
+            self.assertEqual(result["allocationsPage"]["total"],65)
+            self.assertEqual([r["nodeId"] for r in result["allocationsPage"]["items"]],list(map(str,range(60,65))))
+            self.assertIsNone(result["allocationsPage"]["nextOffset"])
+            budgets=result["build"]["budgets"]
+            self.assertEqual(budgets["passive"]["remaining"],19)
+            self.assertEqual(budgets["ascendancy"]["overBudget"],1)
+            self.assertEqual(budgets["weaponSet"]["weaponSet1Remaining"],8)
+            self.assertEqual(budgets["weaponSet"]["weaponSet2OverBudget"],1)
+            with self.assertRaises(AgentError):
+                await tools["tree_overview"].execute({"limit":21})
+
+    async def test_semantic_tools_locate_page_and_retain_physical_boundaries(self):
+        topology={"version":"semantic-topology-v1","clusters":[{"id":"passive:1","type":"passive","nodeIds":[str(i) for i in range(30)],"edges":[["1","2"]]}],
+                  "clusterEdges":[{"source":"attribute:9","target":"passive:1","physicalEdges":[["1","9"]]}],
+                  "nodeToCluster":{"1":"passive:1"},"unclassifiedNodes":[{"nodeId":"99","reason":"unknown"}],"excludedAscendancyNodeIds":["88"]}
+        snap=TreeSnapshot(semantic_topology=topology)
+        tools={t.name:t for t in register_tree_tools(snap)}
+        read=tools["read_tree_cluster"]
+        result=await read.execute({"nodeId":"1"})
+        self.assertEqual(len(result["items"]),20)
+        self.assertEqual(result["nextOffset"],20)
+        self.assertEqual((await read.execute({"nodeId":"1","offset":20}))["nextOffset"],None)
+        self.assertEqual((await read.execute({"nodeId":"1","section":"boundaries"}))["items"][0]["physicalEdge"],["1","9"])
+        self.assertEqual((await read.execute({"nodeId":"99"}))["reason"],"unknown")
+        self.assertEqual((await read.execute({"nodeId":"88"}))["reason"],"ascendancy-excluded")
+        with self.assertRaises(AgentError): await read.execute({"nodeId":"1","limit":100})
+
+    async def test_refresh_failure_keeps_write_success_but_invalidates_old_reads(self):
+        from python_agent.tree_tools import TreeSnapshot, register_tree_tools
+        snap=TreeSnapshot(snapshot_id="old",nodes={"100":{"id":"100"}},build={"budgetUsage":{"normal":9}})
+        async def callback(*args):
+            return {"success":True,"refreshError":True}
+        tools={t.name:t for t in register_tree_tools(snap,callback)}
+        result=await tools["allocate_tree_node"].execute({"nodeId":"100"})
+        self.assertTrue(result["success"])
+        self.assertTrue(result["refreshError"])
+        self.assertEqual(snap.build,{})
+        self.assertTrue(snap._error)
+
+    async def test_write_refreshes_shared_snapshot_without_exposing_full_catalog(self):
+        from python_agent.tree_tools import TreeSnapshot, register_tree_tools
+        snap = TreeSnapshot(snapshot_id="before", nodes={"100": {"id":"100"}})
+        async def callback(method, args):
+            return {"success": True, "snapshot": {"snapshotId":"after", "nodeCount":1,
+                "nodes":[{"id":"100"}], "build":{"budgetUsage":{"normal":1}},
+                "adjacency":{}, "_pathIndex":{"generalParent":{"100":None}}}}
+        tools = {t.name:t for t in register_tree_tools(snap, callback)}
+        result = await tools["allocate_tree_node"].execute({"nodeId":"100"})
+        self.assertNotIn("snapshot", result)
+        self.assertEqual(result["snapshotId"], "after")
+        self.assertEqual(snap.build["budgetUsage"]["normal"], 1)
+        self.assertEqual(tools["tree_overview"]._snapshot.snapshot_id,"after")
+        self.assertEqual(tools["find_tree_path"]._snapshot._path_index["generalParent"],{"100":None})
+
+    async def test_disabled_rpc_does_not_wire_write_callback(self):
+        from python_agent.rpc_server import dispatch
+        class Service:
+            async def send(self, *args):
+                assert self._tree_write_callback is None
+                return {}
+        await dispatch(Service(), "send", {"toolsEnabled":False})
+
 from python_agent.core import AgentError
 from python_agent.tree_tools import (
     TreeSnapshot,
@@ -96,34 +169,34 @@ class SnapshotTests(unittest.TestCase):
 
 
 class ToolRegistrationTests(unittest.TestCase):
-    def test_all_six_tools_created(self):
+    def test_unified_overview_replaces_both_summaries(self):
         tools = register_tree_tools(_make_fixture_snapshot())
-        self.assertEqual(len(tools), 6)
+        self.assertEqual(len(tools), 5)
         self.assertEqual({t.name for t in tools},
-                         {"tree_summary", "read_tree_nodes", "search_tree_nodes",
-                          "read_tree_neighborhood", "find_tree_path", "build_summary"})
+                         {"tree_overview", "read_tree_nodes", "search_tree_nodes",
+                          "read_tree_neighborhood", "find_tree_path"})
 
     def test_tool_names_match_convention(self):
-        self.assertGreaterEqual(len(tree_tool_names()), 6)
+        self.assertGreaterEqual(len(tree_tool_names()), 5)
 
     def test_error_snapshot_still_registers_all_tools(self):
         snap = _make_fixture_snapshot()
         snap._error = "localization unavailable"
         self.assertEqual({tool.name for tool in register_tree_tools(snap)},
-                         {"tree_summary", "read_tree_nodes", "search_tree_nodes",
-                          "read_tree_neighborhood", "find_tree_path", "build_summary"})
+                         {"tree_overview", "read_tree_nodes", "search_tree_nodes",
+                          "read_tree_neighborhood", "find_tree_path"})
 
 
 class ToolExecutionTests(unittest.IsolatedAsyncioTestCase):
-    async def test_error_snapshot_keeps_build_summary_and_fails_tree_explicitly(self):
+    async def test_error_snapshot_keeps_tree_overview_and_fails_tree_explicitly(self):
         snap = _make_fixture_snapshot()
         snap._error = "localization unavailable"
         tools = {tool.name: tool for tool in register_tree_tools(snap)}
-        summary = await tools["build_summary"].execute({})
-        self.assertEqual(summary["budgets"]["passive"]["used"], 1)
-        self.assertEqual(summary["treeSnapshotWarning"], "localization unavailable")
+        summary = await tools["tree_overview"].execute({})
+        self.assertEqual(summary["build"]["budgets"]["passive"]["used"], 1)
+        self.assertEqual(summary["warning"], "localization unavailable")
         with self.assertRaisesRegex(AgentError, "当前天赋树目录不可用"):
-            await tools["tree_summary"].execute({})
+            await tools["read_tree_nodes"].execute({"ids":["100"]})
         for name, arguments in (
             ("read_tree_neighborhood", {"nodeId": "100"}),
             ("find_tree_path", {"targetId": "400"}),
@@ -146,13 +219,20 @@ class ToolExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(path["edgeDistance"], 3)
         self.assertEqual(path["nearestAllocatedId"], "100")
 
-    async def test_tree_summary(self):
-        tool = register_tree_tools(_make_fixture_snapshot())[0]
-        self.assertEqual(tool.name, "tree_summary")
+    async def test_overview_only_current_build_clusters(self):
+        snapshot = _make_fixture_snapshot()
+        snapshot.semantic_topology={"version":"v1","clusters":[
+            {"id":"passive:a","type":"passive","nodeIds":["100","200"],"edges":[["100","200"]]},
+            {"id":"passive:b","type":"passive","nodeIds":["999"],"edges":[]}],
+            "nodeToCluster":{"100":"passive:a","200":"passive:a","999":"passive:b"},
+            "clusterEdges":[],"unclassifiedNodes":[],"excludedAscendancyNodeIds":[]}
+        tool = register_tree_tools(snapshot)[0]
+        self.assertEqual(tool.name, "tree_overview")
         result = await tool.execute({})
-        self.assertEqual(result["nodeCount"], 6)
-        self.assertEqual(result["jewelSockets"]["scope"], "entire_tree_catalog")
-        self.assertEqual(result["jewelSockets"]["allocatedInCurrentBuild"], 0)
+        self.assertNotIn("tree",result)
+        self.assertEqual(result["scope"],"current_build")
+        self.assertEqual(result["semanticTopology"]["clusterCount"],1)
+        self.assertEqual([c["id"] for c in result["semanticTopology"]["items"]],["passive:a"])
 
     async def test_read_tree_nodes_single(self):
         tools = {t.name: t for t in register_tree_tools(_make_fixture_snapshot())}
@@ -254,12 +334,12 @@ class ToolExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([node["id"] for node in result["path"]], ["100", "200", "300"])
         self.assertEqual(result["edgeDistance"], 2)
 
-    async def test_build_summary(self):
+    async def test_tree_overview(self):
         tools = {t.name: t for t in register_tree_tools(_make_fixture_snapshot())}
-        result = await tools["build_summary"].execute({})
-        self.assertEqual(result["class"]["base"], "Warrior")
-        self.assertEqual(result["allocations"]["normal"]["count"], 1)
-        self.assertEqual(result["budgets"]["passive"]["used"], 1)
+        result = await tools["tree_overview"].execute({})
+        self.assertEqual(result["build"]["class"]["base"], "Warrior")
+        self.assertEqual(result["build"]["allocations"]["normal"]["count"], 1)
+        self.assertEqual(result["build"]["budgets"]["passive"]["used"], 1)
 
     async def test_unknown_id_is_missing_not_crashed(self):
         tools = {t.name: t for t in register_tree_tools(_make_fixture_snapshot())}

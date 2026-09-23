@@ -15,20 +15,36 @@ from python_agent.rag import RagTool
 from python_agent.service import AgentService
 from test_python_agent_runtime import ScriptedProvider
 
-# Chinese v4 combinations, in memory/rag/unavailable bit order.
+# Chinese v5 combinations, in memory/rag/unavailable bit order.
 BASELINE = {
-    "100": "36d044d68037709971c89ac20448b9c9ac7fefddadf4fef0d488d7a6fc35d788",
-    "101": "8b2e1a5e4aecdc1f50086c069dc07360be59ab3c01c680658bb7642669ecb53c",
-    "110": "6874c8a1f0ba594340bd4e685c2ce977e099d0091a02d42d89198effc85effb1",
-    "111": "3ef3bebd5b6b47234f10ae8ea8a034d800ece4174e45125cfea2e7205186bef3",
-    "000": "b6d7622a2351ee1294364f39b8518465f784e828277f70867456c24f89ae3df3",
-    "001": "2fa146eeee728f7dae881f6e1e5dbd1b277eeabcab98ed003f832384860d560d",
-    "010": "d6746bea35c4d8dfc4769dd7d8b382b3ada1f2935e6d8e0dda5c7362fc3b1510",
-    "011": "28ea5096a81fee930c3b7d1a03aab9e26ff3201a31277699b0e46a8769e2d69c"
+    "100": "2557ff364da88847335e3e8680d06621acdea77a8b8a61ef1455cff088496576",
+    "101": "91d79bfda3b4b445727a1f9edf2a50994861fdf187c212056e93d9da5cdcecd1",
+    "110": "84fbc82bab44d21b9a0be1c10c2341b390921e8b9d170afc64b9af32f524fa97",
+    "111": "86e11d3df40ead6df5792fcb63184ff6062dd16bc70621a441afd19d027198a5",
+    "000": "8324aa3aea50c87025f1021aab09a6fb816b16cfe4f6544adb30c14e8d6ff4b0",
+    "001": "8143d53cc929a44d85a500b7f50f4f11438e17de9943802c095e27a3919107ee",
+    "010": "054e9b767d5033742ae7df50036c5b45b6dc41e55a8b9033bbc70be0fb56b543",
+    "011": "0d0c2ba985d70f81ab902584144f5a512b015b75a67c7d730e407842b1871f7a"
 }
 
 
 class PromptTests(unittest.IsolatedAsyncioTestCase):
+    def test_v4_retired_overviews_migrate_without_writing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            filename=Path(folder)/"prompts.json"
+            filename.write_text(json.dumps({"version":"chat-prompts-zh-v4","overrides":{
+                "base":"先 build_summary，再 tree_summary 或 list_tree_clusters",
+                "tool_build_summary":"old","tool_tree_summary":"old","tool_list_tree_clusters":"old",
+                "tool_read_tree_nodes":"keep"}}),encoding="utf-8")
+            before=filename.read_bytes()
+            store=PromptStore(str(filename))
+            self.assertIsNone(store.error)
+            self.assertEqual(filename.read_bytes(),before)
+            blocks=dict(store.blocks)
+            self.assertEqual(blocks["base"],"先 tree_overview，再 tree_overview 或 tree_overview")
+            self.assertEqual(blocks["tool_read_tree_nodes"],"keep")
+            self.assertTrue({"tool_build_summary","tool_tree_summary","tool_list_tree_clusters"}.isdisjoint(blocks))
+
     def test_v3_explicit_english_override_survives_v4_migration(self):
         from python_agent.prompts_legacy import ENGLISH_DEFAULTS
         with tempfile.TemporaryDirectory() as folder:
@@ -150,8 +166,8 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sections,[text for _,text in DEFAULTS])
 
     def test_all_combinations_match_exact_chinese_defaults(self):
-        self.assertEqual(PROMPT_VERSION,"chat-prompts-zh-v4")
-        self.assertIn("必须先调用 build_summary",build_system_prompt().text)
+        self.assertEqual(PROMPT_VERSION,"chat-prompts-zh-v5")
+        self.assertIn("必须先调用 tree_overview",build_system_prompt().text)
         for flags in itertools.product((False,True),repeat=3):
             with self.subTest(flags=flags):
                 spec=build_system_prompt(memory=flags[0],rag=flags[1],rag_unavailable=flags[2])
@@ -205,7 +221,7 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
                          "70ab4ef644f124761a55542f2b6d9d49305d94e4e240b204e77bc9ed2af6880a")
         blocks=AgentService().inspect_prompt()["blocks"]
         self.assertEqual(len([b for b in blocks if b["category"]=="system"]),5)
-        self.assertEqual(len([b for b in blocks if b["category"]=="tool"]),12)
+        self.assertEqual(len([b for b in blocks if b["category"]=="tool"]),15)
         self.assertEqual({b["id"]:b["text"] for b in blocks},dict(DEFAULTS))
 
     async def test_every_override_reaches_actual_provider_without_changing_schemas(self):

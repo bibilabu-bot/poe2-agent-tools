@@ -48,7 +48,7 @@ app.whenReady().then(async()=>{
     await run(fs.readFileSync(path.join(renderer,"prompt-editor.js"),"utf8"));
     await run(`document.querySelector('#settingsView').hidden=true;document.querySelector('#agentView').hidden=false;document.querySelector('#openPromptEditor').click()`);
     await wait(`!document.querySelector('#savePromptBlocks').disabled`);
-    assert.equal(await run(`document.querySelectorAll('#promptEditorBlocks textarea').length`),17);
+    assert.equal(await run(`document.querySelectorAll('#promptEditorBlocks textarea').length`),20);
     assert.equal(await run(`document.querySelector('#prompt-block-tool_calculator')`),null);
     assert.equal(await run(`document.querySelector('#closePromptEditor').getAttribute('aria-label')`),"关闭提示词维护");
     const checkCloseVisible=async()=>{
@@ -76,13 +76,14 @@ app.whenReady().then(async()=>{
     assert.equal(await visibleCount(),5);
     assert.deepEqual(await run(`Object.fromEntries([...document.querySelectorAll('#promptEditorBlocks textarea')].map(f=>[f.dataset.block,f.value]))`),
       Object.fromEntries((await client.request("inspect_prompt")).blocks.map(b=>[b.id,b.text])));
-    assert.equal(await run(`document.querySelectorAll('#promptPageNav button').length`),13);
-    assert.equal(await run(`['tool_tree_summary','tool_read_tree_nodes','tool_search_tree_nodes','tool_read_tree_neighborhood','tool_find_tree_path','tool_build_summary'].every(id=>document.querySelector('#promptPageNav button[data-page="'+id+'"]'))`),true);
+    assert.equal(await run(`document.querySelectorAll('#promptPageNav button').length`),15);
+    assert.equal(await run(`['tool_tree_overview','tool_read_tree_nodes','tool_search_tree_nodes','tool_read_tree_neighborhood','tool_find_tree_path','tool_read_tree_cluster'].every(id=>document.querySelector('#promptPageNav button[data-page="'+id+'"]'))`),true);
+    assert.equal(await run(`['tool_tree_summary','tool_build_summary','tool_list_tree_clusters'].some(id=>document.querySelector('#promptPageNav button[data-page="'+id+'"]'))`),false);
     await run(`document.querySelector('#prompt-block-base').value='You are a concise assistant. CUSTOM_UI_FIXTURE';document.querySelector('#prompt-block-base').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_search_memory"]').click()`);
     assert.equal(await visibleCount(),1);
-    await run(`document.querySelector('#prompt-block-tool_search_memory').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_build_summary"]').click()`);
+    await run(`document.querySelector('#prompt-block-tool_search_memory').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_tree_overview"]').click()`);
     assert.equal(await visibleCount(),1);
-    assert.equal(await run(`document.querySelector('#prompt-block-tool_build_summary').closest('section').hidden`),false);
+    assert.equal(await run(`document.querySelector('#prompt-block-tool_tree_overview').closest('section').hidden`),false);
     await run(`document.querySelector('#promptPageNav button[data-page="system"]').click()`);
     assert.match(await run(`document.querySelector('#prompt-block-base').value`),/CUSTOM_UI_FIXTURE/);
     await run(`document.querySelector('#savePromptBlocks').click()`);
@@ -92,7 +93,7 @@ app.whenReady().then(async()=>{
     assert.match((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
     assert.match((await client.request("inspect_prompt")).blocks.find(b=>b.id==="tool_search_memory").text,/CUSTOM_TOOL_FIXTURE/);
     await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"system-prompts.png"),(await win.webContents.capturePage()).toPNG());
-    await run(`document.querySelector('#promptPageNav button[data-page="tool_build_summary"]').click();document.querySelector('.prompt-page-content').scrollTop=0`);
+    await run(`document.querySelector('#promptPageNav button[data-page="tool_tree_overview"]').click();document.querySelector('.prompt-page-content').scrollTop=0`);
     await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"tool-prompts.png"),(await win.webContents.capturePage()).toPNG());
     service.active={kind:"synthetic-run"};
     await run(`document.querySelector('#savePromptBlocks').click()`);await wait(`!document.querySelector('#savePromptBlocks').disabled`);

@@ -177,6 +177,9 @@
         neighbors: sortedIds(neighbors),
         unlockConstraint: node.unlockConstraint || null,
         ascendancyId: node.asc || node.ascendancyId || null,
+        isGenericAttribute: node.isGenericAttribute === true,
+        sourceStats: Array.isArray(node.sourceStats) ? node.sourceStats : (node.stats || []),
+        group: node.group ?? null, orbit: node.orbit ?? null, orbitIndex: node.orbitIndex ?? null,
       });
     }
     eligibleNodes.sort(function(a, b) { return compareNodeIds(a.id, b.id); });

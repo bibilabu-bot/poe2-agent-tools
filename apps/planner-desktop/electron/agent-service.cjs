@@ -5,11 +5,12 @@ const { normalizeTrace } = require("../renderer/agent-trace.js");
 // A tool round can legitimately contain two 90-second provider requests plus
 // bounded retrieval. Keep a finite wall-clock guard without cutting that path short.
 const RUN_TIMEOUT_MS = 300_000;
-const PROMPT_BLOCK_IDS = new Set(["base", "memory", "rag", "rag_unavailable", "memory_prefix",
+const PROMPT_BLOCK_IDS = new Set(["base", "memory", "rag", "rag_unavailable", "memory_prefix", "hook_tree_overview",
   "tool_search_memory", "tool_read_memory", "tool_update_notebook",
   "tool_read_passive_nodes", "tool_search_passive_nodes", "tool_search_memory_semantic",
-  "tool_tree_summary", "tool_read_tree_nodes", "tool_search_tree_nodes",
-  "tool_read_tree_neighborhood", "tool_find_tree_path", "tool_build_summary"]);
+  "tool_tree_overview", "tool_read_tree_nodes", "tool_search_tree_nodes",
+  "tool_read_tree_neighborhood", "tool_find_tree_path",
+  "tool_allocate_tree_node", "tool_deallocate_tree_node", "tool_read_tree_cluster"]);
 
 function safeError(error) {
   const known = error instanceof PythonAgentError || ["SECURE_STORAGE_UNAVAILABLE", "CREDENTIAL_CACHE_INVALID"].includes(error?.code);
@@ -94,6 +95,7 @@ class AgentService {
   }
   cancel() {
     if (!this.active) return;
+    this.client.setTreeWriteHandler?.(null);
     this.active.controller?.abort(new PythonAgentError("CANCELLED", "已停止本次请求"));
     this.client.terminate(new PythonAgentError("CANCELLED", "已停止本次回复")); this.active = null;
   }
@@ -113,9 +115,9 @@ class AgentService {
     catch (error) { return { ok: false, error: safeError(error), ...this.status() }; }
     finally { if (this.active === operationToken) this.active = null; }
   }
-  async send(value, onEvent = null) {
+  async send(value, onEvent = null, webContents = null) {
     if (this.active) return { ok: false, error: { code: "RUN_IN_PROGRESS", message: "当前会话已有回复正在运行" } };
-    const generation = this.generation; const runToken = { lastPhase: "starting", startedAt: Date.now() }; this.active = runToken;
+    const generation = this.generation; const runToken = { lastPhase: "starting", startedAt: Date.now(), trace: [] }; this.active = runToken;
     const timeout = setTimeout(() => {
       runToken.failure = new PythonAgentError("RUN_TIMEOUT", `智能体运行超时，已停止（最后阶段：${phaseLabel(runToken.lastPhase)}）`);
       if (this.active === runToken) this.client.terminate(runToken.failure);
@@ -124,6 +126,28 @@ class AgentService {
       if (runToken.failure) throw runToken.failure;
       if (this.active !== runToken || generation !== this.generation) throw new PythonAgentError("CANCELLED", "已停止本次回复");
     };
+    this.client.setTreeWriteHandler(null);
+    // Wire tree write handler so Python tools can call back to the renderer.
+    if (value?.toolsEnabled === true && webContents && !webContents.isDestroyed()) {
+      this.client.setTreeWriteHandler(async (method, params) => {
+        checkActive();
+        if (webContents.isDestroyed()) return { success: false, errorCode: "TREE_WRITE_UNAVAILABLE", message: "天赋树窗口已关闭" };
+        if (!["allocate", "deallocate"].includes(method)) return { success: false, errorCode: "INVALID_METHOD", message: "不支持的天赋树操作" };
+        const result = await webContents.executeJavaScript(`window.plannerWriteAPI.${method}(${JSON.stringify(String(params?.nodeId || ""))},${JSON.stringify(params?.category || null)})`);
+        checkActive();
+        if (!result?.success) return result;
+        try {
+          const state = await webContents.executeJavaScript("window.captureBuildState()");
+          checkActive();
+          const snapshot = await this.treeSnapshotProvider(state);
+          checkActive();
+          return {...result, snapshot};
+        } catch (error) {
+          checkActive();
+          return {...result, refreshError:true, message:"加点或退点已完成，但快照刷新失败。不要重试写入；请重新发送读取构筑的消息。"};
+        }
+      });
+    }
     try {
       await this.#ensureConfigured();
       checkActive();
@@ -165,14 +189,16 @@ class AgentService {
         if (this.active !== runToken || generation !== this.generation) return;
         if (event.type === "phase") runToken.lastPhase = event.phase;
         else if (event.type === "tool_started") runToken.lastPhase = `tool:${event.name}`;
-        onEvent?.({ ...event, elapsedMs: Date.now() - runToken.startedAt });
+        if (event.type === "tool_finished" && event.trace) runToken.trace.push(...normalizeTrace([event.trace], this.config?.apiKey || ""));
+        const { trace: _privateTrace, ...progress } = event;
+        onEvent?.({ ...progress, elapsedMs: Date.now() - runToken.startedAt });
       } });
       checkActive();
       if (generation !== this.generation) return { ok: false, stale: true, error: { code: "STALE_RUN", message: "会话已变化，已忽略迟到响应" } };
       this.history = Array.isArray(result.history) ? structuredClone(result.history) : this.history;
       return { ok: true, text: result.text, trace: normalizeTrace(result.trace, this.config?.apiKey || ""), context: result.context, stopReason: null };
-    } catch (error) { return { ok: false, error: safeError(error) }; }
-    finally { clearTimeout(timeout); if (this.active === runToken) this.active = null; }
+    } catch (error) { return { ok: false, error: safeError(error), trace: runToken.trace }; }
+    finally { clearTimeout(timeout); if (this.active === runToken) { this.client.setTreeWriteHandler(null); this.active = null; } }
   }
   async #ensureConfigured() {
     if (!this.config) throw new PythonAgentError("NOT_CONFIGURED", "请先连接 API 服务");
@@ -210,7 +236,7 @@ function createAgentIpcHandlers(service, isTrustedSender, credentialStore = null
       guard(event);
       return service.send(value || {}, (progress) => {
         if (isTrustedSender(event) && !event.sender?.isDestroyed?.()) event.sender.send("agent:run-event", progress);
-      });
+      }, event.sender);
     },
     cancel: async (event) => { guard(event); service.cancel(); return { ok: true }; }, reset: async (event) => { guard(event); return service.reset(); },
     restore: async (event, value) => { guard(event); try { return await service.restoreConversation(value?.messages); } catch (error) { return { ok: false, error: safeError(error) }; } },

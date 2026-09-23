@@ -26,6 +26,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .build-feedback ol{max-height:180px;overflow:auto;margin:7px 0 0;padding-left:22px;color:#c6c1b8}
 .wegame-dialog{width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;border:1px solid #806537;border-radius:12px;background:#111318;color:var(--text);box-shadow:0 24px 80px #000;padding:0}
 .wegame-dialog::backdrop{background:#05070acc;backdrop-filter:blur(3px)}
+#weGameSemanticPreview{padding:6px 0}#weGameSemanticPreview input[type=text]{width:100%;box-sizing:border-box;margin:5px 0}#weGameSemanticPreview button{margin:4px 6px 4px 0}#weGameSemanticPreview .semantic-preview-list{max-height:220px;overflow:auto;padding-left:22px;overflow-wrap:anywhere}#weGameSemanticPanel{border:1px solid #3d4856;border-radius:8px;padding:10px;margin:12px 0}
 .wegame-dialog form{padding:18px}.wegame-dialog h2{margin:0 0 7px;color:#e6c77d}.wegame-dialog label{display:block;margin-top:11px}
 .wegame-dialog input[type=url],.wegame-dialog select{width:100%;box-sizing:border-box;margin-top:5px}.wegame-dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;padding:0}
 .wegame-preview{margin-top:13px;padding:11px;border:1px solid #4f452f;border-radius:9px;background:#18150f}.wegame-counts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.wegame-counts span{padding:7px;border-radius:6px;background:#0e1115;text-align:center}
@@ -314,6 +315,10 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
       <label>确认升华职业<select id="weGameAscendancy"></select></label>
       <div id="weGameInactiveWarning" class="wegame-warning"></div>
       <div id="weGameBudgetWarning" class="wegame-warning" hidden></div>
+      <details id="weGameSemanticPanel" class="note" open>
+        <summary>语义拓扑验证（只读，不应用导入）</summary>
+        <div id="weGameSemanticPreview"></div>
+      </details>
       <details id="weGameOmissions" class="wegame-warning" hidden><summary id="weGameOmissionSummary"></summary><ol id="weGameOmissionList"></ol></details>
       <label class="wegame-confirm"><input id="weGamePartialAck" type="checkbox"><span>我确认这是实验性部分导入：set1/set2 暂按武器组 I/II 激活并保存；全部属性选择覆盖、珠宝内容和未解析数据不会激活，只在本次预览中保留，保存 Build 也不会保存这些未支持内容。</span></label>
       <label id="weGameOmissionAckRow" class="wegame-confirm" hidden><input id="weGameOmissionAck" type="checkbox"><span>我已查看上方省略明细，确认在缺失节点不进入 Build 的情况下继续。</span></label>
@@ -453,6 +458,9 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
 <script src="build-state-adapter.js"></script>
 <script src="wegame-import-ui.js"></script>
 <script src="passive-graph.js"></script>
+<script src="tree-snapshot.js"></script>
+<script src="semantic-topology.js"></script>
+<script src="semantic-preview.js"></script>
 <script src="layout-shell.js"></script>
 <script src="mastery-visual-state.js"></script>
 <script src="planner.js"></script>

@@ -123,6 +123,7 @@ app.whenReady().then(async () => {
     assert.equal(await evaluate("[...document.querySelectorAll('.agent-operation summary')].some(s=>/#\\d/.test(s.textContent))"), false);
     assert.deepEqual(await evaluate("[...document.querySelectorAll('.agent-operation-icon')].map(s=>s.dataset.icon)"), ["search", "book"]);
     await evaluate("document.querySelectorAll('.agent-operation summary')[1].click()");
+    await waitFor("!!document.querySelectorAll('.agent-operation')[1].querySelector('pre')");
     const first = await evaluate(`(() => { const d=document.querySelectorAll('.agent-operation')[1], p=d.querySelector('pre');
       return {open:d.open, visible:p.getBoundingClientRect().height>0, text:d.textContent, injected:d.querySelectorAll('img').length}; })()`);
     assert.equal(first.open, true); assert.equal(first.visible, true); assert.equal(first.injected, 0);
@@ -134,6 +135,8 @@ app.whenReady().then(async () => {
     assert.equal(await evaluate("document.querySelectorAll('.agent-operation')[1].open"), false);
     await mount();
     await waitFor("document.querySelectorAll('.agent-operation').length === 2");
+    await evaluate("document.querySelectorAll('.agent-operation summary')[1].click()");
+    await waitFor("!!document.querySelectorAll('.agent-operation')[1].querySelector('pre')");
     assert.match(await evaluate("document.querySelectorAll('.agent-operation')[1].textContent"), /"count": 2/);
     await checkMinimalLayout();
     const iconVariants = await evaluate(`window.AgentTrace.renderTrace(document,
@@ -160,6 +163,8 @@ app.whenReady().then(async () => {
     await evaluate(`window.finishScrollTest({ok:true,text:'新输出\\n'.repeat(100),trace:[{name:'calculator',ok:true,result:'6'}]})`);
     await waitFor("!document.getElementById('agentSend').disabled");
     await waitFor(atBottom);
+    await evaluate("document.querySelector('.agent-operation').open=true");
+    await waitFor("!!document.querySelector('.agent-operation pre')");
     const scrollbarStyles = await evaluate(`['#agentMessages','.agent-operation pre','#agentInput'].map(s=>{
       const style=getComputedStyle(document.querySelector(s));return {scheme:style.colorScheme,color:style.scrollbarColor,width:style.scrollbarWidth};})`);
     for (const style of scrollbarStyles) {

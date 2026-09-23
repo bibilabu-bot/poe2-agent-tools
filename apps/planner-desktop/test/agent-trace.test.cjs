@@ -74,8 +74,11 @@ test("legacy and oversized traces degrade explicitly within display bounds", () 
   assert.equal(legacy.durationMs, null);
   assert.match(legacy.arguments, /旧记录/);
   const large = normalizeTrace(Array.from({ length: 20 }, () => ({ name: "demo", arguments: "x".repeat(16000), result: "y".repeat(8000) })));
-  assert.equal(large.length, 12);
-  assert.ok(JSON.stringify(large).length < 28000);
-  assert.ok(large.reduce((sum, row) => sum + row.arguments.length + row.result.length, 0) <= 24000);
-  assert.ok(large.some(r => (r.arguments + r.result).includes("展示已截断")));
+  assert.equal(large.length, 20);
+  assert.equal(large[19].arguments.length, 16000);
+  assert.equal(large[19].result.length, 8000);
+  assert.deepEqual(normalizeTrace(large), large);
+  const capped = normalizeTrace([{name:"demo",result:"x".repeat(150000)}]);
+  assert.equal(capped[0].result.length,128000);
+  assert.match(capped[0].result,/展示已截断/);
 });

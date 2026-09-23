@@ -6,6 +6,7 @@ const { AgentService, createAgentIpcHandlers } = require("../electron/agent-serv
 
 class MockPythonClient {
   constructor() { this.configured = false; this.calls = []; this.block = null; }
+  setTreeWriteHandler(_handler) { /* noop in tests */ }
   async request(method, params = {}) {
     this.calls.push({ method, params: structuredClone(params) });
     if (method === "status") return { configured: this.configured };
@@ -24,6 +25,36 @@ class MockPythonClient {
   }
   terminate(error) { this.configured = false; this.terminatedWith = error; }
 }
+
+test("write handler is gated and returns a refreshed snapshot after execution", async () => {
+  for (const [enabled,refreshFails] of [[false,false],[true,false],[true,true]]) {
+    const client=new MockPythonClient();let handler=null;
+    client.setTreeWriteHandler=value=>{handler=value;};
+    const original=client.request.bind(client);
+    client.request=async(method,params)=>{
+      if(method==='send') {
+        assert.equal(typeof handler,enabled?'function':'object');
+        if(enabled) {
+          const result=await handler('deallocate',{nodeId:'42',category:'weaponSet2'});
+          if(refreshFails) { assert.equal(result.success,true);assert.equal(result.refreshError,true); }
+          else assert.equal(result.snapshot.snapshotId,'fresh');
+        }
+      }
+      return original(method,params);
+    };
+    const service=new AgentService({client});
+    service.treeSnapshotProvider=async state=>{if(state.fresh&&refreshFails)throw new Error('refresh failed');return {snapshotId:state.fresh?'fresh':'old'};};
+    const scripts=[];
+    const webContents={isDestroyed:()=>false,executeJavaScript:async script=>{
+      scripts.push(script);return script==='window.captureBuildState()'?{fresh:true}:{success:true};
+    }};
+    await service.configure({baseUrl:'https://example.com/v1',apiKey:'fixture'});
+    assert.equal((await service.send({toolsEnabled:enabled,buildState:{}},null,webContents)).ok,true);
+    assert.equal(scripts.length,enabled?2:0);
+    if(enabled) assert.match(scripts[0],/weaponSet2/);
+    assert.equal(handler,null);
+  }
+});
 
 test("prompt inspection is local, guarded, non-configuring and rejects stale results", async () => {
   const calls=[]; let release;

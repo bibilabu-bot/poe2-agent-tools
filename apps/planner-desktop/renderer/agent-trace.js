@@ -32,19 +32,18 @@
     return scrub(typeof result === "string" ? result : JSON.stringify(result, null, 2) ?? "");
   }
   function normalizeTrace(trace, secret = "") {
-    let remaining = 24000;
     const bounded = (value, limit) => {
-      const text = safeText(value, secret), size = Math.min(limit, remaining);
+      const text = safeText(value, secret), size = limit;
       const marker = "\n[展示已截断，不影响原始记忆]";
       const output = text.length > size ? (size >= marker.length ? text.slice(0, size - marker.length) + marker : marker.slice(0, size)) : text;
-      remaining -= output.length;
       return output;
     };
-    return (Array.isArray(trace) ? trace : []).slice(0, 12).filter(r => r && typeof r.name === "string").map((row, index) => ({
+    // Independent per-call safety caps; match the runtime's 100-call limit.
+    return (Array.isArray(trace) ? trace : []).slice(0, 100).filter(r => r && typeof r.name === "string").map((row, index) => ({
       sequence: index + 1, name: safeText(row.name, secret).slice(0, 64),
       callId: safeText(row.callId || "", secret).slice(0, 256), ok: row.ok === true,
-      arguments: bounded(row.arguments ?? "（旧记录未保存传参）", 4000),
-      result: bounded(row.result ?? "（无结果）", 8000),
+      arguments: bounded(row.arguments ?? "（旧记录未保存传参）", 128000),
+      result: bounded(row.result ?? "（无结果）", 128000),
       durationMs: Number.isFinite(row.durationMs) && row.durationMs >= 0 ? Math.min(row.durationMs, 86400000) : null,
     }));
   }
@@ -92,7 +91,7 @@
     // Reformat only for display; preserve literal backslashes and the stored wire record.
     const header = JSON.stringify(metadata, null, 2);
     const marker = "\n[展示已截断，不影响原始记忆]";
-    const limit = Math.max(0, 8000 - header.length);
+    const limit = Math.max(0, 128000 - header.length);
     if (content.length > limit) content = limit >= marker.length ? content.slice(0, limit - marker.length) + marker : marker.slice(0, limit);
     return [["返回元数据", header], [label, content]];
   }
@@ -127,13 +126,19 @@
       duration.title = "仅工具执行耗时，不含模型等待；整轮耗时见“已处理”";
       summary.append(icon, label, duration);
       details.append(summary);
+      let populated = false;
+      const populate = () => {
+      if (populated || !details.open) return;
+      populated = true;
       const chain = memoryPath(row, rows.slice(0, index));
       for (const [label, text] of [["工具名称", row.name], ["调用 ID", row.callId], ["记忆链路", chain], ["传参", row.arguments], ...resultSections(row)]) {
         if (!text && label !== "传参" && label !== "返回结果") continue;
         const title = document.createElement("div"); title.className = "agent-operation-label"; title.textContent = label;
-        const pre = document.createElement("pre"); pre.textContent = text || "（展示预算已用尽）";
+        const pre = document.createElement("pre"); pre.textContent = text || "（无内容）";
         details.append(title, pre);
       }
+      };
+      details.addEventListener("toggle", populate);
       return details;
     });
   }

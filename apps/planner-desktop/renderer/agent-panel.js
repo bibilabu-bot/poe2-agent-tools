@@ -386,6 +386,7 @@
     if (requestConversation !== conversationId || result.stale) return;
     if (!result.ok) {
       streamingMessage.remove();
+      activity.entry.trace = window.AgentTrace.normalizeTrace(result.trace);
       activity.entry.state = "error"; activity.entry.steps[activity.entry.steps.length - 1] = `失败：${result.error.message}`; activity.render();
       addMessage("error", result.error.message, false); return;
     }

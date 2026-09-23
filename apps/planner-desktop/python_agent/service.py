@@ -29,6 +29,8 @@ class AgentService:
         self.tree_snapshot = None
         self._active_generation = None
         self.running = False
+        self._tree_write_callback = None
+        self._cluster_summary_cache = {}
         self.prompts = PromptStore(str(Path(memory_path).with_suffix(".prompts.json")) if memory_path and memory_path != ":memory:" else None)
 
     def configure(self, base_url: str, api_key: str) -> dict[str, Any]:
@@ -132,7 +134,8 @@ class AgentService:
         return {**self.prompt_spec().describe(), "configured": self.provider is not None,
                 "basis": "runtime-state-at-inspection", "privateContextIncluded": False,
                 "blocks": [{"id": name, "text": text, "custom": text != dict(DEFAULTS)[name],
-                            "label": BLOCK_LABELS[name], "category": "tool" if name.startswith("tool_") else "system",
+                            "label": BLOCK_LABELS[name], "category": "tool" if name.startswith(("tool_","hook_")) else "system",
+                            "page": "tool_tree_overview" if name == "hook_tree_overview" else None,
                             "usage": ("随该工具启用发送；仅修改描述，不改变参数和权限" if name.startswith("tool_") else
                                       "记忆启用时放在动态上下文前；上下文仍为用户数据，不提升权限" if name == "memory_prefix" else
                                       "按功能状态拼入系统消息，保留原文及空白")}
@@ -184,11 +187,34 @@ class AgentService:
                 registry.register(RagTool(self.rag,"search_memory_semantic",memory,tree_snapshot=self.tree_snapshot))
         if self.tree_snapshot:
             from .tree_tools import register_tree_tools
-            for tool in register_tree_tools(self.tree_snapshot):
+            for tool in register_tree_tools(self.tree_snapshot, self._tree_write_callback):
+                if tool.name == "tree_overview":
+                    from .cluster_summary import ClusterSummaryHook
+                    tool.before_hook = ClusterSummaryHook(self._provider(), model, self.tree_snapshot,
+                        self._cluster_summary_cache, self.memory_store.db if self.memory_store else None,
+                        prompt_values["hook_tree_overview"])
                 registry.register(tool)
+        failure_trace = []
+        def progress(event):
+            if event.get("type") == "tool_finished" and event.get("trace"):
+                failure_trace.append(event["trace"])
+            if on_event:
+                on_event(event)
         runner = AgentRunner(self._provider(), registry, memory_context=memory.model_context if memory else None,
-                             on_event=on_event, memory_prefix=prompt_values["memory_prefix"])
-        result = await runner.run(agent=agent, history=candidate, model=model, tools_enabled=bool(memory) or bool(self.rag) or tools_enabled)
+                             on_event=progress, memory_prefix=prompt_values["memory_prefix"])
+        try:
+            result = await runner.run(agent=agent, history=candidate, model=model, tools_enabled=bool(memory) or bool(self.rag) or tools_enabled)
+        except Exception as error:
+            # Diagnostics are separate from completed turns and never enter model history.
+            if self.memory_store:
+                secret = getattr(self.provider, "_api_key", "")
+                details = redact({"model":model,"input":text,"code":getattr(error,"code","AGENT_FAILED"),
+                                  "trace":failure_trace}, secret)
+                self.memory_store.db.execute("CREATE TABLE IF NOT EXISTS failed_runs (id INTEGER PRIMARY KEY, created_at TEXT DEFAULT CURRENT_TIMESTAMP, conversation_id TEXT, details TEXT)")
+                self.memory_store.db.execute("INSERT INTO failed_runs (conversation_id,details) VALUES (?,?)",
+                                             (self.conversation_id,json.dumps(details,ensure_ascii=False)))
+                self.memory_store.db.commit()
+            raise
         completed_history = [message for message in result.messages if message.get("role") != "system"]
         retained = _trim_history(completed_history)
         if memory:

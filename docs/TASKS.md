@@ -6,18 +6,20 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
-### P2AT-028B — Bounded read-only live tree tools
+### P2AT-028B — Live tree tools and semantic topology
 
-- Status: `READY`
-- Assignment target: external coding executor, owner-forwarded prompt and GitHub delivery
-- Owner resumed development after P2AT-029A zero-skip environment verification.
-- Scope: bounded tree/Build snapshot, node lookup, lexical search, neighborhood,
-  eligible candidate paths and Build summary through the existing Python tool loop.
-  Reuse Planner graph/classification; no allocations, saving or write tools.
-- Require immutable per-run snapshot identity, bounded responses, session isolation,
-  Chinese governed tool descriptions and no full-tree model context dump.
-- Full Node/Python, locked-tree and synthetic Electron tool-loop regressions plus
-  independent review required. Deliver REVIEW; controller alone accepts/merges.
+- Status: `ACCEPTED` for the developer build (2026-09-23)
+- Assignment target: Codex local executor; owner accepted the expanded scope in the
+  working application before controller integration.
+- Delivered: bounded live tree reads and Build overview; category-specific allocate
+  and deallocate tools through the existing guarded Planner bridge; conservative L1
+  semantic clusters and read-only WeGame preview; optional cached AI cluster labels.
+  The L0 graph, save format and import semantics are unchanged.
+- Acceptance: complete Node/Python suites, syntax checks, real synthetic Electron
+  tree/agent bridge and write/undo checks. The tests use a locked local tree and mock
+  model endpoint; no paid call, private Key or user conversation was involved.
+- Remaining limits: semantic clusters are navigation aids, not allocation legality;
+  AI labels may be unavailable; release packaging and bundled Python remain separate.
 
 ### P2AT-029A — External executor environment bootstrap
 

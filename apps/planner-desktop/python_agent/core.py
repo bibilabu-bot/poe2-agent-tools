@@ -140,8 +140,8 @@ class ToolRegistry:
 
 @dataclass(frozen=True)
 class RunnerLimits:
-    max_model_rounds: int = 6
-    max_tool_calls: int = 12
+    max_model_rounds: int = 20
+    max_tool_calls: int = 100
     max_history_chars: int = HISTORY_CONTEXT_CHARS
     max_text_chars: int = 32_000
     max_tool_result_chars: int = 8_000
@@ -298,13 +298,19 @@ class AgentRunner:
             started = time.monotonic()
             result, ok = await self._execute_tool(call)
             duration_ms = round((time.monotonic() - started) * 1000, 3)
-            result_text = _bounded_json(result, self.limits.max_tool_result_chars)
+            # Full Build cluster graphs must not be sliced at the ordinary 8k detail limit.
+            result_limit = 64000 if call.name == "tree_overview" else self.limits.max_tool_result_chars
+            result_text = _bounded_json(result, result_limit)
+            if call.name == "tree_overview" and result_text.endswith("…[truncated]"):
+                ok = False
+                result_text = json.dumps({"error":{"code":"OVERVIEW_TOO_LARGE",
+                    "message":"当前BD概览超过64k安全上限，未返回残缺簇图。"}} ,ensure_ascii=False)
             trace.append({"callId": call.call_id, "name": call.name[:64],
                           "arguments": call.arguments,
                           "durationMs": duration_ms,
                           "ok": ok, "result": result_text})
             self._emit({"type": "tool_finished", "name": call.name[:64], "ok": ok,
-                        "durationMs": duration_ms})
+                        "durationMs": duration_ms, "trace": trace[-1]})
             messages.append({"role": "tool", "tool_call_id": call.call_id, "content": result_text})
         return {"messages": messages, "trace": trace,
                 "tool_count": state["tool_count"] + len(state["calls"]), "calls": []}

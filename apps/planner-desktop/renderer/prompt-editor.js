@@ -22,14 +22,14 @@
   function render(prompt){
     if(!Array.isArray(prompt?.blocks)||!prompt.blocks.length||prompt.blocks.some(b=>!b||!["system","tool"].includes(b.category)||typeof b.text!=="string"))throw Error("提示词块读取失败");
     const enabled=new Set(prompt.sections.map(block=>block.id));
-    pages=[{id:"system",label:"系统提示词"},...prompt.blocks.filter(block=>block.category==="tool").map(block=>({id:block.id,label:block.label}))];
+    pages=[{id:"system",label:"系统提示词"},...prompt.blocks.filter(block=>block.category==="tool"&&!block.page).map(block=>({id:block.id,label:block.label}))];
     $("promptPageNav").replaceChildren(...pages.map(item=>{
       const button=document.createElement("button");button.type="button";button.dataset.page=item.id;button.textContent=item.label;
       button.addEventListener("click",()=>selectPage(item.id));return button;
     }));
     $("promptEditorBlocks").replaceChildren(...prompt.blocks.map(block=>{
       const section=document.createElement("section"),label=document.createElement("label"),field=document.createElement("textarea"),help=document.createElement("p");
-      section.dataset.page=block.category==="system"?"system":block.id;
+      section.dataset.page=block.category==="system"?"system":(block.page||block.id);
       field.id=`prompt-block-${block.id}`;field.dataset.block=block.id;field.value=block.text;field.rows=6;field.spellcheck=false;
       field.addEventListener("input",()=>{dirty=true;status.textContent="有未保存修改；切换页面会保留草稿，请点击保存全部修改。";});
       label.htmlFor=field.id;label.textContent=`${block.label} · ${block.id}${block.category==="system"&&block.id!=="memory_prefix"?` · ${enabled.has(block.id)?"当前启用":"当前未启用"}`:""}${block.custom?" · 已自定义":" · 默认"}`;

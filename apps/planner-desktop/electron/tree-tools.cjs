@@ -2,6 +2,7 @@
 // Thin wrapper — all classification, adjacency and graph logic lives in
 // ../renderer/tree-snapshot.js (dual-mode CJS / browser global).
 const ts = require("../renderer/tree-snapshot.js");
+const {deriveSemanticTopology} = require("../renderer/semantic-topology.js");
 
 var MAX_NODES = 10_000;
 var MAX_EDGES = 30_000;
@@ -58,6 +59,7 @@ function createTreeSnapshotProvider(_localResourceResponse, _upstreamSnapshotId)
     var treeSnap = ts.captureTreeSnapshot(state);
     var build = ts.captureBuildState(state);
     var full = ts.publishFullSnapshot(treeSnap, build, buildState.upstreamSnapshotId || _upstreamSnapshotId || null);
+    full.semanticTopology = deriveSemanticTopology(full.nodes, full.adjacency);
 
     var measured = JSON.stringify(full).length;
     if (measured > MAX_SNAPSHOT_BYTES) {

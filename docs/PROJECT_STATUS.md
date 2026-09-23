@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-21
+Last updated: 2026-09-23
 
 ## Product objective
 
@@ -8,10 +8,21 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+P2AT-028B is accepted for the developer build: the agent can inspect the current
+Build and tree, use guarded category-specific allocation/deallocation tools, and
+navigate conservative semantic clusters. WeGame import preview has a read-only
+cluster view; optional AI cluster labels have bounded calls and explicit fallback.
+The locked-tree offline suites and synthetic Electron read/write bridge passed.
+This does not claim packaged Python, paid-provider compatibility, or a release-ready
+installer. See `docs/SEMANTIC_TOPOLOGY_MVP.md` for the L1 boundary and evidence.
+
+
 Accepted P2AT-028A3 at `86a1764d37b201702946f00b485b2d81b57fd3d9`: always-visible prompt close control, Chinese defaults
 (five system/six tool blocks), safe legacy-override migration and removal of the
 calculator demo. Controller verified Node 196/196, Python 60/60, syntax checks and
 synthetic Electron prompt/agent regressions. Earlier acceptance below is historical.
+The prior statement that P2AT-028B was read-only and writes were deferred is also
+historical; the owner subsequently approved the expanded developer-build scope.
 P2AT-029A cache follow-up at `6412ff02c3c4e0fbb1ee0cfce169af26e30ddb2d` is accepted as an environment report (executor reports Node 196/196 and Python 60/60). The owner resumed P2AT-028B read-only tool development; write tools remain deferred. Further execution is delegated through
 owner-forwarded prompts and GitHub branches, not automatic task dispatch.
 

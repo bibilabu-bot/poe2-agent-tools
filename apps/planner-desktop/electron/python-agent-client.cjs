@@ -16,7 +16,9 @@ class PythonAgentClient {
     this.executable = executable; this.cwd = cwd; this.child = null; this.pending = new Map(); this.nextId = 1;
     this.memoryPath = memoryPath;
     this.onProgress = onProgress;
+    this._treeWriteHandler = null;
   }
+  setTreeWriteHandler(handler) { this._treeWriteHandler = handler || null; }
   async request(method, params = {}, options = {}) {
     this.#ensureProcess();
     const id = this.nextId++;
@@ -60,6 +62,11 @@ class PythonAgentClient {
     if (this.child !== child) return;
     let response;
     try { response = JSON.parse(line); } catch { this.terminate(new PythonAgentError("PYTHON_PROTOCOL_ERROR", "Python 智能体返回了无效数据")); return; }
+    // Tree write callbacks: Python tool requests Electron to execute plannerWriteAPI.
+    if (response.callback) {
+      this._handleCallback(child, response);
+      return;
+    }
     if (response.event === "rag_progress") {
       if (Number.isInteger(response.completed) && Number.isInteger(response.total) && response.completed >= 0 && response.completed <= response.total && response.total <= 20000) this.onProgress?.({completed:response.completed,total:response.total});
       return;
@@ -80,6 +87,22 @@ class PythonAgentClient {
     else pending.reject(new PythonAgentError(response.error?.code || "AGENT_FAILED", response.error?.message || "智能体运行失败"));
   }
   #rejectAll(error) { for (const pending of this.pending.values()) pending.reject(error); this.pending.clear(); }
+  async _handleCallback(child, msg) {
+    const handler = this._treeWriteHandler;
+    let result;
+    try {
+      if (!handler) throw new PythonAgentError("TREE_WRITE_UNAVAILABLE", "天赋树写入处理器未就绪");
+      if (typeof msg.method !== "string" || typeof msg.callback_id !== "string" || !msg.callback_id || !/^[a-z_]+$/.test(msg.method)) throw new PythonAgentError("INVALID_CALLBACK", "回调消息格式无效");
+      result = await handler(msg.method, msg.params || {});
+    } catch (error) {
+      result = null;
+    }
+    // Write result back to Python's stdin to resolve the waiting future.
+    const reply = { callback_result: true, callback_id: msg.callback_id };
+    if (result && result.success) reply.result = result;
+    else reply.error = result?.errorCode ? { code: result.errorCode, message: result.message } : { code: "TREE_WRITE_FAILED", message: "天赋树写入失败" };
+    if (this.child === child) child.stdin.write(JSON.stringify(reply) + "\n");
+  }
 }
 
 module.exports = { PythonAgentClient, PythonAgentError };

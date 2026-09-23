@@ -1,4 +1,13 @@
-"""Line-delimited JSON process boundary for Electron."""
+"""Line-delimited JSON process boundary for Electron.
+
+Callback protocol (Python → Node → Electron → Node → Python):
+  - Python tool calls _tree_write_callback(method, params) during execute()
+  - It writes {"callback":true,"callback_id":"…","method":"…","params":{…}} to stdout
+  - Node reads the callback, calls window.plannerWriteAPI[method](nodeId) via Electron IPC
+  - Node writes {"callback_result":true,"callback_id":"…","result":{…}} to Python's stdin
+  - The background _stdin_reader resolves the waiting future
+  - Tool awaits the future and returns the result to the model
+"""
 
 from __future__ import annotations
 
@@ -6,15 +15,58 @@ import asyncio
 import json
 import os
 import sys
+import uuid
 from typing import Any
 
 from .core import AgentError
 from .service import AgentService
 
+_callback_futures: dict[str, asyncio.Future] = {}
+_request_queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
 
 def write_message(message: dict[str, Any]) -> None:
     sys.stdout.write(json.dumps(message, ensure_ascii=False, separators=(",", ":")) + "\n")
     sys.stdout.flush()
+
+
+async def _tree_write_callback(method: str, params: dict[str, Any], timeout: float = 15.0) -> dict[str, Any]:
+    """Send a tree write request to Electron and await the result."""
+    loop = asyncio.get_running_loop()
+    if method not in ("allocate", "deallocate"):
+        raise AgentError("INVALID_WRITE_METHOD", f"不支持的天赋树操作: {method}")
+    future: asyncio.Future[dict[str, Any]] = loop.create_future()
+    callback_id = uuid.uuid4().hex[:12]
+    _callback_futures[callback_id] = future
+    write_message({"callback": True, "callback_id": callback_id, "method": method, "params": params})
+    try:
+        return await asyncio.wait_for(future, timeout=timeout)
+    except asyncio.TimeoutError:
+        _callback_futures.pop(callback_id, None)
+        raise AgentError("TREE_WRITE_TIMEOUT", "天赋树写入超时，请重试")
+
+
+async def _stdin_reader() -> None:
+    """Background task: read stdin and route to callback futures or request queue."""
+    while True:
+        raw = await asyncio.to_thread(sys.stdin.buffer.readline)
+        if not raw:
+            await _request_queue.put(None)  # EOF signal
+            return
+        try:
+            msg = json.loads(raw.decode("utf-8", errors="strict"))
+        except Exception:
+            continue
+        if msg.get("callback_result"):
+            future = _callback_futures.pop(msg.get("callback_id", ""), None)
+            if future is not None and not future.done():
+                error = msg.get("error")
+                if error:
+                    future.set_exception(AgentError(error.get("code", "TREE_WRITE_FAILED"), error.get("message", "天赋树写入失败")))
+                else:
+                    future.set_result(msg["result"])
+        else:
+            await _request_queue.put(msg)
 
 
 async def dispatch(service: AgentService, method: str, params: dict[str, Any], request_id: Any = None) -> Any:
@@ -42,6 +94,7 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
             build=params["snapshot"].get("build", {}),
             _path_index=params["snapshot"].get("_pathIndex", {}),
             _error=params["snapshot"].get("_error"),
+            semantic_topology=params["snapshot"].get("semanticTopology"),
         )
         service.tree_snapshot = snap
         return {"ready": not bool(snap._error), "buildReady": True,
@@ -82,13 +135,18 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
     if method == "models":
         return {"models": await service.list_models()}
     if method == "send":
+        # Wire the tree write callback so tools can call back to Electron.
+        service._tree_write_callback = _tree_write_callback if params.get("toolsEnabled") is True else None
         sequence = 0
         def progress(event: dict[str, Any]) -> None:
             nonlocal sequence
             sequence += 1
             write_message({"id": request_id, "event": "agent_run", "seq": sequence, **event})
-        return await service.send(params.get("model", ""), params.get("text", ""),
-                                  bool(params.get("toolsEnabled")), progress)
+        try:
+            return await service.send(params.get("model", ""), params.get("text", ""),
+                                      bool(params.get("toolsEnabled")), progress)
+        finally:
+            service._tree_write_callback = None
     raise AgentError("METHOD_NOT_FOUND", "Unknown agent runtime method")
 
 
@@ -96,18 +154,32 @@ async def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8", errors="strict", newline="\n")
     sys.stderr.reconfigure(encoding="utf-8", errors="strict", newline="\n")
     service = AgentService(memory_path=os.environ.get("P2AT_AGENT_MEMORY_DB") or None)
-    while line := await asyncio.to_thread(sys.stdin.buffer.readline):
-        request_id: Any = None
-        try:
-            request = json.loads(line.decode("utf-8", errors="strict"))
-            request_id = request.get("id")
-            result = await dispatch(service, request.get("method", ""), request.get("params") or {}, request_id)
-            response = {"id": request_id, "ok": True, "result": result}
-        except AgentError as error:
-            response = {"id": request_id, "ok": False, "error": {"code": error.code, "message": str(error)}}
-        except Exception:
-            response = {"id": request_id, "ok": False, "error": {"code": "AGENT_FAILED", "message": "Python agent runtime failed safely"}}
-        write_message(response)
+
+    # Start the background stdin reader — it routes callback responses directly
+    # and queues normal requests for the main loop below.
+    reader_task = asyncio.create_task(_stdin_reader())
+
+    try:
+        while True:
+            msg = await _request_queue.get()
+            if msg is None:
+                break  # EOF from stdin
+            request_id: Any = msg.get("id")
+            try:
+                result = await dispatch(service, msg.get("method", ""), msg.get("params") or {}, request_id)
+                response = {"id": request_id, "ok": True, "result": result}
+            except AgentError as error:
+                response = {"id": request_id, "ok": False, "error": {"code": error.code, "message": str(error)}}
+            except Exception:
+                response = {"id": request_id, "ok": False, "error": {"code": "AGENT_FAILED", "message": "Python agent runtime failed safely"}}
+            write_message(response)
+    finally:
+        # Cancel any pending callbacks before shutting down.
+        for future in _callback_futures.values():
+            if not future.done():
+                future.set_exception(AgentError("CANCELLED", "Python runtime is shutting down"))
+        _callback_futures.clear()
+        reader_task.cancel()
 
 
 if __name__ == "__main__":
