@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-031A — Delete agent conversations with confirmation
 
-- Status: `REVIEW`
+- Status: `ACCEPTED` (2026-09-23; owner UI approval and controller regression)
 - Assignment target: Codex local executor, existing continuation task.
 - Add deletion to the conversation sidebar, requiring confirmation naming the
   selected conversation. Cancellation must preserve it. Delete only that session
@@ -20,7 +20,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-031B — Organize prompt maintenance by workflow
 
-- Status: `REVIEW`
+- Status: `ACCEPTED` (2026-09-23; owner UI approval, including search visibility fix)
 - Assignment target: same Codex local executor as P2AT-031A; separate implementation commit.
 - Preserve every prompt/default/custom value, migration and runtime behavior.
   Add searchable, collapsible hierarchy: system, general node lookup, current Build

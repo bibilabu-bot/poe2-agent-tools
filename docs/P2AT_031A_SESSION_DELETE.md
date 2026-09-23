@@ -1,4 +1,7 @@
-# P2AT-031A — Conversation deletion (REVIEW)
+# P2AT-031A — Conversation deletion (ACCEPTED)
+
+Controller acceptance: 2026-09-23, owner UI verification and explicit merge approval.
+Integration regression: 29 Python session/prompt tests and 18 Node service tests passed.
 
 The sidebar exposes a keyboard-accessible delete action on hover/focus (always
 visible for touch). A confirmation names the conversation and warns that deletion
@@ -37,4 +40,4 @@ Screenshots: [confirmation](assets/screenshots/p2at-031a/delete-confirm.png),
 [last conversation deleted](assets/screenshots/p2at-031a/sessions-empty.png).
 
 No default prompt text, Build format or Planner graph changes. This is executor
-REVIEW, not controller acceptance or a packaged release claim.
+delivery evidence; controller acceptance above does not imply a packaged release.

@@ -1,4 +1,7 @@
-# P2AT-031B — Prompt workflow navigation (REVIEW)
+# P2AT-031B — Prompt workflow navigation (ACCEPTED)
+
+Controller acceptance: 2026-09-23, owner UI verification and explicit merge approval,
+including search visibility fix `07a0d1de5ca408ddfeba089fb27805bc336e2ec7`.
 
 UI-only changes add five collapsible groups: System, general node lookup, current
 Build inspection, Build modification and conversation memory. Classification is by
@@ -45,5 +48,4 @@ Screenshots in `assets/screenshots/p2at-031b/`:
 - [Close at bottom](assets/screenshots/p2at-031b/close-at-bottom.png)
 
 Expansion/search preferences are in-memory for this opening of the dialog, not new
-persisted user settings. Search is literal rather than semantic. This delivery is
-REVIEW; controller acceptance and merge remain separate.
+persisted user settings. Search is literal rather than semantic.

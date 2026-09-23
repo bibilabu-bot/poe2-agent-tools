@@ -8,6 +8,14 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+P2AT-031A and P2AT-031B are ACCEPTED (2026-09-23). The owner verified the
+running UI and authorized integration through `07a0d1de5ca408ddfeba089fb27805bc336e2ec7`.
+Conversation deletion requires confirmation and remains endpoint/session scoped;
+prompt maintenance now has searchable workflow groups without changing prompt text.
+Executor evidence records Node 226/226, Python 106/106 and synthetic Electron UI
+checks. Controller integration reran 29 Python session/prompt and 18 Node service
+tests: all passed. No private conversations or paid model calls were used for tests.
+
 P2AT-030A separates each tool's brief purpose/trigger sentence from its detailed
 prompt. The model sees short purposes in the tool list; after a tool call, only
 that tool's detailed prompt is added for the next model round. Existing local v5
