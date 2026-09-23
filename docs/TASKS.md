@@ -6,6 +6,30 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-031A — Delete agent conversations with confirmation
+
+- Status: `READY`
+- Assignment target: Codex local executor, existing continuation task.
+- Add deletion to the conversation sidebar, requiring confirmation naming the
+  selected conversation. Cancellation must preserve it. Delete only that session
+  and its associated records within the current endpoint scope; refresh selection
+  coherently, including deletion of the last session. Block deletion during an
+  active turn and prevent late events from restoring or contaminating deleted data.
+- Verify with synthetic sessions and real UI interaction; do not delete owner data.
+
+### P2AT-031B — Organize prompt maintenance by workflow
+
+- Status: `READY`
+- Assignment target: same Codex local executor as P2AT-031A; separate implementation commit.
+- Preserve every prompt/default/custom value, migration and runtime behavior.
+  Add searchable, collapsible hierarchy: system, general node lookup, current Build
+  inspection, Build modification, and conversation memory. Keep each tool's short
+  purpose and detailed prompt together; nest its hook beneath it. Group by primary
+  use without falsely claiming tools never return Build-dependent information.
+- Preserve unsaved drafts across search/group/page navigation, visible close/save
+  controls, keyboard operation and sensible narrow-window layout. Verify with
+  synthetic UI and before/after prompt text equality; deliver screenshots and REVIEW.
+
 ### P2AT-030A — Separate tool selection hints from detailed tool prompts
 
 - Status: `ACCEPTED` (2026-09-23)
