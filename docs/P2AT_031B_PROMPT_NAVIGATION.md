@@ -10,7 +10,7 @@ Future unrecognized primary tool pages fall back to Other tools.
 Search is case-insensitive, whitespace-separated AND matching over the page name,
 tool/block IDs, group name and current draft text. References in prompt bodies may
 match several pages. Search opens matching groups; clearing restores previous
-expansion. No-match searches preserve the right-hand page and drafts. Escape clears
+expansion but keeps the selected page's group open. No-match searches preserve the right-hand page and drafts. Escape clears
 a nonempty search first; otherwise the existing dirty-close confirmation applies.
 Navigation never rebuilds fields. Saving still submits all fields, including hidden
 ones, to the existing API without trimming or rewriting any prompt text.

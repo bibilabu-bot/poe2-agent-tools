@@ -111,6 +111,8 @@ app.whenReady().then(async()=>{
     await wait(`document.querySelector('#promptPageSearch').value===''`);
     assert.equal(await run(`document.querySelector('#promptEditor').open`),true);
     assert.equal(await run(`document.querySelector('details[data-group="memory"]').open`),false);
+    assert.equal(await run(`document.querySelector('details[data-group="build"]').open`),true);
+    assert.equal(await run(`document.querySelector('#promptPageNav button[data-page="tool_tree_overview"]').getAttribute('aria-current')`),"page");
     assert.deepEqual(await fields(),defaultFields);
     await run(`document.querySelector('details[data-group="memory"]').open=true;document.querySelector('#promptPageNav button[data-page="system"]').click()`);
     await run(`document.querySelector('#prompt-block-base').value='You are a concise assistant. CUSTOM_UI_FIXTURE';document.querySelector('#prompt-block-base').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_search_memory"]').click()`);

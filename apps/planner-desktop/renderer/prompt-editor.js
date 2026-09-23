@@ -48,7 +48,12 @@
       if(terms.length)group.open=true;
       else if(searchOpen)group.open=searchOpen.get(group.dataset.group)??true;
     }
-    if(!terms.length)searchOpen=null;
+    if(!terms.length&&searchOpen){
+      // A page selected from search stays discoverable after restoring the groups.
+      const current=pages.find(item=>item.id===page);
+      if(current)current.button.closest("details").open=true;
+      searchOpen=null;
+    }
     $("clearPromptSearch").disabled=!$("promptPageSearch").value;
     $("promptSearchStatus").textContent=terms.length
       ?(count?`找到 ${count} 个页面 · 右侧保留当前草稿` : "没有匹配页面 · 右侧草稿保留")
