@@ -20,7 +20,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-031B — Organize prompt maintenance by workflow
 
-- Status: `READY`
+- Status: `REVIEW`
 - Assignment target: same Codex local executor as P2AT-031A; separate implementation commit.
 - Preserve every prompt/default/custom value, migration and runtime behavior.
   Add searchable, collapsible hierarchy: system, general node lookup, current Build
@@ -30,6 +30,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 - Preserve unsaved drafts across search/group/page navigation, visible close/save
   controls, keyboard operation and sensible narrow-window layout. Verify with
   synthetic UI and before/after prompt text equality; deliver screenshots and REVIEW.
+- Delivery evidence: `docs/P2AT_031B_PROMPT_NAVIGATION.md`; independent review APPROVE.
 
 ### P2AT-030A — Separate tool selection hints from detailed tool prompts
 

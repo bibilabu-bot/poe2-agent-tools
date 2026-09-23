@@ -449,8 +449,16 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
       <p id="promptEditorStatus" role="status"></p>
     </div>
     <div class="prompt-editor-workspace">
-      <nav id="promptPageNav" class="prompt-page-nav" aria-label="提示词页面"></nav>
+      <aside class="prompt-sidebar" aria-label="提示词目录">
+        <div class="prompt-search">
+          <label for="promptPageSearch">查找提示词</label>
+          <div><input id="promptPageSearch" type="search" placeholder="名称、工具 ID 或正文" autocomplete="off"><button id="clearPromptSearch" type="button" aria-label="清除提示词搜索">清除</button></div>
+          <p id="promptSearchStatus" class="agent-help" role="status"></p>
+        </div>
+        <nav id="promptPageNav" class="prompt-page-nav" aria-label="按用途分组的提示词页面"></nav>
+      </aside>
       <main class="prompt-page-content">
+        <h3 id="promptPageTitle">系统提示词</h3>
         <p id="promptCategoryHelp" class="agent-help"></p>
         <div id="promptEditorBlocks"></div>
       </main>

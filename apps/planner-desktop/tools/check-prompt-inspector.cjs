@@ -3,8 +3,9 @@ const {app,BrowserWindow,ipcMain}=require("electron");
 const fs=require("node:fs"),os=require("node:os"),path=require("node:path"),assert=require("node:assert/strict");
 const {PythonAgentClient}=require("../electron/python-agent-client.cjs");
 const {AgentService,createAgentIpcHandlers}=require("../electron/agent-service.cjs");
+const temp=fs.mkdtempSync(path.join(os.tmpdir(),"p2at-prompt-"));
+app.setPath("userData",path.join(temp,"user-data"));
 app.whenReady().then(async()=>{
-  const temp=fs.mkdtempSync(path.join(os.tmpdir(),"p2at-prompt-"));
   const renderer=path.resolve(__dirname,"../renderer");
   const client=new PythonAgentClient({memoryPath:path.join(temp,"synthetic.sqlite3")});
   const service=new AgentService({client});
@@ -36,7 +37,7 @@ app.whenReady().then(async()=>{
     assert.doesNotMatch(JSON.stringify(result),/PRIVATE_/);assert.doesNotMatch(result.chat,/You are a concise/);
     const direct=await client.request("inspect_prompt");assert.equal(result.text,direct.text);
     await run(`document.querySelector('#promptInspector').scrollIntoView()`);await new Promise(r=>setTimeout(r,150));
-    const output=path.resolve(__dirname,"../../../docs/assets/screenshots/p2at-028a3");fs.mkdirSync(output,{recursive:true});
+    const output=path.resolve(__dirname,"../../../docs/assets/screenshots/p2at-031b");fs.mkdirSync(output,{recursive:true});
     fs.writeFileSync(path.join(output,"prompt-inspector.png"),(await win.webContents.capturePage()).toPNG());
     service.active={kind:"synthetic-run"};
     await run(`document.querySelector('#inspectPrompt').click()`);await wait(`!document.querySelector('#inspectPrompt').disabled`);
@@ -79,6 +80,39 @@ app.whenReady().then(async()=>{
     assert.equal(await run(`document.querySelectorAll('#promptPageNav button').length`),15);
     assert.equal(await run(`['tool_tree_overview','tool_read_tree_nodes','tool_search_tree_nodes','tool_read_tree_neighborhood','tool_find_tree_path','tool_read_tree_cluster'].every(id=>document.querySelector('#promptPageNav button[data-page="'+id+'"]'))`),true);
     assert.equal(await run(`['tool_tree_summary','tool_build_summary','tool_list_tree_clusters'].some(id=>document.querySelector('#promptPageNav button[data-page="'+id+'"]'))`),false);
+    const fields=()=>run(`Object.fromEntries([...document.querySelectorAll('#promptEditorBlocks textarea')].map(f=>[f.dataset.block,f.value]))`);
+    const search=async text=>run(`document.querySelector('#promptPageSearch').value=${JSON.stringify(text)};document.querySelector('#promptPageSearch').dispatchEvent(new Event('input'))`);
+    const visiblePages=()=>run(`[...document.querySelectorAll('#promptPageNav button[data-page]')].filter(b=>!b.hidden).map(b=>b.dataset.page)`);
+    const defaultFields=await fields();
+    assert.deepEqual(await run(`[...document.querySelectorAll('#promptPageNav summary')].map(e=>e.textContent)`),["系统","通用节点读取","当前 Build 查看","Build 修改","会话记忆"]);
+    assert.equal(await run(`document.querySelector('[data-page="tool_find_tree_path"]').closest('details').dataset.group`),"build");
+    assert.equal(await run(`document.querySelector('[data-page="tool_allocate_tree_node"]').closest('details').dataset.group`),"write");
+    assert.equal(await run(`document.querySelector('[data-page="tool_read_tree_nodes"]').closest('details').dataset.group`),"nodes");
+    // Native keyboard operation of a collapsible group, no custom tree-key emulation.
+    await run(`document.querySelector('details[data-group="memory"]').open=true;document.querySelector('details[data-group="memory"] summary').focus()`);
+    assert.equal(await run(`document.activeElement.matches('details[data-group="memory"] summary')`),true);
+    win.webContents.sendInputEvent({type:"keyDown",keyCode:"Space"});win.webContents.sendInputEvent({type:"keyUp",keyCode:"Space"});
+    await wait(`!document.querySelector('details[data-group="memory"]').open`);
+    // Full-text search also finds tools whose detailed guidance refers to this ID.
+    await search("FIND_TREE_PATH");assert.deepEqual(await visiblePages(),["tool_tree_overview","tool_read_tree_cluster","tool_find_tree_path"]);
+    await search("当前 Build 查看");
+    const groupMatches=await visiblePages();
+    assert.ok(["tool_tree_overview","tool_read_tree_cluster","tool_read_tree_neighborhood","tool_find_tree_path"].every(id=>groupMatches.includes(id)));
+    await search("hook_tree_overview");assert.deepEqual(await visiblePages(),["tool_tree_overview"]);
+    await run(`document.querySelector('[data-hook="hook_tree_overview"]').click()`);
+    assert.equal(await run(`document.activeElement.id`),"prompt-block-hook_tree_overview");
+    assert.equal(await run(`document.querySelector('#prompt-block-hook_tree_overview').closest('section').classList.contains('prompt-hook-block')`),true);
+    await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"search-hook.png"),(await win.webContents.capturePage()).toPNG());
+    await search("NO_MATCH_031B");assert.deepEqual(await visiblePages(),[]);
+    assert.match(await run(`document.querySelector('#promptSearchStatus').textContent`),/没有匹配/);
+    assert.equal(await run(`document.querySelector('#prompt-block-hook_tree_overview').closest('section').hidden`),false);
+    await run(`document.querySelector('#promptPageSearch').focus()`);
+    win.webContents.sendInputEvent({type:"keyDown",keyCode:"Escape"});win.webContents.sendInputEvent({type:"keyUp",keyCode:"Escape"});
+    await wait(`document.querySelector('#promptPageSearch').value===''`);
+    assert.equal(await run(`document.querySelector('#promptEditor').open`),true);
+    assert.equal(await run(`document.querySelector('details[data-group="memory"]').open`),false);
+    assert.deepEqual(await fields(),defaultFields);
+    await run(`document.querySelector('details[data-group="memory"]').open=true;document.querySelector('#promptPageNav button[data-page="system"]').click()`);
     await run(`document.querySelector('#prompt-block-base').value='You are a concise assistant. CUSTOM_UI_FIXTURE';document.querySelector('#prompt-block-base').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_search_memory"]').click()`);
     assert.equal(await visibleCount(),2);
     await run(`document.querySelector('#prompt-block-tool_search_memory').value='CUSTOM_TOOL_FIXTURE 工具全文🙂';document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#prompt-block-purpose_search_memory').value='用户问起旧对话时使用。';document.querySelector('#prompt-block-purpose_search_memory').dispatchEvent(new Event('input'));document.querySelector('#promptPageNav button[data-page="tool_tree_overview"]').click()`);
@@ -86,11 +120,18 @@ app.whenReady().then(async()=>{
     assert.equal(await run(`document.querySelector('#prompt-block-tool_tree_overview').closest('section').hidden`),false);
     assert.equal(await run(`document.querySelector('#prompt-block-purpose_tree_overview').closest('section').hidden`),false);
     assert.equal(await run(`document.querySelector('#prompt-block-purpose_tree_overview').closest('section').nextElementSibling.querySelector('textarea').id`),'prompt-block-tool_tree_overview');
+    const draftFields=await fields();
+    await search("CUSTOM_TOOL_FIXTURE");assert.deepEqual(await visiblePages(),["tool_search_memory"]);
+    await run(`document.querySelector('#promptPageNav button[data-page="tool_search_memory"]').click()`);
+    await search("nothing_matches_031b");await run(`document.querySelector('#clearPromptSearch').click()`);
+    await run(`document.querySelector('details[data-group="memory"]').open=false;document.querySelector('#promptPageNav button[data-page="tool_tree_overview"]').click();document.querySelector('details[data-group="memory"]').open=true`);
+    assert.deepEqual(await fields(),draftFields);
     await run(`document.querySelector('#promptPageNav button[data-page="system"]').click()`);
     assert.match(await run(`document.querySelector('#prompt-block-base').value`),/CUSTOM_UI_FIXTURE/);
     await run(`document.querySelector('#savePromptBlocks').click()`);
     await wait(`document.querySelector('#promptEditorStatus').textContent.includes('已保存') || document.querySelector('#promptEditorStatus').textContent.includes('失败') || document.querySelector('#promptEditorStatus').textContent.includes('不能超过')`);
     assert.match(await run(`document.querySelector('#promptEditorStatus').textContent`),/已保存/);
+    assert.deepEqual(Object.fromEntries((await client.request("inspect_prompt")).blocks.map(b=>[b.id,b.text])),draftFields);
     assert.match((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
     client.terminate();
     assert.match((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
@@ -106,6 +147,18 @@ app.whenReady().then(async()=>{
     assert.doesNotMatch((await client.request("inspect_prompt")).text,/CUSTOM_UI_FIXTURE/);
     assert.doesNotMatch((await client.request("inspect_prompt")).blocks.find(b=>b.id==="tool_search_memory").text,/CUSTOM_TOOL_FIXTURE/);
     assert.notEqual((await client.request("inspect_prompt")).blocks.find(b=>b.id==="purpose_search_memory").text,"用户问起旧对话时使用。");
+    assert.deepEqual(await fields(),defaultFields);
+    await run(`document.querySelector('#promptPageNav button[data-page="tool_tree_overview"]').click()`);
+    await run(`document.querySelectorAll('#promptPageNav details').forEach(group=>{group.open=group.dataset.group==='build'});document.querySelector('#promptPageNav').scrollTop=0`);
+    await new Promise(r=>setTimeout(r,120));fs.writeFileSync(path.join(output,"workflow-overview.png"),(await win.webContents.capturePage()).toPNG());
+    const checkSaveVisible=async()=>assert.equal(await run(`(()=>{const b=document.querySelector('#savePromptBlocks'),r=b.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth&&document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===b;})()`),true);
+    for(const [width,height] of [[600,480],[420,720]]){
+      win.setContentSize(width,height);await new Promise(r=>setTimeout(r,120));
+      await checkCloseVisible();await checkSaveVisible();
+      assert.equal(await run(`document.querySelector('.prompt-page-content').clientHeight>60&&document.querySelector('#promptPageNav').clientHeight>20&&document.querySelector('#promptEditor').scrollWidth<=document.querySelector('#promptEditor').clientWidth`),true);
+      fs.writeFileSync(path.join(output,`narrow-${width}.png`),(await win.webContents.capturePage()).toPNG());
+    }
+    win.setContentSize(1100,850);
     await run(`document.querySelector('#prompt-block-tool_search_memory').value='x'.repeat(4001);document.querySelector('#prompt-block-tool_search_memory').dispatchEvent(new Event('input'));document.querySelector('#savePromptBlocks').click()`);
     await wait(`!document.querySelector('#savePromptBlocks').disabled`);
     assert.match(await run(`document.querySelector('#promptEditorStatus').textContent`),/4000/);
@@ -142,5 +195,6 @@ app.whenReady().then(async()=>{
     console.log("PASS: close always visible/hittable at top/middle/bottom, short content and small viewport; clean/dirty button and native Escape, cancel preserves draft, busy prevents close and late-save loss");
     console.log("PASS: 5 system blocks and 14 tool pages with separate short purposes and detailed prompts, drafts preserved, save/restart/reset, busy rejection, overlength preserved, unsaved-close confirmation");
     console.log("PASS: production Python/preload/settings inspector; explicit read only, exact text, state labels, no private data/chat writes, busy rejection, stale clearing; zero network");
+    console.log("PASS: 5 collapsible workflow groups; name/ID/body/group search, hook hierarchy, native keyboard collapse and search Escape, zero results, preserved drafts and exact saved/default text; accessible save/close at 600x480 and 420x720");
   }finally{win.destroy();client.terminate();ipcMain.removeHandler("agent:inspect-prompt");ipcMain.removeHandler("agent:save-prompts");app.quit();}
 }).catch(error=>{console.error(error);app.exit(1)});
