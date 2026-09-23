@@ -97,6 +97,7 @@ async def dispatch(service: AgentService, method: str, params: dict[str, Any], r
             _path_index=params["snapshot"].get("_pathIndex", {}),
             _error=params["snapshot"].get("_error"),
             semantic_topology=params["snapshot"].get("semanticTopology"),
+            refund_impacts=params["snapshot"].get("refundImpacts", {}),
         )
         service.tree_snapshot = snap
         return {"ready": not bool(snap._error), "buildReady": True,

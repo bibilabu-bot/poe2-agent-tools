@@ -39,6 +39,14 @@ IDs use `type:lexicographically-smallest-member-id`, deterministic for the same 
 
 Example: `read_tree_cluster({nodeId:"722"})`, then `read_tree_cluster({clusterId:"attribute:14267",section:"boundaries"})`, then `read_tree_nodes` or `find_tree_path` for exact node work.
 
+Cluster node pages also carry snapshot-scoped, category-specific `refundImpacts`.
+They use the actual refund transition, include cross-cluster cascades, and never
+modify Build/undo state. Additional counts/IDs exclude the target; total includes
+it. Counts describe distinct node IDs, not budget points or historical path length.
+Protected/unavailable cases are explicit. Pages may shrink to preserve complete
+cascade lists; follow `nextOffset`. See `CHAT_TIMEOUT_REFUND_PREVIEW.md` for fields,
+oversize behavior and write-after-preview freshness.
+
 ## Evidence and scope
 
 Actual Electron/preload/Python/local-model bridge: 4,742 published L0 nodes; 604 clusters (7 attribute, 12 jewel, 585 passive), 639 cluster edges, 3,869 classified nodes, 206 unclassified, 667 separately excluded ascendancy nodes. Counts describe the current locked data, not permanent constants.

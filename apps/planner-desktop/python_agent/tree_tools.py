@@ -108,6 +108,7 @@ class TreeSnapshot:
     _path_index: dict[str, Any] = field(default_factory=dict)
     _error: str | None = None
     semantic_topology: dict[str, Any] | None = None
+    refund_impacts: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
     def has(self, node_id: str) -> bool:
         return str(node_id) in self.nodes
@@ -549,7 +550,11 @@ class SemanticTopologyTool(_TreeTool):
             if not mapped:
                 reason=next((n["reason"] for n in topology["unclassifiedNodes"] if n["nodeId"]==node_id),
                             "ascendancy-excluded" if node_id in topology["excludedAscendancyNodeIds"] else "node-not-found")
-                return {"nodeId":node_id,"clusterId":None,"reason":reason}
+                result={"nodeId":node_id,"clusterId":None,"reason":reason,"snapshotId":self._snapshot.snapshot_id}
+                if self.name=="read_tree_cluster":
+                    result["refundImpacts"]={node_id:self._refund_impact(node_id)}
+                    self._check_refund_size(result)
+                return result
             if cluster_id and cluster_id!=mapped:
                 raise AgentError("INVALID_TOOL_ARGUMENTS", "节点不属于指定簇")
             cluster_id=mapped
@@ -574,10 +579,34 @@ class SemanticTopologyTool(_TreeTool):
             raise AgentError("INVALID_TOOL_ARGUMENTS", "读取内部图须指定簇")
         elif section=="edges": rows=cluster["edges"]
         else: rows=cluster["nodeIds"]
-        return {"snapshotId":self._snapshot.snapshot_id,"version":topology["version"],
+        result={"snapshotId":self._snapshot.snapshot_id,"version":topology["version"],
                 "clusterId":cluster_id,"section":section,"clusterCount":len(clusters),
                 "clusterEdgeCount":len(topology["clusterEdges"]),"total":len(rows),
                 "items":rows[offset:offset+limit],"nextOffset":offset+limit if offset+limit<len(rows) else None}
+        if self.name=="read_tree_cluster" and section=="nodes":
+            while True:
+                result["refundImpacts"]={nid:self._refund_impact(nid) for nid in result["items"]}
+                if len(json.dumps(result,ensure_ascii=False,separators=(",",":")))<=7500:
+                    break
+                if len(result["items"])<=1:
+                    self._check_refund_size(result)
+                result["items"]=result["items"][:-1]
+                result["nextOffset"]=offset+len(result["items"])
+        return result
+
+    def _refund_impact(self, node_id: str) -> dict[str, Any]:
+        snapshot=self._snapshot
+        impacts=snapshot.refund_impacts.get(node_id)
+        if impacts is not None:
+            return {"snapshotId":snapshot.snapshot_id,"categories":impacts}
+        allocated=any(node_id in ids for ids in snapshot.build.get("allocations",{}).values())
+        return {"snapshotId":snapshot.snapshot_id,"applicable":False,
+                "reason":"preview-unavailable" if allocated else "not-allocated"}
+
+    @staticmethod
+    def _check_refund_size(result: dict[str, Any]) -> None:
+        if len(json.dumps(result,ensure_ascii=False,separators=(",",":")))>7500:
+            raise AgentError("REFUND_PREVIEW_TOO_LARGE","该节点完整退点影响超过安全输出上限，未返回残缺级联列表。")
 
 
 class TreeOverviewTool(SemanticTopologyTool):
@@ -701,6 +730,7 @@ class _TreeWriteTool(_TreeTool):
             self._snapshot.node_count = 0
             self._snapshot.snapshot_id = "write-refresh-failed"
             self._snapshot.semantic_topology = None
+            self._snapshot.refund_impacts = {}
             return {**result, "refreshError": True, "message": "写入已完成，但快照刷新失败。不要重复写入；请在新消息中重新读取构筑。"}
         # All tools (including RAG path enrichment) share this holder. Replace
         # every published field together before the next tool executes.
@@ -711,6 +741,7 @@ class _TreeWriteTool(_TreeTool):
             adjacency=updated.get("adjacency", {}), build=updated.get("build", {}),
             _path_index=updated.get("_pathIndex", {}), _error=updated.get("_error"),
             semantic_topology=updated.get("semanticTopology"),
+            refund_impacts=updated.get("refundImpacts", {}),
         )
         result["snapshotId"] = self._snapshot.snapshot_id
         return result

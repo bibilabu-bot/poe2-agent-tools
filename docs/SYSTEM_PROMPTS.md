@@ -128,7 +128,7 @@ v3/v4 中显式保存的英文自定义，即使等于历史英文默认，重�
 ### tool_read_tree_cluster
 
 ```text
-按 clusterId 或 nodeId 定位簇并分页读取内部图。section=nodes 返回节点ID（用 read_tree_nodes 读属性），edges 返回簇内真实边，boundaries 返回邻簇及真实跨簇边。每页最多20项，按 nextOffset 继续。精确寻路仍使用 find_tree_path。
+按 clusterId 或 nodeId 定位簇并分页读取内部图。section=nodes 返回节点ID和当前快照的退点影响 refundImpacts（用 read_tree_nodes 读属性），edges 返回簇内真实边，boundaries 返回邻簇及真实跨簇边。每页最多20项，包含完整退点影响时可能缩小页长，按 nextOffset 继续。评估退点先查看目标簇：按 general/weaponSet1/weaponSet2/ascendancy 分类，additionalRefundCount 和 cascadeNodeIds 不含自身，totalRefundCount 含自身；IDs 去重排序，跨簇影响也包含，removedByCategory 保留各类别实际移除列表。数字计的是节点而非计费点数或历史前置路径。refundable=false 时按原因处理，不视为零成本；未分配/预演不可用明确标记。snapshotId 变化后必须重读；预演只读，不会撤销先前写入。单节点影响过大明确报错，不返回残缺级联列表。精确寻路仍使用 find_tree_path。
 ```
 
 ### tool_read_tree_nodes
@@ -212,7 +212,7 @@ v3/v4 中显式保存的英文自定义，即使等于历史英文默认，重�
 ### purpose_read_tree_cluster
 
 ```text
-用户要查看某个天赋簇的节点和连接时使用。
+用户查看天赋簇节点和连接，或决策退点前查看类别化级联影响时使用。
 ```
 
 ### purpose_read_tree_nodes

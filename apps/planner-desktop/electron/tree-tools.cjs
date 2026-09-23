@@ -60,6 +60,8 @@ function createTreeSnapshotProvider(_localResourceResponse, _upstreamSnapshotId)
     var build = ts.captureBuildState(state);
     var full = ts.publishFullSnapshot(treeSnap, build, buildState.upstreamSnapshotId || _upstreamSnapshotId || null);
     full.semanticTopology = deriveSemanticTopology(full.nodes, full.adjacency);
+    // Derived by the same pure transition used by the renderer write API.
+    full.refundImpacts = buildState.refundImpacts || {};
 
     var measured = JSON.stringify(full).length;
     if (measured > MAX_SNAPSHOT_BYTES) {

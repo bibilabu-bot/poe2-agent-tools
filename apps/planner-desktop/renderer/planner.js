@@ -906,11 +906,15 @@ function constraintAscendancyMatches(n) {
 }
 
 function constraintSatisfied(n) {
+  return constraintSatisfiedWithActive(n,null);
+}
+
+function constraintSatisfiedWithActive(n, activeIds) {
   const uc=unlockConstraintOf(n);
   if(!uc) return true;
   if(!constraintAscendancyMatches(n)) return false;
 
-  const active=allAllocatedIds();
+  const active=activeIds || allAllocatedIds();
   for(const req of constraintNodeIds(n)) {
     if(!active.has(req)) return false;
   }
@@ -967,9 +971,13 @@ function hiddenDependentsOf(ids) {
 }
 
 function canTraverse(n) {
+  return canTraverseWithActive(n,null);
+}
+
+function canTraverseWithActive(n, activeIds) {
   if (!n || isAsc(n) || isMasteryVisual(n) || isInstillExclusiveNode(n) || isLegacyStartArtifact(n)) return false;
   if (isClassStart(n) && classStartId && idOf(n)!==classStartId) return false;
-  if (isConditionalReveal(n) && !constraintSatisfied(n)) return false;
+  if (isConditionalReveal(n) && !constraintSatisfiedWithActive(n,activeIds)) return false;
   return true;
 }
 
@@ -4521,83 +4529,55 @@ function deallocateNodeById(rawId, category = null) {
   return _deallocateGeneralById(n, id);
 }
 
-function _deallocateGeneralById(n, id) {
-  if (id === classStartId) return { success: false, errorCode: "START_NODE_PROTECTED", message: "职业起点不能取消" };
-  if (!allocated.has(id)) return { success: false, errorCode: "NOT_ALLOCATED", message: "该节点当前未通用分配" };
+function planCurrentRefund(id, category) {
+  const node=byId.get(id);
+  if(!node) return {success:false,category,errorCode:"NODE_NOT_FOUND",message:"节点不存在"};
+  if(isMasteryVisual(node)) return {success:false,category,errorCode:"INVALID_NODE",message:"精通可视化节点不可取消"};
+  if(isInstillExclusiveNode(node)) return {success:false,category,errorCode:"INSTILL_ONLY",message:"涂油节点请通过涂油系统处理"};
+  const active=sets=>new Set([...sets.general,...sets.ascendancy]);
+  return window.plannerRefundPlan.planRefund({
+    graph:passiveGraph,classStartId,ascStartId,
+    sets:{general:allocated,weaponSet1:weaponSet1Allocated,weaponSet2:weaponSet2Allocated,ascendancy:ascAllocated},
+    blockedBy:hiddenDependentsOf,
+    canTraverse:(n,sets)=>canTraverseWithActive(n,active(sets)),
+    canTraverseAsc,isAsc,
+    ordinaryValid:(id,sets)=>{
+      const n=byId.get(id);
+      return !n || !isHiddenConditional(n) || constraintSatisfiedWithActive(n,active(sets));
+    },
+  },id,category);
+}
 
-  var dependents = hiddenDependentsOf(new Set([id]));
-  if (dependents.length) {
-    return { success: false, errorCode: "BLOCKED_BY_CONDITIONAL", message: "不能取消：条件显现天赋「" + displayNodeName(dependents[0]) + "」仍依赖此节点" };
-  }
-
-  var candidate = new Set(allocated);
-  candidate.delete(id);
-  var reachable = candidate.has(classStartId)
-    ? reachableEligibleIds(passiveGraph, { starts: [classStartId], isEligible: function(_n, x) { return candidate.has(x); } })
-    : new Set();
-
-  var removedIds = [];
-  var iter = allocated.values();
-  for (var next = iter.next(); !next.done; next = iter.next()) {
-    if (!reachable.has(next.value)) removedIds.push(next.value);
-  }
-  var blocked = hiddenDependentsOf(new Set(removedIds));
-  if (blocked.length) {
-    return { success: false, errorCode: "BLOCKED_BY_CONDITIONAL", message: "不能退点：会破坏已分配条件显现天赋「" + displayNodeName(blocked[0]) + "」的前置条件" };
-  }
-
+function applyCurrentRefund(id, category) {
+  const plan=planCurrentRefund(id,category);
+  if(!plan.success) return plan;
   pushUndo();
-  var removed = allocated.size - reachable.size;
-  allocated = reachable;
-  var wsRemoved = pruneWeaponSet("ws1") + pruneWeaponSet("ws2");
+  allocated=plan.next.general;
+  weaponSet1Allocated=plan.next.weaponSet1;
+  weaponSet2Allocated=plan.next.weaponSet2;
+  ascAllocated=plan.next.ascendancy;
   clearPreviews();
-  rebuildPathIndex();
-  updatePlannerUI("通用天赋已取消 " + removed + " 个节点" + (wsRemoved ? "；另有 " + wsRemoved + " 个武器组节点因断连被移除" : "") + "。");
-  return { success: true, message: "通用天赋已取消 " + removed + " 个节点", removedIds: removedIds, cascadeCount: removed - 1, weaponSetCascade: wsRemoved, category: "general" };
+  if(category==="ascendancy") rebuildAscPathIndex();
+  if(category==="general" || category==="ascendancy") rebuildPathIndex();
+  const removedIds=plan.removedByCategory[category];
+  const message="已退掉 "+plan.totalRefundCount+" 个节点（含级联）";
+  updatePlannerUI(message);
+  return {success:true,message,removedIds,cascadeCount:removedIds.length-1,
+    weaponSetCascade:category==="general" ? plan.removedByCategory.weaponSet1.length+plan.removedByCategory.weaponSet2.length : 0,
+    category:category==="weaponSet1" ? "ws1" : category==="weaponSet2" ? "ws2" : category,
+    removedByCategory:plan.removedByCategory};
+}
+
+function _deallocateGeneralById(n, id) {
+  return applyCurrentRefund(id,"general");
 }
 
 function _deallocateWeaponById(id, mode) {
-  var set = weaponSetForMode(mode);
-  if (!set || !set.has(id)) return { success: false, errorCode: "NOT_ALLOCATED", message: "该节点未在" + weaponSetLabel(mode) + "中分配" };
-
-  pushUndo();
-  set.delete(id);
-  var removed = 1 + pruneWeaponSet(mode);
-  clearPreviews();
-  updatePlannerUI(weaponSetLabel(mode) + "已退掉 " + removed + " 个节点（含断连节点）。");
-  return { success: true, message: weaponSetLabel(mode) + "已退掉 " + removed + " 个节点", removedIds: [id], cascadeCount: removed - 1, category: mode };
+  return applyCurrentRefund(id,mode==="ws1" ? "weaponSet1" : "weaponSet2");
 }
 
 function _deallocateAscById(n, id) {
-  if (id === ascStartId) return { success: false, errorCode: "START_NODE_PROTECTED", message: "升华起点不消耗点数，不能取消" };
-  if (!ascAllocated.has(id)) return { success: false, errorCode: "NOT_ALLOCATED", message: "该升华节点未分配" };
-
-  var candidate = new Set(ascAllocated);
-  candidate.delete(id);
-  var reachable = ascStartId && candidate.has(ascStartId)
-    ? reachableEligibleIds(passiveGraph, { starts: [ascStartId], isEligible: function(n, x) { return candidate.has(x) && canTraverseAsc(n); } })
-    : new Set();
-
-  var removedIds = [];
-  var iter = ascAllocated.values();
-  for (var next = iter.next(); !next.done; next = iter.next()) {
-    if (!reachable.has(next.value)) removedIds.push(next.value);
-  }
-  var blocked = hiddenDependentsOf(new Set(removedIds));
-  if (blocked.length) {
-    var names = blocked.slice(0, 3).map(displayNodeName).join("、");
-    return { success: false, errorCode: "BLOCKED_BY_CONDITIONAL", message: "不能取消该升华节点：普通树中的条件显现天赋「" + names + "」仍依赖它，请先退掉这些隐藏天赋" };
-  }
-
-  pushUndo();
-  var removed = ascAllocated.size - reachable.size;
-  ascAllocated = reachable;
-  clearPreviews();
-  rebuildAscPathIndex();
-  revalidateOrdinaryAllocated();
-  rebuildPathIndex();
-  updatePlannerUI("升华已取消 " + removed + " 个节点（含级联）。");
-  return { success: true, message: "升华已取消 " + removed + " 个节点", removedIds: removedIds, cascadeCount: removed - 1, category: "ascendancy" };
+  return applyCurrentRefund(id,"ascendancy");
 }
 
 // Expose as stable renderer API (consumed by agent-panel.js and future Python bridge).
@@ -4666,6 +4646,15 @@ window.captureBuildState = function() {
     pe.push({f:String(e.f),t:String(e.t)});
   }
   state.edges = pe;
+  // Read-only plans use exactly the transition consumed by the write API.
+  state.refundImpacts = {};
+  const refundSets={general:allocated,weaponSet1:weaponSet1Allocated,weaponSet2:weaponSet2Allocated,ascendancy:ascAllocated};
+  for(const category of window.plannerRefundPlan.categories){
+    for(const id of refundSets[category]){
+      const plan=planCurrentRefund(id,category);
+      (state.refundImpacts[id] ||= []).push(window.plannerRefundPlan.describe(plan));
+    }
+  }
   if (JSON.stringify(state).length > 8000000) { state.nodes = []; state.edges = []; state._projectionError = "snapshot exceeds 8 MiB safety bound"; }
   return state;
 };

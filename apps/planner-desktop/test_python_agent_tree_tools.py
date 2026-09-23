@@ -6,6 +6,48 @@ import unittest
 
 
 class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cluster_refund_metadata_only_in_cluster_node_details(self):
+        snap=_make_fixture_snapshot()
+        snap.semantic_topology={"version":"v1","clusters":[{"id":"p","type":"passive","nodeIds":["100","200"],"edges":[["100","200"]]}],
+            "nodeToCluster":{"100":"p","200":"p"},"clusterEdges":[],"unclassifiedNodes":[],"excludedAscendancyNodeIds":["600"]}
+        snap.refund_impacts={"100":[{"category":"general","applicable":True,"refundable":True,
+            "cascadeNodeIds":["300","400"],"additionalRefundCount":2,"totalRefundCount":3,"complete":True}],
+            "600":[{"category":"ascendancy","applicable":True,"refundable":False,"errorCode":"START_NODE_PROTECTED"}]}
+        before=copy.deepcopy(snap.__dict__)
+        tools={t.name:t for t in register_tree_tools(snap)}
+        result=await tools["read_tree_cluster"].execute({"nodeId":"100"})
+        self.assertEqual(result["refundImpacts"]["100"]["snapshotId"],snap.snapshot_id)
+        self.assertEqual(result["refundImpacts"]["100"]["categories"][0]["cascadeNodeIds"],["300","400"])
+        self.assertEqual(result["refundImpacts"]["200"]["reason"],"not-allocated")
+        asc=await tools["read_tree_cluster"].execute({"nodeId":"600"})
+        self.assertFalse(asc["refundImpacts"]["600"]["categories"][0]["refundable"])
+        for name,args in (("tree_overview",{}),("read_tree_nodes",{"ids":["100"]}),
+                          ("search_tree_nodes",{"query":"100"}),("read_tree_cluster",{"nodeId":"100","section":"edges"})):
+            self.assertNotIn("refundImpacts",await tools[name].execute(args))
+        self.assertEqual(snap.__dict__,before)
+
+    async def test_cluster_refund_pages_keep_whole_cascade_lists(self):
+        ids=[str(i) for i in range(20)]
+        snap=TreeSnapshot(snapshot_id="refund-fixture",build={"allocations":{"normal":ids}},semantic_topology={
+            "version":"v1","clusters":[{"id":"p","type":"passive","nodeIds":ids,"edges":[]}],
+            "nodeToCluster":{i:"p" for i in ids},"clusterEdges":[],"unclassifiedNodes":[],"excludedAscendancyNodeIds":[]})
+        cascades=[str(i) for i in range(100,200)]
+        snap.refund_impacts={i:[{"category":"general","refundable":True,"cascadeNodeIds":cascades,
+            "additionalRefundCount":100,"totalRefundCount":101,"complete":True}] for i in ids}
+        tool=register_tree_tools(snap)[-1]
+        self.assertEqual(tool.name,"read_tree_cluster")
+        found=[];offset=0
+        while offset is not None:
+            page=await tool.execute({"clusterId":"p","offset":offset})
+            self.assertLessEqual(len(json.dumps(page,ensure_ascii=False,separators=(",",":"))),7500)
+            found+=page["items"]
+            for v in page["refundImpacts"].values():self.assertEqual(v["categories"][0]["cascadeNodeIds"],cascades)
+            offset=page["nextOffset"]
+        self.assertEqual(found,ids)
+        snap.refund_impacts["0"][0]["cascadeNodeIds"]=["long-id-"+str(i) for i in range(1000)]
+        with self.assertRaises(AgentError) as ctx:await tool.execute({"clusterId":"p","limit":1})
+        self.assertEqual(ctx.exception.code,"REFUND_PREVIEW_TOO_LARGE")
+
     async def test_overview_budgets_and_degraded_snapshot_without_allocation_directory(self):
         snap=TreeSnapshot(build={"allocations":{"normal":[str(i) for i in range(65)]},
             "budgets":{"passive":123,"weaponSet":24,"ascendancy":8},
@@ -104,7 +146,7 @@ class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_refresh_failure_keeps_write_success_but_invalidates_old_reads(self):
         from python_agent.tree_tools import TreeSnapshot, register_tree_tools
-        snap=TreeSnapshot(snapshot_id="old",nodes={"100":{"id":"100"}},build={"budgetUsage":{"normal":9}})
+        snap=TreeSnapshot(snapshot_id="old",nodes={"100":{"id":"100"}},build={"budgetUsage":{"normal":9}},refund_impacts={"100":[{"category":"general"}]})
         async def callback(*args):
             return {"success":True,"refreshError":True}
         tools={t.name:t for t in register_tree_tools(snap,callback)}
@@ -113,6 +155,7 @@ class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result["refreshError"])
         self.assertEqual(snap.build,{})
         self.assertTrue(snap._error)
+        self.assertEqual(snap.refund_impacts,{})
 
     async def test_write_refreshes_shared_snapshot_without_exposing_full_catalog(self):
         from python_agent.tree_tools import TreeSnapshot, register_tree_tools
@@ -120,7 +163,7 @@ class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
         async def callback(method, args):
             return {"success": True, "snapshot": {"snapshotId":"after", "nodeCount":1,
                 "nodes":[{"id":"100"}], "build":{"budgetUsage":{"normal":1}},
-                "adjacency":{}, "_pathIndex":{"generalParent":{"100":None}}}}
+                "adjacency":{}, "_pathIndex":{"generalParent":{"100":None}},"refundImpacts":{"100":[{"category":"general","refundable":False}]}}}
         tools = {t.name:t for t in register_tree_tools(snap, callback)}
         result = await tools["allocate_tree_node"].execute({"nodeId":"100"})
         self.assertNotIn("snapshot", result)
@@ -128,6 +171,16 @@ class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(snap.build["budgetUsage"]["normal"], 1)
         self.assertEqual(tools["tree_overview"]._snapshot.snapshot_id,"after")
         self.assertEqual(tools["find_tree_path"]._snapshot._path_index["generalParent"],{"100":None})
+        self.assertEqual(snap.refund_impacts,{"100":[{"category":"general","refundable":False}]})
+
+    async def test_refund_snapshot_rpc_preserves_preview_data(self):
+        from python_agent.rpc_server import dispatch
+        class Service:
+            _active_generation=None
+        service=Service()
+        impacts={"1":[{"category":"weaponSet1","refundable":True,"cascadeNodeIds":["2"]}]}
+        await dispatch(service,"tree_snapshot",{"snapshot":{"nodes":[],"refundImpacts":impacts}})
+        self.assertEqual(service.tree_snapshot.refund_impacts,impacts)
 
     async def test_disabled_rpc_does_not_wire_write_callback(self):
         from python_agent.rpc_server import dispatch
