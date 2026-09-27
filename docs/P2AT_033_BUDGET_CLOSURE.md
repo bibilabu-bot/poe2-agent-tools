@@ -1,6 +1,8 @@
 # P2AT-033 — Bounded multi-round closure
 
-Status: REVIEW; independent review APPROVE, controller acceptance pending.
+Status: ACCEPTED by controller on 2026-09-27; independent review APPROVE.
+Controller reran full Python unittest discovery after corrections: exit 0.
+Owner big-version acceptance pending. Integrated through `b4a7b62`.
 Depends on P2AT-032 (`f7de469`).
 
 The existing ceilings remain 20 model rounds and 100 tool calls. The twentieth

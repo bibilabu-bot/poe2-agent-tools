@@ -1,6 +1,7 @@
 # P2AT-032 — Confirmed refunds and actual write receipts
 
-Status: REVIEW; independent JS/Python review APPROVE, controller acceptance pending.
+Status: ACCEPTED by controller on 2026-09-27; independent JS/Python review APPROVE.
+Owner big-version acceptance pending. Integrated through `b4a7b62`.
 
 Agent refunds require nodeId, category and confirmation containing the preview
 snapshotId and all four removedByCategory arrays (target plus cascades). Python

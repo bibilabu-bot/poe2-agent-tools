@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-032 — Confirm tree write impact and report actual operations
 
-- Status: `REVIEW`
+- Status: `ACCEPTED` (controller, 2026-09-27; owner big-version acceptance pending)
 - Assignment target: Codex local executor, `task/P2AT-032-safe-tree`.
 - Confirm snapshot/category/target/exact refund sets before agent refunds; reject
   stale or missing expectations without mutation. Report actual write outcomes on
@@ -18,7 +18,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-033 — Budgeted multi-round closure
 
-- Status: `REVIEW`
+- Status: `ACCEPTED` (controller, 2026-09-27; owner big-version acceptance pending)
 - Assignment target: same Codex local executor, separate follow-up commit.
 - Preserve 20 model/100 tool limits, reserve final no-tool summary, bounded budget
   and repeated-read guidance, reliable local partial results on failure/cancel.

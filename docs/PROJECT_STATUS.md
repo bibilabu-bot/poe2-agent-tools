@@ -8,6 +8,13 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+P2AT-032/033 controller-ACCEPTED on 2026-09-27 through `b4a7b62`:
+exact category/snapshot refund confirmation, main-owned actual write receipts,
+bounded cancellation settlement, and no-tool closure within 20 model rounds.
+Executor Node 242/242 and isolated Electron checks passed; controller reran full
+Python unittest discovery after the reported test corrections (exit 0).
+Owner big-version acceptance remains pending. See the two task evidence documents.
+
 Agent/tree follow-up integration is controller-ACCEPTED at `359e27a` (2026-09-27):
 overview allocations mode removed; default whole-chat timeout removed; cluster-only
 category-specific refund previews and request-local transient retrieval retries
