@@ -84,4 +84,19 @@ test("live capture carries pure plans through snapshot publication without editi
   const next=await publish(JSON.parse(JSON.stringify(s.window.captureBuildState())));
   assert.notEqual(full.snapshotId,next.snapshotId);
   assert.equal(next.refundImpacts["1"],undefined);
+  // Oversized derived plans must not survive the renderer's compact error projection.
+  let first=true;
+  s.window.plannerRefundPlan={...refund,describe:plan=>{
+    if(!first)return refund.describe(plan);
+    first=false;return {cascadeNodeIds:["x".repeat(8000001)]};
+  }};
+  const beforeOverflow=state(s),undoBefore=s.undo;
+  const overflow=s.window.captureBuildState();
+  assert.match(overflow._projectionError,/exceeds/);
+  assert.equal(JSON.stringify(overflow.refundImpacts),"{}");
+  assert.ok(JSON.stringify(overflow).length<8000000);
+  const rejected=await publish(JSON.parse(JSON.stringify(overflow)));
+  assert.ok(rejected._error);
+  assert.equal(rejected.refundImpacts,undefined);
+  assert.equal(state(s),beforeOverflow);assert.equal(s.undo,undoBefore);
 });

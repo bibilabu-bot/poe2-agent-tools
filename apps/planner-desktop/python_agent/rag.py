@@ -14,6 +14,7 @@ from typing import Any, Mapping
 from .core import AgentError, BaseTool
 from .prompts import TOOL_DESCRIPTIONS
 from .provider import OpenAICompatibleProvider
+from .retrieval_retry import request_with_retry
 
 
 def encode(value: Any) -> str:
@@ -48,7 +49,7 @@ class RetrievalProvider:
         body = {"model":self.embedding["model"], "input":texts, "encoding_format":"float"}
         if self.embedding["model"] not in {"text-embedding-v1", "text-embedding-v2"}:
             body["dimensions"] = self.dimensions
-        data = await self.embed_http._request("/embeddings", body)
+        data = await request_with_retry(self.embed_http, "/embeddings", body, "embedding")
         rows = data.get("data") if isinstance(data, dict) else None
         if not isinstance(rows, list) or len(rows) != len(texts) or any(not isinstance(r, dict) for r in rows):
             raise AgentError("RAG_VECTOR", "向量响应数量不匹配")
@@ -63,7 +64,7 @@ class RetrievalProvider:
         body = {"model":self.reranker["model"]}
         values = {"query":query,"documents":texts}
         body.update({"input":values,"parameters":{"top_n":len(texts)}} if native else {**values,"top_n":len(texts)})
-        data = await self.rank_http._request("", body)
+        data = await request_with_retry(self.rank_http, "", body, "rerank")
         if isinstance(data, dict) and data.get("code"):
             # Provider bodies can echo credentials or input; keep errors generic.
             raise AgentError("RAG_RERANK", "重排序服务报告业务错误，请检查模型与连接配置")

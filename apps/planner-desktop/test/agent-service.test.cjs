@@ -34,17 +34,27 @@ test("default chat survives the former five-minute budget and still supports Sto
     await service.configure({baseUrl:"https://example.com/v1",apiKey:"fixture-only"});
     let release;
     client.block=new Promise(resolve=>{release=resolve;});
-    const pending=service.send({model:"m",text:"hi"});
+    const pending=service.send({model:"m",text:"hi",_remainingMs:0});
     await new Promise(resolve=>setImmediate(resolve));
     t.mock.timers.tick(600_000);
     assert.ok(service.active);
     assert.equal(client.terminatedWith,undefined);
+    assert.equal(client.calls.find(call=>call.method==="send").params._remainingMs,null);
     if(cancel) service.cancel();
     release();
     const result=await pending;
     assert.equal(result.ok,!cancel);
     if(cancel) assert.equal(result.error.code,"CANCELLED");
   }
+});
+test("retrieval receives only the remaining main-owned run budget", async () => {
+  const client=new MockPythonClient(),service=new AgentService({client,runTimeoutMs:2000});
+  await service.configure({baseUrl:"https://example.com/v1",apiKey:"synthetic"});
+  service.ragConfiguration=async()=>{await new Promise(resolve=>setTimeout(resolve,25));return {profiles:null};};
+  const result=await service.send({model:"fixture",text:"fixture",_remainingMs:999999999});
+  assert.equal(result.ok,true);
+  const forwarded=client.calls.find(call=>call.method==="send").params._remainingMs;
+  assert.ok(forwarded>0 && forwarded<=1980);
 });
 
 test("write handler is gated and returns a refreshed snapshot after execution", async () => {

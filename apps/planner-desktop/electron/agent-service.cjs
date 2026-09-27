@@ -186,7 +186,10 @@ class AgentService {
         }
         checkActive();
       }
-      const result = await this.client.request("send", value || {}, { onEvent: (event) => {
+      // Derive this internally after preparation; renderer cannot extend the run.
+      const remainingMs = this.runTimeoutMs > 0
+        ? Math.max(0, this.runTimeoutMs - (Date.now() - runToken.startedAt)) : null;
+      const result = await this.client.request("send", {...(value || {}), _remainingMs: remainingMs}, { onEvent: (event) => {
         if (this.active !== runToken || generation !== this.generation) return;
         if (event.type === "phase") runToken.lastPhase = event.phase;
         else if (event.type === "tool_started") runToken.lastPhase = `tool:${event.name}`;

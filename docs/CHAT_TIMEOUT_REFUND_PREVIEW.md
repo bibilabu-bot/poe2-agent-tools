@@ -20,6 +20,10 @@ The separate unmerged `bf7f1c9` retrieval-retry branch assumes a remaining 300s
 whole-run budget. Do not merge it blindly: its budget propagation must be reconciled
 with this deliberate absence of a default run deadline.
 
+Integration note (2026-09-27): `task/integrate-agent-tree` reconciles that branch
+using request-local 90s limits and no default whole-chat deadline. See
+`AGENT_TREE_INTEGRATION.md`; the original warning remains as branch history.
+
 ## B: read-only cluster refund impact
 
 `read_tree_cluster` node pages retain their `items` ID array and add a keyed

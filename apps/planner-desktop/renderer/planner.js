@@ -4655,7 +4655,7 @@ window.captureBuildState = function() {
       (state.refundImpacts[id] ||= []).push(window.plannerRefundPlan.describe(plan));
     }
   }
-  if (JSON.stringify(state).length > 8000000) { state.nodes = []; state.edges = []; state._projectionError = "snapshot exceeds 8 MiB safety bound"; }
+  if (JSON.stringify(state).length > 8000000) { state.nodes = []; state.edges = []; state.refundImpacts = {}; state._projectionError = "snapshot exceeds 8 MiB safety bound"; }
   return state;
 };
 function _plannerSortedIds(coll) {

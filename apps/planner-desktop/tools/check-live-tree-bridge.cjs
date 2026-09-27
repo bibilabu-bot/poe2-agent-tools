@@ -13,6 +13,8 @@ const temp=fs.mkdtempSync(path.join(os.tmpdir(),"p2at-tree-bridge-"));
 app.setPath("userData",process.env.P2AT_BRIDGE_LIVE ? path.join(app.getPath("appData"),"poe2-planner-desktop") : temp);
 protocol.registerSchemesAsPrivileged([{scheme:"poe2",privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
 const report={errors:[],requests:[]};
+let refundTarget=null, cancelRequestSeen;
+const cancellationReached=new Promise(resolve=>{cancelRequestSeen=resolve;});
 const checkpoint=stage=>{report.stage=stage;fs.writeFileSync(reportPath,JSON.stringify(report,null,2));};
 setTimeout(()=>{checkpoint("timeout");app.exit(1);},process.env.P2AT_BRIDGE_LIVE ? 480000 : 60000).unref();
 app.whenReady().then(async()=>{
@@ -20,6 +22,17 @@ app.whenReady().then(async()=>{
   const server=http.createServer(async(req,res)=>{
     let raw="";for await(const chunk of req)raw+=chunk;
     const body=JSON.parse(raw),names=(body.tools||[]).map(t=>t.function?.name||t.name);
+    const lastUser=body.messages.findLastIndex(m=>m.role==='user'&&!String(m.content).startsWith('[记忆上下文数据]'));
+    const current=body.messages.slice(lastUser), task=current[0]?.content;
+    if(task==='integration-cancel') {res.writeHead(200,{'content-type':'text/event-stream'});res.write(': waiting\n\n');cancelRequestSeen();return;}
+    if(task==='integration-refund') {
+      const completed=current.filter(m=>m.role==='tool');
+      const step=completed.length;
+      const call=step===0?['read_tree_cluster',{nodeId:refundTarget}]:step===1?['deallocate_tree_node',{nodeId:refundTarget,category:'general'}]:['read_tree_cluster',{nodeId:refundTarget}];
+      const delta=step<3?{tool_calls:[{index:0,id:'refund-'+step,type:'function',function:{name:call[0],arguments:JSON.stringify(call[1])}}]}:{content:'synthetic refund verified'};
+      res.writeHead(200,{'content-type':'text/event-stream'});
+      res.end(`data: ${JSON.stringify({choices:[{delta,finish_reason:step<3?'tool_calls':'stop'}]})}\n\ndata: [DONE]\n\n`);return;
+    }
     report.requests.push({tools:names});
     checkpoint("model-request");
     if(!names.includes("tree_overview")){res.writeHead(400,{"content-type":"application/json"});res.end(JSON.stringify({error:{message:"HTTP request lacks tree_overview"}}));return;}
@@ -106,6 +119,8 @@ app.whenReady().then(async()=>{
     assert.ok(report.requests.every(r=>!r.tools.some(n=>["tree_summary","build_summary","list_tree_clusters"].includes(n))));
     assert.ok(report.result.trace.some(t=>t.name==='read_tree_cluster'&&t.ok));
     assert.ok(report.semanticResult.clusterId.startsWith('attribute:'));
+    assert.ok(report.semanticResult.refundImpacts);
+    assert.equal(report.toolResult.allocationsPage,undefined);
     const liveState=await run('window.captureBuildState()');
     const topology=(await snapshotProvider(liveState)).semanticTopology;
     const published=await snapshotProvider(liveState);
@@ -122,6 +137,40 @@ app.whenReady().then(async()=>{
       types:Object.fromEntries(['attribute','jewel','passive'].map(type=>[type,topology.clusters.filter(c=>c.type===type).length])),
       classified:Object.keys(topology.nodeToCluster).length,unclassified:topology.unclassifiedNodes.length,
       ascendancy:topology.excludedAscendancyNodeIds.length};
+    if(!process.env.P2AT_BRIDGE_LIVE) {
+      // Only mutate the synthetic fixture in this isolated renderer; no owner state.
+      refundTarget=liveState.allocated.find(id=>published.semanticTopology.nodeToCluster[id] &&
+        published.refundImpacts[id]?.some(p=>p.category==='general'&&p.refundable&&p.additionalRefundCount>0));
+      assert.ok(refundTarget,'fixture needs refundable cut vertex');
+      const expected=published.refundImpacts[refundTarget].find(p=>p.category==='general');
+      const undoBefore=await run('undoStack.length');
+      const realNow=Date.now;let advanced=false;
+      let refundRun;
+      try {
+        refundRun=await service.send({model:'synthetic',text:'integration-refund',toolsEnabled:true,buildState:liveState},event=>{
+          if(!advanced&&event.type==='phase'){advanced=true;Date.now=()=>realNow()+600000;}
+        },win.webContents);
+      } finally {Date.now=realNow;}
+      assert.equal(refundRun.ok,true,JSON.stringify(refundRun.error));
+      const traces=refundRun.trace;
+      assert.deepEqual(traces.map(t=>t.name),['read_tree_cluster','deallocate_tree_node','read_tree_cluster']);
+      const first=JSON.parse(traces[0].result),last=JSON.parse(traces[2].result);
+      assert.ok(traces.every(t=>t.ok));
+      assert.notEqual(first.snapshotId,last.snapshotId);
+      const after=await run('window.captureBuildState()');
+      for(const [category,key] of Object.entries({general:'allocated',weaponSet1:'weaponSet1Allocated',weaponSet2:'weaponSet2Allocated',ascendancy:'ascAllocated'}))
+        assert.deepEqual(liveState[key].filter(id=>!after[key].includes(id)).sort(),expected.removedByCategory[category]);
+      assert.equal(last.refundImpacts[refundTarget].reason,'not-allocated');
+      assert.equal(await run('undoStack.length'),undoBefore+1);
+      await run('undo()');
+      assert.deepEqual(await run('window.captureBuildState()'),liveState);
+      report.integrationRefund={ok:true,target:refundTarget,additional:expected.additionalRefundCount,snapshotRefreshed:true,simulatedElapsedMs:600000};
+      const pending=service.send({model:'synthetic',text:'integration-cancel',toolsEnabled:true,buildState:liveState});
+      await cancellationReached;service.cancel();
+      assert.equal((await pending).error.code,'CANCELLED');
+      assert.equal(client.child,null);
+      report.integrationCancellation={ok:true,runtimeStopped:true};
+    }
     if(process.env.P2AT_BRIDGE_LIVE) {
       const {AgentCredentialStore}=require("../electron/agent-credential-store.cjs");
       const connection=await new AgentCredentialStore({userDataPath:path.join(app.getPath("appData"),"poe2-planner-desktop"),safeStorage}).load();
