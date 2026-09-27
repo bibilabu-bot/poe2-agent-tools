@@ -23,42 +23,7 @@ function createTreeSnapshotProvider(_localResourceResponse, _upstreamSnapshotId)
       return _errorSnapshot(buildState, "snap-overflow", "node/edge count exceeds main-process bound");
     }
 
-    // Reconstruct Set/Map wrappers (renderer sends plain arrays).
-    var byIdMap = new Map();
-    for (var i = 0; i < projectedNodes.length; i++) {
-      byIdMap.set(String(projectedNodes[i].id), projectedNodes[i]);
-    }
-
-    var state = {
-      nodes: projectedNodes,
-      edges: projectedEdges,
-      byId: byIdMap,
-      allocated: new Set(buildState.allocated || []),
-      weaponSet1Allocated: new Set(buildState.weaponSet1Allocated || []),
-      weaponSet2Allocated: new Set(buildState.weaponSet2Allocated || []),
-      ascAllocated: new Set(buildState.ascAllocated || []),
-      instillAllocated: new Set(buildState.instillAllocated || []),
-      classStartId: buildState.classStartId || null,
-      baseClassName: buildState.baseClassName || null,
-      ascStartId: buildState.ascStartId || null,
-      selectedAscendancyId: buildState.selectedAscendancyId || null,
-      maxPoints: buildState.maxPoints || 0,
-      maxWeaponPoints: buildState.maxWeaponPoints || 0,
-      maxAscPoints: buildState.maxAscPoints || 0,
-      passivePointsUsed: buildState.passivePointsUsed,
-      ascPointsUsed: buildState.ascPointsUsed,
-      // UI display flags are intentionally not used to build the query catalog.
-      showSmall: true,
-      showInstillOnGraph: true,
-      showAsc: Boolean(buildState.showAscendancy),
-      showLockedConditional: Boolean(buildState.showLockedConditional),
-      weaponMode: buildState.weaponMode || null,
-      ascendancyOptions: buildState.ascendancyOptions || [],
-    };
-
-    var treeSnap = ts.captureTreeSnapshot(state);
-    var build = ts.captureBuildState(state);
-    var full = ts.publishFullSnapshot(treeSnap, build, buildState.upstreamSnapshotId || _upstreamSnapshotId || null);
+    var full = ts.publishProjectedSnapshot(buildState, _upstreamSnapshotId);
     full.semanticTopology = deriveSemanticTopology(full.nodes, full.adjacency);
     // Derived by the same pure transition used by the renderer write API.
     full.refundImpacts = buildState.refundImpacts || {};

@@ -164,7 +164,7 @@ v3/v4 中显式保存的英文自定义，即使等于历史英文默认，重�
 ### tool_deallocate_tree_node
 
 ```text
-取消一个天赋节点的分配：级联删除断连节点，检查条件显现天赋依赖。成功后立即生效。必须提供 nodeId 和 category（general、weaponSet1、weaponSet2、ascendancy）；重叠武器组不得猜测目标组，用户未指定时先询问。
+取消一个天赋节点的分配：级联删除断连节点，检查条件显现天赋依赖。成功后立即生效。必须提供 nodeId 和 category（general、weaponSet1、weaponSet2、ascendancy）；重叠武器组不得猜测目标组，用户未指定时先询问。先用 read_tree_cluster 读取目标的完整退点预览，再显式传 confirmation={snapshotId,removedByCategory}；四个类别列表均必须提供，包含目标和全部级联节点。每次写入后旧预览失效，必须重读。缺失、过期或影响不一致会拒绝，不会自动采用最新预览执行。
 ```
 
 ### purpose_search_memory

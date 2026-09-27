@@ -59,5 +59,13 @@
     const {next,success,...details}=plan;
     return {applicable:true,refundable:success,complete:true,...details};
   }
-  return Object.freeze({planRefund,describe,categories});
+  function matchesExpected(plan,expected){
+    if(!plan.success || !expected || typeof expected!=="object" || Array.isArray(expected))return false;
+    if(Object.keys(expected).sort().join()!==[...categories].sort().join())return false;
+    return categories.every(c=>Array.isArray(expected[c]) && expected[c].length<=10000 &&
+      expected[c].every(id=>typeof id==="string" && id.length>0 && id.length<=128) &&
+      new Set(expected[c]).size===expected[c].length &&
+      JSON.stringify([...expected[c]].sort())===JSON.stringify(plan.removedByCategory[c]));
+  }
+  return Object.freeze({planRefund,describe,categories,matchesExpected});
 });

@@ -210,6 +210,7 @@ const agentIpcHandlers = createAgentIpcHandlers(agentService, isTrustedPlannerSe
   clear: (...args) => agentCredentialStore.clear(...args),
 });
 ipcMain.handle("agent:status", agentIpcHandlers.status);
+ipcMain.handle("agent:write-receipt", agentIpcHandlers.writeReceipt);
 ipcMain.handle("agent:inspect-prompt", agentIpcHandlers.inspectPrompt);
 ipcMain.handle("agent:save-prompts", agentIpcHandlers.savePrompts);
 ipcMain.handle("agent:configure", agentIpcHandlers.configure);

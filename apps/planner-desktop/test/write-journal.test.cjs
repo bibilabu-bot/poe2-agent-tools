@@ -1,0 +1,21 @@
+"use strict";
+const test=require("node:test"),assert=require("node:assert/strict");
+const {WriteJournal}=require("../electron/write-journal.cjs");
+const {formatWriteSummary}=require("../renderer/agent-trace.js");
+test("journal separates applied, rejected, unexecuted and unknown without inventing plans",async()=>{
+  const journal=new WriteJournal();
+  journal.settle(journal.start("allocate",{nodeId:"1",category:"general"}),{success:true,newIds:["1","2"]});
+  journal.settle(journal.start("deallocate",{nodeId:"3",category:"weaponSet1"}),{success:false,errorCode:"REFUND_CONFIRMATION_REQUIRED"});
+  journal.recordTrace({name:"deallocate_tree_node",arguments:JSON.stringify({nodeId:"4",category:"general"})});
+  const late=journal.start("allocate",{nodeId:"5",category:"weaponSet2"});
+  journal.pending.add(new Promise(()=>{}));
+  await journal.drain(5);
+  const first=journal.summary(true);
+  assert.deepEqual(first.operations.map(e=>e.status),["applied","rejected","not_executed","unknown"]);
+  assert.equal(first.rolledBack,false);assert.equal(first.unsubmittedPlan,"unknown");
+  assert.match(formatWriteSummary(first),/结果未知/);
+  journal.settle(late,{success:true,newIds:["5"]});
+  assert.equal(journal.summary(true).operations[3].status,"applied");
+  assert.equal(first.operations[3].status,"unknown");
+  journal.recordTrace({name:"allocate_tree_node",arguments:"null"});
+});

@@ -2,6 +2,7 @@
 
 const { PythonAgentClient, PythonAgentError } = require("./python-agent-client.cjs");
 const { normalizeTrace } = require("../renderer/agent-trace.js");
+const {WriteJournal}=require("./write-journal.cjs");
 // Chat has no overall wall-clock deadline. Request/tool guards and Stop remain active.
 const RUN_TIMEOUT_MS = null;
 const PROMPT_BLOCK_IDS = new Set(["base", "memory", "rag", "rag_unavailable", "memory_prefix", "hook_tree_overview",
@@ -117,8 +118,14 @@ class AgentService {
     finally { if (this.active === operationToken) this.active = null; }
   }
   async send(value, onEvent = null, webContents = null) {
+    if(this.unsettledWrites?.size)return {ok:false,error:{code:"WRITE_RESULT_UNKNOWN",message:"先前写入结果尚未确认，未执行新任务；请等待响应后重新查看当前构筑，不要重复写入。"}};
     if (this.active) return { ok: false, error: { code: "RUN_IN_PROGRESS", message: "当前会话已有回复正在运行" } };
     const generation = this.generation; const runToken = { lastPhase: "starting", startedAt: Date.now(), trace: [] }; this.active = runToken;
+    const journal=new WriteJournal();runToken.journal=journal;
+    this.writeReceipts ||= new Map();
+    this.writeReceipts.set(journal.id,{journal,generation});
+    while(this.writeReceipts.size>8)this.writeReceipts.delete(this.writeReceipts.keys().next().value);
+    this.unsettledWrites ||= new Set();
     const timeout = this.runTimeoutMs > 0 ? setTimeout(() => {
       runToken.failure = new PythonAgentError("RUN_TIMEOUT", `智能体运行超时，已停止（最后阶段：${phaseLabel(runToken.lastPhase)}）`);
       if (this.active === runToken) this.client.terminate(runToken.failure);
@@ -134,7 +141,14 @@ class AgentService {
         checkActive();
         if (webContents.isDestroyed()) return { success: false, errorCode: "TREE_WRITE_UNAVAILABLE", message: "天赋树窗口已关闭" };
         if (!["allocate", "deallocate"].includes(method)) return { success: false, errorCode: "INVALID_METHOD", message: "不支持的天赋树操作" };
-        const result = await webContents.executeJavaScript(`window.plannerWriteAPI.${method}(${JSON.stringify(String(params?.nodeId || ""))},${JSON.stringify(params?.category || null)})`);
+        const entry=journal.start(method,params);
+        const invoke=method==="deallocate"?"deallocateConfirmed":"allocate";
+        const write=webContents.executeJavaScript(`window.plannerWriteAPI.${invoke}(${JSON.stringify(String(params?.nodeId || ""))},${JSON.stringify(params?.category || null)},${JSON.stringify(params?.confirmation || null)})`);
+        const tracked=write.then(result=>{journal.settle(entry,result);return result;}).finally(()=>{
+          journal.pending.delete(tracked);this.unsettledWrites.delete(tracked);
+        });
+        journal.pending.add(tracked);this.unsettledWrites.add(tracked);
+        const result=await tracked;
         checkActive();
         if (!result?.success) return result;
         try {
@@ -194,15 +208,21 @@ class AgentService {
         if (event.type === "phase") runToken.lastPhase = event.phase;
         else if (event.type === "tool_started") runToken.lastPhase = `tool:${event.name}`;
         if (event.type === "tool_finished" && event.trace) runToken.trace.push(...normalizeTrace([event.trace], this.config?.apiKey || ""));
+        if(event.type==="tool_finished"&&event.trace)journal.recordTrace(event.trace);
         const { trace: _privateTrace, ...progress } = event;
         onEvent?.({ ...progress, elapsedMs: Date.now() - runToken.startedAt });
       } });
       checkActive();
       if (generation !== this.generation) return { ok: false, stale: true, error: { code: "STALE_RUN", message: "会话已变化，已忽略迟到响应" } };
       this.history = Array.isArray(result.history) ? structuredClone(result.history) : this.history;
-      return { ok: true, text: result.text, trace: normalizeTrace(result.trace, this.config?.apiKey || ""), context: result.context, stopReason: null };
-    } catch (error) { return { ok: false, error: safeError(error), trace: runToken.trace }; }
+      return { ok: true, text: result.text, trace: normalizeTrace(result.trace, this.config?.apiKey || ""), context: result.context, writeSummary:journal.summary(false), stopReason: null };
+    } catch (error) { journal.interrupted=true;await journal.drain();return { ok: false, error: safeError(error), trace: runToken.trace,writeSummary:journal.summary(true) }; }
     finally { clearTimeout(timeout); if (this.active === runToken) { this.client.setTreeWriteHandler(null); this.active = null; } }
+  }
+  writeReceipt(runId) {
+    const receipt=this.writeReceipts?.get(runId);
+    if(!receipt || receipt.generation!==this.generation)return {ok:false,error:{code:"STALE_RECEIPT",message:"原会话写入回执已不可用；请读取当前构筑核对，不要重试写入。"}};
+    return {ok:true,writeSummary:receipt.journal.summary(Boolean(receipt.journal.interrupted))};
   }
   async #ensureConfigured() {
     if (!this.config) throw new PythonAgentError("NOT_CONFIGURED", "请先连接 API 服务");
@@ -232,6 +252,7 @@ function createAgentIpcHandlers(service, isTrustedSender, credentialStore = null
   const mutate = (operation) => { const result = credentialMutation.then(operation, operation); credentialMutation = result.catch(() => {}); return result; };
   return {
     status: async (event) => { guard(event); return service.status(); },
+    writeReceipt: async(event,value) => {guard(event);return service.writeReceipt(value?.runId);},
     inspectPrompt: async (event) => { guard(event); return service.inspectPrompt(); },
     savePrompts: async (event, value) => { guard(event); return service.savePrompts(value?.overrides); },
     configure: async (event, value) => { guard(event); return mutate(async () => { try { const config = validateConfigure(value); await service.configure(config); if (credentialStore) { await credentialStore.save(config); service.setCredentialStored(true); } return { ok: true, ...service.status() }; } catch (error) { await service.clearConfig(); return { ok: false, error: safeError(error), ...service.status() }; } }); },

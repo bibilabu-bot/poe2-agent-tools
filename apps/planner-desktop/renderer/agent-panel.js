@@ -427,6 +427,25 @@
     }
     unsubscribe?.(); clearInterval(timer); activity.entry.durationMs = Date.now() - startedAt; running = false; updateControls();
     if (requestConversation !== conversationId || result.stale) return;
+    const writeText=window.AgentTrace.formatWriteSummary(result.writeSummary);
+    if(writeText && (!result.ok || result.writeSummary.operations.length)) {
+      const notice=document.createElement("div");notice.className="agent-message";
+      const content=document.createElement("pre");content.textContent=writeText;notice.append(content);
+      byId("agentMessages").append(notice);
+      if(result.writeSummary.operations.some(e=>e.status==="unknown") && api.writeReceipt) {
+        const check=document.createElement("button");check.textContent="核对迟到的写入回执";notice.append(check);
+        check.addEventListener("click",async()=>{
+          if(requestConversation!==conversationId)return;
+          check.disabled=true;
+          try {
+            const receipt=await api.writeReceipt(result.writeSummary.runId);
+            if(requestConversation!==conversationId)return;
+            content.textContent=receipt.ok?window.AgentTrace.formatWriteSummary(receipt.writeSummary):receipt.error.message;
+          } catch {content.textContent="回执读取失败，请读取当前构筑核对，不要重复写入。";}
+          finally {check.disabled=false;}
+        });
+      }
+    }
     if (!result.ok) {
       streamingMessage.remove();
       activity.entry.trace = window.AgentTrace.normalizeTrace(result.trace);

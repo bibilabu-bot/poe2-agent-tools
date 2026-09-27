@@ -142,5 +142,11 @@
       return details;
     });
   }
-  return { normalizeTrace, memoryPath, resultSections, formatToolDuration, renderTrace };
+  function formatWriteSummary(summary) {
+    if(!summary || !Array.isArray(summary.operations))return "";
+    const status={applied:"已生效",rejected:"已拒绝",not_executed:"未执行",unknown:"结果未知（不要重试写入）"};
+    const rows=summary.operations.map(e=>`${e.method==="deallocate"?"退点":"加点"} ${e.nodeId} / ${e.category}：${status[e.status]||status.unknown}${e.status==="applied"?`；新增 ${e.addedCount}，移除 ${Object.entries(e.removedCounts||{}).map(([c,n])=>`${c} ${n}`).join("、")||0}`:""}`);
+    return "本次实际改动（本地回执）\n"+(rows.join("\n")||"没有已提交的天赋写入记录。")+"\n未自动回滚；未提交的后续计划未知。";
+  }
+  return { normalizeTrace, memoryPath, resultSections, formatToolDuration, renderTrace, formatWriteSummary };
 });

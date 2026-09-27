@@ -6,6 +6,30 @@ import unittest
 
 
 class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
+    async def test_refund_requires_exact_explicit_preview(self):
+        from python_agent.tree_tools import DeallocateTreeNodeTool
+        from python_agent.core import AgentError
+        snap=_make_fixture_snapshot()
+        removed={"general":["100","200"],"weaponSet1":[],"weaponSet2":[],"ascendancy":[]}
+        snap.refund_impacts={"100":[{"category":"general","refundable":True,"removedByCategory":removed}]}
+        calls=[]
+        async def callback(method,args):
+            calls.append(args)
+            return {"success":True,"snapshot":{"snapshotId":"new","nodes":[]}}
+        tool=DeallocateTreeNodeTool(snap,callback)
+        valid={"nodeId":"100","category":"general","confirmation":{"snapshotId":snap.snapshot_id,"removedByCategory":removed}}
+        for case in ("missing","stale","ids","duplicate","category"):
+            args=copy.deepcopy(valid)
+            if case=="missing":del args["confirmation"]
+            elif case=="stale":args["confirmation"]["snapshotId"]="stale"
+            elif case=="ids":args["confirmation"]["removedByCategory"]["general"][1]="999"
+            elif case=="duplicate":args["confirmation"]["removedByCategory"]["general"][1]="100"
+            else:args["category"]="weaponSet1"
+            with self.assertRaises(AgentError):await tool.execute(args)
+        self.assertEqual(calls,[])
+        await tool.execute(valid)
+        self.assertEqual(len(calls),1)
+
     async def test_cluster_refund_metadata_only_in_cluster_node_details(self):
         snap=_make_fixture_snapshot()
         snap.semantic_topology={"version":"v1","clusters":[{"id":"p","type":"passive","nodeIds":["100","200"],"edges":[["100","200"]]}],

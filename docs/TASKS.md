@@ -6,6 +6,24 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-032 — Confirm tree write impact and report actual operations
+
+- Status: `REVIEW`
+- Assignment target: Codex local executor, `task/P2AT-032-safe-tree`.
+- Confirm snapshot/category/target/exact refund sets before agent refunds; reject
+  stale or missing expectations without mutation. Report actual write outcomes on
+  success/error/cancel without claiming rollback or knowing unsubmitted plans.
+- Synthetic tests and isolated Electron evidence; no owner data or paid requests.
+- Delivery: `docs/P2AT_032_SAFE_TREE.md`; independent JS/Python review APPROVE.
+
+### P2AT-033 — Budgeted multi-round closure
+
+- Status: `READY`
+- Assignment target: same Codex local executor, separate follow-up commit.
+- Preserve 20 model/100 tool limits, reserve final no-tool summary, bounded budget
+  and repeated-read guidance, reliable local partial results on failure/cancel.
+- Depends on P2AT-032 operation reporting; no automatic whole-task rollback.
+
 ### Agent/tree follow-up integration (no numbered ID assigned)
 
 - Status: `ACCEPTED` (controller, 2026-09-27); owner big-version acceptance pending.

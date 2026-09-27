@@ -50,7 +50,7 @@ TREE_TOOL_DESCRIPTIONS = {
     "read_tree_neighborhood": "按有界跳数和节点数查看节点邻域：返回真实连接关系，限定可加点方向或全部方向。明确标注裁切和分页。只读，不分配节点。",
     "find_tree_path": "从当前已分配起点集（或指定节点）寻找目标节点的最短候选路径。使用现有加点资格判断和确定性 BFS；报告路径方向、类别和需要新加的点数。无法确认合法性时明确说明。只读，不分配节点。",
     "allocate_tree_node": "分配一个天赋节点：必须提供 nodeId 和 category（general 通用、weaponSet1 仅武器组I、weaponSet2 仅武器组II、ascendancy 升华）。明确指定武器组时必须使用对应类别，不能用通用分配代替；类别不明确先询问。按指定类别最短路径补全节点，检查预算、连通性及条件限制，成功后立即生效。不依赖界面当前武器组。已通用分配的节点不能直接改为仅武器组，需另行确认退点；Keystone和珠宝孔等不支持武器组专精。",
-    "deallocate_tree_node": "取消一个天赋节点的分配：级联删除断连节点，检查条件显现天赋依赖。成功后立即生效。必须提供 nodeId 和 category（general、weaponSet1、weaponSet2、ascendancy）；重叠武器组不得猜测目标组，用户未指定时先询问。",
+    "deallocate_tree_node": "取消一个天赋节点的分配：级联删除断连节点，检查条件显现天赋依赖。成功后立即生效。必须提供 nodeId 和 category（general、weaponSet1、weaponSet2、ascendancy）；重叠武器组不得猜测目标组，用户未指定时先询问。先用 read_tree_cluster 读取目标的完整退点预览，再显式传 confirmation={snapshotId,removedByCategory}；四个类别列表均必须提供，包含目标和全部级联节点。每次写入后旧预览失效，必须重读。缺失、过期或影响不一致会拒绝，不会自动采用最新预览执行。",
 }
 TOOL_DESCRIPTIONS.update(TREE_TOOL_DESCRIPTIONS)
 TOOL_PURPOSES = {

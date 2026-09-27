@@ -26,6 +26,25 @@ function scope({edges,normal,ws1=[],ws2=[],asc=["a"],conditional=[]}){
 }
 const state=s=>JSON.stringify([s.allocated,s.weaponSet1Allocated,s.weaponSet2Allocated,s.ascAllocated].map(x=>[...x].sort()));
 const chain={edges:[["0","1"],["1","2"],["2","3"],["a","a1"],["a1","a2"]],normal:["0","1","2","3"],asc:["a","a1","a2"]};
+test("confirmed refunds compare live snapshot and exact category sets before one atomic commit",()=>{
+  for(const kind of ["missing","stale","same-count","duplicate","wrong-category","valid"]){
+    const s=scope(chain),before=state(s),plan=s.planCurrentRefund("1","general");
+    s.window.captureBuildState=()=>({});
+    s.window.plannerTreeSnapshot={publishProjectedSnapshot:()=>({snapshotId:"live"})};
+    const start=source.indexOf("function deallocateConfirmed(");
+    vm.runInContext(source.slice(start,source.indexOf("\n}",start)+2),s);
+    let confirmation={snapshotId:"live",removedByCategory:structuredClone(plan.removedByCategory)};
+    if(kind==="missing")confirmation=null;
+    if(kind==="stale")confirmation.snapshotId="old";
+    if(kind==="same-count")confirmation.removedByCategory.general[1]="other";
+    if(kind==="duplicate")confirmation.removedByCategory.general[1]="1";
+    if(kind==="wrong-category"){confirmation.removedByCategory.weaponSet1=confirmation.removedByCategory.general;confirmation.removedByCategory.general=[];}
+    const result=s.deallocateConfirmed("1","general",confirmation);
+    assert.equal(result.success,kind==="valid");
+    assert.equal(s.undo,kind==="valid"?1:0);
+    if(kind!=="valid")assert.equal(state(s),before);
+  }
+});
 test("legacy predicate callbacks ignore array indexes and graph node IDs",()=>{
   const s={unlockConstraintOf:n=>n.constraint,constraintAscendancyMatches:()=>true,
     allAllocatedIds:()=>new Set(["required"]),constraintNodeIds:()=>["required"],

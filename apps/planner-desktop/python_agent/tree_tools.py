@@ -770,10 +770,41 @@ class DeallocateTreeNodeTool(_TreeWriteTool):
         super().__init__(snapshot, "deallocate_tree_node", "deallocate", write_callback)
 
     def _parameters(self) -> dict[str, Any]:
-        return {"required": ["nodeId", "category"], "properties": {
+        return {"required": ["nodeId", "category", "confirmation"], "properties": {
             "nodeId": {"type": "string"},
             "category": {"type": "string", "enum": ["general", "weaponSet1", "weaponSet2", "ascendancy"]},
+            "confirmation": {"type":"object","additionalProperties":False,
+                "required":["snapshotId","removedByCategory"],"properties":{
+                    "snapshotId":{"type":"string"},
+                    "removedByCategory":{"type":"object","additionalProperties":False,
+                        "required":["general","weaponSet1","weaponSet2","ascendancy"],
+                        "properties":{c:{"type":"array","maxItems":10000,"uniqueItems":True,
+                            "items":{"type":"string","minLength":1,"maxLength":128}} for c in ("general","weaponSet1","weaponSet2","ascendancy")}}}}
         }}
+
+    def validate(self, arguments: Mapping[str, Any]) -> None:
+        super().validate(arguments)
+        categories=("general","weaponSet1","weaponSet2","ascendancy")
+        confirmation=arguments.get("confirmation")
+        valid=isinstance(arguments.get("nodeId"),str) and arguments.get("category") in categories
+        valid=valid and isinstance(confirmation,dict) and set(confirmation)=={"snapshotId","removedByCategory"}
+        removed=confirmation.get("removedByCategory") if valid else None
+        valid=valid and isinstance(removed,dict) and set(removed)==set(categories)
+        if valid:
+            valid=all(isinstance(ids,list) and len(ids)<=10000 and
+                      all(isinstance(n,str) and 0<len(n)<=128 for n in ids) and len(set(ids))==len(ids)
+                      for ids in removed.values())
+        if not valid:
+            raise AgentError("REFUND_CONFIRMATION_REQUIRED","退点需要完整且无重复的类别化预览确认；请重新查看簇。")
+        expected=next((p for p in self._snapshot.refund_impacts.get(arguments["nodeId"],[])
+                       if p.get("category")==arguments["category"] and p.get("refundable")),None)
+        if confirmation["snapshotId"]!=self._snapshot.snapshot_id or not expected or any(
+                sorted(removed[c])!=expected.get("removedByCategory",{}).get(c) for c in categories):
+            raise AgentError("REFUND_CONFIRMATION_REQUIRED","快照或退点影响不一致；请重新查看簇后提交当前完整影响。")
+
+    async def execute(self, arguments: Mapping[str, Any]) -> Any:
+        self.validate(arguments)
+        return await super().execute(arguments)
 
 
 def register_tree_tools(snapshot: TreeSnapshot, write_callback: Callable[..., Any] | None = None) -> list[BaseTool]:

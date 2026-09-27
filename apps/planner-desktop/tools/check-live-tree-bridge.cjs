@@ -29,6 +29,10 @@ app.whenReady().then(async()=>{
       const completed=current.filter(m=>m.role==='tool');
       const step=completed.length;
       const call=step===0?['read_tree_cluster',{nodeId:refundTarget}]:step===1?['deallocate_tree_node',{nodeId:refundTarget,category:'general'}]:['read_tree_cluster',{nodeId:refundTarget}];
+      if(step===1) {
+        const preview=JSON.parse(completed[0].content).refundImpacts[refundTarget];
+        call[1].confirmation={snapshotId:preview.snapshotId,removedByCategory:preview.categories.find(p=>p.category==='general').removedByCategory};
+      }
       const delta=step<3?{tool_calls:[{index:0,id:'refund-'+step,type:'function',function:{name:call[0],arguments:JSON.stringify(call[1])}}]}:{content:'synthetic refund verified'};
       res.writeHead(200,{'content-type':'text/event-stream'});
       res.end(`data: ${JSON.stringify({choices:[{delta,finish_reason:step<3?'tool_calls':'stop'}]})}\n\ndata: [DONE]\n\n`);return;
@@ -144,6 +148,12 @@ app.whenReady().then(async()=>{
       assert.ok(refundTarget,'fixture needs refundable cut vertex');
       const expected=published.refundImpacts[refundTarget].find(p=>p.category==='general');
       const undoBefore=await run('undoStack.length');
+      const wrong={snapshotId:published.snapshotId,removedByCategory:structuredClone(expected.removedByCategory)};
+      wrong.removedByCategory.general[0]='not-the-same-node';
+      const refused=await run(`window.plannerWriteAPI.deallocateConfirmed(${JSON.stringify(refundTarget)},'general',${JSON.stringify(wrong)})`);
+      assert.equal(refused.errorCode,'REFUND_CONFIRMATION_REQUIRED');
+      assert.equal(await run('undoStack.length'),undoBefore);
+      assert.deepEqual((await run('window.captureBuildState()')).allocated,liveState.allocated);
       const realNow=Date.now;let advanced=false;
       let refundRun;
       try {
@@ -152,6 +162,8 @@ app.whenReady().then(async()=>{
         },win.webContents);
       } finally {Date.now=realNow;}
       assert.equal(refundRun.ok,true,JSON.stringify(refundRun.error));
+      assert.equal(refundRun.writeSummary.operations[0].status,'applied');
+      report.confirmedWrite={sameCountWrongIdsRejected:true,receipt:refundRun.writeSummary};
       const traces=refundRun.trace;
       assert.deepEqual(traces.map(t=>t.name),['read_tree_cluster','deallocate_tree_node','read_tree_cluster']);
       const first=JSON.parse(traces[0].result),last=JSON.parse(traces[2].result);

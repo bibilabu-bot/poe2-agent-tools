@@ -26,6 +26,39 @@ class MockPythonClient {
   terminate(error) { this.configured = false; this.terminatedWith = error; }
 }
 
+test("Stop preserves an in-flight write receipt, bounds waiting and isolates late settlement", async(t)=>{
+  for(const late of [false,true]) {
+    const client=new MockPythonClient();let handler,release,failSend,callbackDone;
+    client.setTreeWriteHandler=h=>{handler=h;};
+    const request=client.request.bind(client);
+    client.request=async(method,params,options)=>{
+      if(method!=="send")return request(method,params,options);
+      callbackDone=handler("allocate",{nodeId:"42",category:"weaponSet1"}).catch(()=>{});
+      return new Promise((_resolve,reject)=>{failSend=reject;});
+    };
+    client.terminate=error=>{client.configured=false;failSend?.(error);};
+    const service=new AgentService({client});
+    await service.configure({baseUrl:"https://example.com/v1",apiKey:"synthetic"});
+    const webContents={isDestroyed:()=>false,executeJavaScript:()=>new Promise(resolve=>{release=resolve;})};
+    const pending=service.send({toolsEnabled:true},null,webContents);
+    await new Promise(resolve=>setImmediate(resolve));
+    service.cancel();
+    if(!late)release({success:true,newIds:["42"]});
+    else {t.mock.timers.enable({apis:["setTimeout"]});await new Promise(resolve=>setImmediate(resolve));t.mock.timers.tick(2001);}
+    const result=await pending;
+    assert.equal(result.ok,false);
+    assert.equal(result.writeSummary.operations[0].status,late?"unknown":"applied");
+    if(late){
+      assert.equal((await service.send({})).error.code,"WRITE_RESULT_UNKNOWN");
+      release({success:true,newIds:["42"]});await callbackDone;
+      assert.equal(service.writeReceipt(result.writeSummary.runId).writeSummary.operations[0].status,"applied");
+      t.mock.timers.reset();
+    }
+    service.generation++;
+    assert.equal(service.writeReceipt(result.writeSummary.runId).error.code,"STALE_RECEIPT");
+  }
+});
+
 test("default chat survives the former five-minute budget and still supports Stop", async (t) => {
   t.mock.timers.enable({apis:["setTimeout","Date"]});
   for (const cancel of [false,true]) {

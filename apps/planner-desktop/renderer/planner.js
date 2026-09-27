@@ -4548,8 +4548,8 @@ function planCurrentRefund(id, category) {
   },id,category);
 }
 
-function applyCurrentRefund(id, category) {
-  const plan=planCurrentRefund(id,category);
+function applyCurrentRefund(id, category, confirmedPlan = null) {
+  const plan=confirmedPlan || planCurrentRefund(id,category);
   if(!plan.success) return plan;
   pushUndo();
   allocated=plan.next.general;
@@ -4581,9 +4581,23 @@ function _deallocateAscById(n, id) {
 }
 
 // Expose as stable renderer API (consumed by agent-panel.js and future Python bridge).
+function deallocateConfirmed(rawId, category, confirmation) {
+  const reject=()=>({success:false,errorCode:"REFUND_CONFIRMATION_REQUIRED",message:"退点预览已过期或影响不一致；请重新查看簇并确认完整类别化影响。"});
+  if(!confirmation || typeof confirmation.snapshotId!=="string")return reject();
+  const state=window.captureBuildState();
+  if(state._projectionError)return reject();
+  const current=window.plannerTreeSnapshot.publishProjectedSnapshot(state);
+  if(current.snapshotId!==confirmation.snapshotId)return reject();
+  const id=String(rawId),plan=planCurrentRefund(id,category);
+  if(!window.plannerRefundPlan.matchesExpected(plan,confirmation.removedByCategory))return reject();
+  // Synchronous check and commit: no IPC/await or second preview between them.
+  return applyCurrentRefund(id,category,plan);
+}
+
 window.plannerWriteAPI = Object.freeze({
   allocate: allocateNodeById,
   deallocate: deallocateNodeById,
+  deallocateConfirmed,
 });
 // ── end narrow write API ──
 
