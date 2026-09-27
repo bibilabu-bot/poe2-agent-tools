@@ -148,5 +148,11 @@
     const rows=summary.operations.map(e=>`${e.method==="deallocate"?"退点":"加点"} ${e.nodeId} / ${e.category}：${status[e.status]||status.unknown}${e.status==="applied"?`；新增 ${e.addedCount}，移除 ${Object.entries(e.removedCounts||{}).map(([c,n])=>`${c} ${n}`).join("、")||0}`:""}`);
     return "本次实际改动（本地回执）\n"+(rows.join("\n")||"没有已提交的天赋写入记录。")+"\n未自动回滚；未提交的后续计划未知。";
   }
-  return { normalizeTrace, memoryPath, resultSections, formatToolDuration, renderTrace, formatWriteSummary };
+  function formatPartialResults(trace) {
+    const rows=normalizeTrace(trace);
+    if(!rows.length)return "本轮未收到已完成的工具结果，不能据此推断任务已完成。";
+    const recent=rows.slice(-8).map(row=>`${row.ok?"成功":"失败"}：${row.name}\n${row.result.slice(0,300)}${row.result.length>300?"…（完整结果见工具详情）":""}`);
+    return `本地部分结果：已收到 ${rows.length} 条工具记录。以下是最近 ${recent.length} 条原始结果摘录，不是完整结论；工具成功不代表整个任务完成。\n`+recent.join("\n\n");
+  }
+  return { normalizeTrace, memoryPath, resultSections, formatToolDuration, renderTrace, formatWriteSummary, formatPartialResults };
 });

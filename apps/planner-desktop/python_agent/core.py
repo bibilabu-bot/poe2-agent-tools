@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 import time
@@ -172,6 +173,7 @@ class RunState(TypedDict):
     tool_count: int
     model: str
     tools_enabled: bool
+    reads: dict[str, dict[str, Any]]
 
 
 class AgentRunner:
@@ -225,6 +227,7 @@ class AgentRunner:
                 "model_input": [], "context_report": {},
                 "trace": [], "calls": [], "text": "", "rounds": 0,
                 "tool_count": 0, "model": model, "tools_enabled": tools_enabled,
+                "reads": {},
             }
             # Never upload user conversations through ambient LangSmith settings.
             # No checkpointer/retry: service commits only a fully successful turn.
@@ -238,6 +241,21 @@ class AgentRunner:
     def _prepare_context(self, state: RunState) -> dict[str, Any]:
         self._emit({"type": "phase", "phase": "preparing_context", "round": state["rounds"] + 1})
         instructions = list(state["instructions"])
+        final = self._closing(state)
+        # Runtime-owned metadata only: never interpolate query/result text into
+        # system instructions. This does not authorize additional actions.
+        repeated = sorted({r["name"] for r in state["reads"].values() if r["count"] > 1})[:8]
+        successes = sum(bool(t["ok"]) for t in state["trace"])
+        budget = (f"[运行预算] 本次第 {state['rounds']+1}/{self.limits.max_model_rounds} 轮；"
+                  f"剩余工具调用 {max(0,self.limits.max_tool_calls-state['tool_count'])}。"
+                  f"已有工具记录 {len(state['trace'])} 条，成功 {successes}，失败 {len(state['trace'])-successes}。"
+                  "成功不等于证据充分；结论只依据已有工具结果，区分事实、推断、缺失信息。"
+                  "不要重复查询已有证据；需要补充时使用不同目标/分页。先前写入不会因停止而回滚。")
+        if repeated:
+            budget += " 同快照同参数的成功读取已重复：" + ",".join(repeated) + "；优先复用已有结果。"
+        if final:
+            budget += " 本轮为预留收尾轮，禁止调用任何工具。现在总结已完成内容、实际改动、失败/未知事项和后续待办；不要声称未完成任务已完成。"
+        instructions.append({"role":"system","content":budget})
         seen_tools = set()
         for item in state["trace"]:
             name = item["name"]
@@ -260,7 +278,9 @@ class AgentRunner:
         except ContextError as error:
             raise AgentError("INVALID_HISTORY", str(error)) from error
         report = {**selected.report, "memoryChars": memory_chars,
-                  "totalHistoryChars": selected.report["historyChars"] + memory_chars}
+                  "totalHistoryChars": selected.report["historyChars"] + memory_chars,
+                  "closureRound": final, "remainingToolCalls": max(0,self.limits.max_tool_calls-state["tool_count"]),
+                  "repeatedReadTools": repeated}
         if memory is not None:
             report.update({"currentTurn": memory["current_turn"],
                            "directoryTurns": len(memory["directory"]),
@@ -270,14 +290,17 @@ class AgentRunner:
     async def _model_step(self, state: RunState) -> dict[str, Any]:
         if state["rounds"] >= self.limits.max_model_rounds:
             raise AgentError("MODEL_ROUND_LIMIT", "Model-round limit exceeded")
-        self._emit({"type": "phase", "phase": "waiting_for_model", "round": state["rounds"] + 1})
+        closing = self._closing(state)
+        self._emit({"type": "phase", "phase": "final_summary" if closing else "waiting_for_model", "round": state["rounds"] + 1})
         reply = await self.provider.complete(
             model=state["model"], messages=state["model_input"],
-            tools=self.registry.definitions() if state["tools_enabled"] else [],
+            tools=self.registry.definitions() if state["tools_enabled"] and not closing else [],
             on_event=self.on_event,
         )
         content = reply.content[: self.limits.max_text_chars]
         calls = list(reply.tool_calls)
+        if closing and calls:
+            raise AgentError("FINAL_SUMMARY_TOOL_CALL", "收尾轮仍请求工具，已拒绝执行；请查看已完成的工具结果和实际写入回执。")
         call_ids = [call.call_id for call in calls]
         if any(not value or len(value) > 256 for value in call_ids) or len(set(call_ids)) != len(call_ids):
             raise AgentError("INVALID_TOOL_CALL", "Tool call IDs must be present and unique")
@@ -299,12 +322,35 @@ class AgentRunner:
     def _next_step(state: RunState) -> str:
         return "tools" if state["calls"] else "done"
 
+    def _closing(self, state: RunState) -> bool:
+        return (state["rounds"] >= self.limits.max_model_rounds - 1 or
+                state["tool_count"] >= self.limits.max_tool_calls)
+
+    def _read_key(self, call: ToolCall) -> str | None:
+        if call.name not in {"tree_overview", "read_tree_nodes", "search_tree_nodes",
+                             "read_tree_neighborhood", "find_tree_path", "read_tree_cluster",
+                             "read_passive_nodes", "search_passive_nodes"}:
+            return None
+        tool = self.registry.get(call.name)
+        snapshot = getattr(tool, "_snapshot", None) or getattr(tool, "tree_snapshot", None)
+        if snapshot is None:
+            return None
+        try:
+            args = json.loads(call.arguments)
+        except (ValueError, TypeError):
+            return None
+        identity = [call.name, snapshot.snapshot_id, args]
+        return hashlib.sha256(json.dumps(identity, sort_keys=True, ensure_ascii=False,
+                                          separators=(",", ":")).encode()).hexdigest()
+
     async def _tools_step(self, state: RunState) -> dict[str, Any]:
         messages = list(state["messages"])
         trace = list(state["trace"])
+        reads = {key:dict(value) for key,value in state["reads"].items()}
         for call in state["calls"]:
             self._emit({"type": "tool_started", "name": call.name[:64]})
             started = time.monotonic()
+            read_key = self._read_key(call)
             result, ok = await self._execute_tool(call)
             duration_ms = round((time.monotonic() - started) * 1000, 3)
             # Full Build cluster graphs must not be sliced at the ordinary 8k detail limit.
@@ -314,6 +360,9 @@ class AgentRunner:
                 ok = False
                 result_text = json.dumps({"error":{"code":"OVERVIEW_TOO_LARGE",
                     "message":"当前BD概览超过64k安全上限，未返回残缺簇图。"}} ,ensure_ascii=False)
+            if ok and read_key:
+                previous = reads.get(read_key, {"name":call.name, "count":0})
+                reads[read_key] = {"name":call.name, "count":previous["count"]+1}
             trace.append({"callId": call.call_id, "name": call.name[:64],
                           "arguments": call.arguments,
                           "durationMs": duration_ms,
@@ -322,7 +371,7 @@ class AgentRunner:
                         "durationMs": duration_ms, "trace": trace[-1]})
             messages.append({"role": "tool", "tool_call_id": call.call_id, "content": result_text})
         return {"messages": messages, "trace": trace,
-                "tool_count": state["tool_count"] + len(state["calls"]), "calls": []}
+                "tool_count": state["tool_count"] + len(state["calls"]), "calls": [], "reads": reads}
 
     async def _execute_tool(self, call: ToolCall) -> tuple[Any, bool]:
         try:

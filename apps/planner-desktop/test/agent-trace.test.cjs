@@ -1,4 +1,12 @@
 "use strict";
+
+require("node:test")("local partial results are bounded and do not assert task completion",()=>{
+  const {formatPartialResults}=require("../renderer/agent-trace.js");
+  const assert=require("node:assert/strict");
+  const text=formatPartialResults(Array.from({length:100},(_,i)=>({name:"read_tree_nodes",callId:String(i),ok:true,result:"x".repeat(1000),arguments:"{}"})));
+  assert.ok(text.length<4000);assert.match(text,/不是完整结论/);
+  assert.match(formatPartialResults([]),/不能据此推断任务已完成/);
+});
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { normalizeTrace, memoryPath, resultSections, formatToolDuration } = require("../renderer/agent-trace.js");

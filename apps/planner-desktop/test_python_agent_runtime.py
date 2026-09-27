@@ -86,8 +86,105 @@ class PythonAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
         runner = AgentRunner(provider, ToolRegistry(), RunnerLimits(max_model_rounds=2))
         with self.assertRaises(AgentError) as caught:
             await runner.run(agent=ChatAgent(), history=[{"role": "user", "content": "go"}], model="mock")
-        self.assertEqual(caught.exception.code, "MODEL_ROUND_LIMIT")
+        self.assertEqual(caught.exception.code, "FINAL_SUMMARY_TOOL_CALL")
         self.assertEqual(len(provider.requests), 2)
+        self.assertEqual(provider.requests[-1]["tools"], [])
+
+    async def test_twentieth_round_is_reserved_for_no_tool_summary(self):
+        calls=[ModelReply(tool_calls=(ToolCall(str(i),"fixture_arithmetic",'{"operator":"add","a":1,"b":1}'),)) for i in range(19)]
+        provider=ScriptedProvider([*calls,ModelReply("已算出2；其余未执行")])
+        runner=AgentRunner(provider,ToolRegistry([ArithmeticFixtureTool()]))
+        result=await runner.run(agent=ChatAgent(),history=[{"role":"user","content":"go"}],model="mock")
+        self.assertEqual(result.rounds,20)
+        self.assertEqual(result.tool_calls,19)
+        self.assertEqual(provider.requests[-1]["tools"],[])
+        self.assertTrue(result.context_report["closureRound"])
+        self.assertIn("预留收尾轮",str(provider.requests[-1]["messages"]))
+
+    async def test_tool_budget_exhaustion_closes_early(self):
+        calls=tuple(ToolCall(str(i),"fixture_arithmetic",'{"operator":"add","a":1,"b":1}') for i in range(100))
+        provider=ScriptedProvider([ModelReply(tool_calls=calls),ModelReply("部分完成")])
+        result=await AgentRunner(provider,ToolRegistry([ArithmeticFixtureTool()])).run(agent=ChatAgent(),history=[{"role":"user","content":"go"}],model="mock")
+        self.assertEqual(result.tool_calls,100)
+        self.assertEqual(result.rounds,2)
+        self.assertEqual(provider.requests[-1]["tools"],[])
+
+    async def test_exact_read_guidance_distinguishes_args_pagination_and_snapshot(self):
+        from types import SimpleNamespace
+        from python_agent.core import BaseTool
+        class Read(BaseTool):
+            name="read_tree_cluster"
+            description="fixture"
+            parameters={"type":"object"}
+            def __init__(self):self._snapshot=SimpleNamespace(snapshot_id="old");self.count=0
+            def validate(self,args):pass
+            async def execute(self,args):
+                self.count+=1
+                if self.count==4:self._snapshot.snapshot_id="new"
+                return {"fixture":True}
+        tool=Read()
+        args=['{"nodeId":"1","offset":0}','{"offset":0,"nodeId":"1"}',
+              '{"nodeId":"1","offset":1}','{"nodeId":"2","offset":0}',
+              '{"nodeId":"1","offset":0}']
+        provider=ScriptedProvider([*[ModelReply(tool_calls=(ToolCall(str(i),tool.name,a),)) for i,a in enumerate(args)],ModelReply("done")])
+        result=await AgentRunner(provider,ToolRegistry([tool])).run(agent=ChatAgent(),history=[{"role":"user","content":"go"}],model="mock")
+        self.assertEqual(tool.count,5)  # Guidance is not a cache or a hidden tool skip.
+        self.assertEqual(result.context_report["repeatedReadTools"],[tool.name])
+        self.assertNotIn("同快照同参数",str(provider.requests[1]["messages"]))
+        self.assertIn("同快照同参数",str(provider.requests[2]["messages"]))
+        # New snapshot starts a distinct identity, not another repeat of old args.
+        runner=AgentRunner(ScriptedProvider([]),ToolRegistry([tool]))
+        a=ToolCall("a",tool.name,args[0]);key=runner._read_key(a)
+        self.assertEqual(key,runner._read_key(ToolCall("b",tool.name,args[1])))
+        self.assertNotEqual(key,runner._read_key(ToolCall("b",tool.name,args[2])))
+        tool._snapshot.snapshot_id="later"
+        self.assertNotEqual(key,runner._read_key(a))
+
+    async def test_final_network_failure_keeps_finished_tool_events(self):
+        events=[]
+        class FailsAtSummary(ScriptedProvider):
+            async def complete(self,**kwargs):
+                if not kwargs["tools"]:raise AgentError("NETWORK_ERROR","fixture network failure")
+                return await super().complete(**kwargs)
+        provider=FailsAtSummary([ModelReply(tool_calls=(ToolCall("a","fixture_arithmetic",'{"operator":"add","a":1,"b":1}'),))])
+        runner=AgentRunner(provider,ToolRegistry([ArithmeticFixtureTool()]),RunnerLimits(max_model_rounds=2),on_event=events.append)
+        with self.assertRaises(AgentError) as caught:
+            await runner.run(agent=ChatAgent(),history=[{"role":"user","content":"go"}],model="mock")
+        self.assertEqual(caught.exception.code,"NETWORK_ERROR")
+        finished=[e for e in events if e["type"]=="tool_finished"]
+        self.assertEqual(len(finished),1)
+        self.assertTrue(finished[0]["trace"]["ok"])
+
+    async def test_rejected_oversized_overview_is_not_reusable_evidence(self):
+        from python_agent.tree_tools import TreeOverviewTool,TreeSnapshot
+        tool=TreeOverviewTool(TreeSnapshot(snapshot_id="fixture"))
+        async def oversized(args):return {"items":"x"*64001}
+        tool.execute=oversized
+        provider=ScriptedProvider([ModelReply(tool_calls=(ToolCall("a","tree_overview","{}"),)),
+                                   ModelReply(tool_calls=(ToolCall("b","tree_overview","{}"),)),ModelReply("unavailable")])
+        result=await AgentRunner(provider,ToolRegistry([tool])).run(agent=ChatAgent(),history=[{"role":"user","content":"go"}],model="mock")
+        self.assertTrue(all(not t["ok"] for t in result.trace))
+        self.assertEqual(result.context_report["repeatedReadTools"],[])
+        self.assertNotIn("同快照同参数",str(provider.requests[-1]["messages"]))
+
+    async def test_cancel_during_final_summary_keeps_evidence_without_extra_request(self):
+        entered=asyncio.Event()
+        events=[]
+        class WaitAtSummary(ScriptedProvider):
+            async def complete(self,**kwargs):
+                if not kwargs["tools"]:
+                    self.requests.append(kwargs)
+                    entered.set()
+                    await asyncio.Event().wait()
+                return await super().complete(**kwargs)
+        provider=WaitAtSummary([ModelReply(tool_calls=(ToolCall("a","fixture_arithmetic",'{"operator":"add","a":1,"b":1}'),))])
+        runner=AgentRunner(provider,ToolRegistry([ArithmeticFixtureTool()]),RunnerLimits(max_model_rounds=2),on_event=events.append)
+        pending=asyncio.create_task(runner.run(agent=ChatAgent(),history=[{"role":"user","content":"go"}],model="mock"))
+        await asyncio.wait_for(entered.wait(),5)
+        pending.cancel()
+        with self.assertRaises(asyncio.CancelledError):await pending
+        self.assertEqual(len(provider.requests),2)
+        self.assertEqual(len([e for e in events if e["type"]=="tool_finished"]),1)
 
     async def test_graph_disabled_tools_and_reuse_isolate_state(self):
         provider = ScriptedProvider([

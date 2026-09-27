@@ -25,6 +25,17 @@ app.whenReady().then(async()=>{
     const lastUser=body.messages.findLastIndex(m=>m.role==='user'&&!String(m.content).startsWith('[记忆上下文数据]'));
     const current=body.messages.slice(lastUser), task=current[0]?.content;
     if(task==='integration-cancel') {res.writeHead(200,{'content-type':'text/event-stream'});res.write(': waiting\n\n');cancelRequestSeen();return;}
+    if(task==='integration-closure'||task==='integration-closure-fail') {
+      const step=current.filter(m=>m.role==='tool').length;
+      if(step===19) {
+        assert.equal(names.length,0,'final round must expose no tools');
+        assert.ok(body.messages.some(m=>m.role==='system'&&m.content.includes('预留收尾轮')));
+        if(task.endsWith('-fail')){res.writeHead(503,{'content-type':'application/json'});res.end('{}');return;}
+      }
+      const delta=step<19?{tool_calls:[{index:0,id:'closure-'+step,type:'function',function:{name:'search_tree_nodes',arguments:'{"query":"synthetic-nonexistent-node"}'}}]}:{content:'已收尾，19次只读工具，无写入。'};
+      res.writeHead(200,{'content-type':'text/event-stream'});
+      res.end(`data: ${JSON.stringify({choices:[{delta,finish_reason:step<19?'tool_calls':'stop'}]})}\n\ndata: [DONE]\n\n`);return;
+    }
     if(task==='integration-refund') {
       const completed=current.filter(m=>m.role==='tool');
       const step=completed.length;
@@ -182,6 +193,15 @@ app.whenReady().then(async()=>{
       assert.equal((await pending).error.code,'CANCELLED');
       assert.equal(client.child,null);
       report.integrationCancellation={ok:true,runtimeStopped:true};
+      const currentBuild=await run('window.captureBuildState()');
+      const closed=await service.send({model:'synthetic',text:'integration-closure',toolsEnabled:true,buildState:currentBuild},null,win.webContents);
+      assert.equal(closed.ok,true,JSON.stringify(closed.error));assert.equal(closed.trace.length,19);
+      assert.equal(closed.context.closureRound,true);
+      assert.deepEqual(closed.context.repeatedReadTools,['search_tree_nodes']);
+      const failed=await service.send({model:'synthetic',text:'integration-closure-fail',toolsEnabled:true,buildState:currentBuild},null,win.webContents);
+      assert.equal(failed.ok,false);assert.equal(failed.trace.length,19);
+      assert.equal(failed.writeSummary.operations.length,0);
+      report.budgetClosure={ok:true,rounds:20,tools:closed.trace.length,noFinalTools:true,failedSummaryRetainedTools:failed.trace.length};
     }
     if(process.env.P2AT_BRIDGE_LIVE) {
       const {AgentCredentialStore}=require("../electron/agent-credential-store.cjs");

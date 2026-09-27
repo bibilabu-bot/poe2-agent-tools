@@ -239,7 +239,9 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
                 provider=ScriptedProvider([ModelReply("fixture answer")]);service.provider=provider
                 await service.send("mock","fixture user",False)
                 systems=[m["content"] for m in provider.requests[0]["messages"] if m["role"]=="system"]
-                self.assertEqual(systems,[preview["text"]])
+                self.assertEqual(systems[0],preview["text"])
+                self.assertEqual(len(systems),2)
+                self.assertTrue(systems[1].startswith("[运行预算]"))
             finally:
                 if service.memory_store: service.memory_store.db.close()
 
@@ -281,8 +283,8 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
             request=provider.requests[0]
             self.assertEqual(request["messages"][0]["content"],service.inspect_prompt()["text"])
             self.assertNotIn(overrides["tool_search_memory"], request["messages"][0]["content"])
-            self.assertTrue(request["messages"][1]["content"].startswith(overrides["memory_prefix"]))
-            self.assertEqual(request["messages"][1]["role"],"user")
+            memory_message=next(m for m in request["messages"] if m["role"]=="user" and m["content"].startswith(overrides["memory_prefix"]))
+            self.assertEqual(memory_message["role"],"user")
             self.assertEqual({t["function"]["name"]:t["function"]["description"] for t in request["tools"]},
                              {name:overrides["purpose_"+name] for name in TOOL_PURPOSES if name in {t["function"]["name"] for t in request["tools"]}})
             self.assertNotIn("calculator",[t["function"]["name"] for t in request["tools"]])

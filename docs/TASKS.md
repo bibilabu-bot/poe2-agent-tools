@@ -18,11 +18,12 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-033 — Budgeted multi-round closure
 
-- Status: `READY`
+- Status: `REVIEW`
 - Assignment target: same Codex local executor, separate follow-up commit.
 - Preserve 20 model/100 tool limits, reserve final no-tool summary, bounded budget
   and repeated-read guidance, reliable local partial results on failure/cancel.
 - Depends on P2AT-032 operation reporting; no automatic whole-task rollback.
+- Delivery: `docs/P2AT_033_BUDGET_CLOSURE.md`; independent review APPROVE.
 
 ### Agent/tree follow-up integration (no numbered ID assigned)
 

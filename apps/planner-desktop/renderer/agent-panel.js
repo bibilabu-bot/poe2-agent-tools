@@ -403,6 +403,7 @@
     const phaseText = {
       preparing_context: "正在准备会话上下文…",
       waiting_for_model: "正在接收模型流式回复…",
+      final_summary: "正在用预留轮次总结已有结果（不再调用工具）…",
     };
     const unsubscribe = api.onRunEvent?.((progress) => {
       if (requestConversation !== conversationId || !running || !Number.isInteger(progress?.seq) || progress.seq <= lastSequence) return;
@@ -450,6 +451,7 @@
       streamingMessage.remove();
       activity.entry.trace = window.AgentTrace.normalizeTrace(result.trace);
       activity.entry.state = "error"; activity.entry.steps[activity.entry.steps.length - 1] = `失败：${result.error.message}`; activity.render();
+      addMessage("error", window.AgentTrace.formatPartialResults(result.trace), false);
       addMessage("error", result.error.message, false); return;
     }
     activity.entry.state = "done";

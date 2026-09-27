@@ -4,6 +4,7 @@ const { app, BrowserWindow, session } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const assert = require("node:assert/strict");
+app.setPath("userData",require("node:fs").mkdtempSync(path.join(require("node:os").tmpdir(),"p2at-agent-details-")));
 app.on("window-all-closed", () => {}); // Explicit result below owns exit status.
 
 app.whenReady().then(async () => {
@@ -171,6 +172,17 @@ app.whenReady().then(async () => {
       assert.equal(style.scheme,'dark'); assert.equal(style.width,'thin');
       assert.equal(style.color,'rgb(85, 90, 99) rgb(16, 18, 22)');
     }
+    await evaluate(`window.desktopAPI.agent.send=async()=>({ok:false,error:{message:'synthetic final summary failed'},
+      trace:[{name:'search_tree_nodes',ok:true,result:'{"matches":[],"total":0}',arguments:'{"query":"fixture"}'}],
+      writeSummary:{runId:'fixture',interrupted:true,operations:[{method:'allocate',nodeId:'42',category:'weaponSet1',status:'unknown'}]}});
+      window.desktopAPI.agent.writeReceipt=async()=>({ok:true,writeSummary:{operations:[{method:'allocate',nodeId:'42',category:'weaponSet1',status:'applied',addedCount:1,removedCounts:{}}]}});
+      document.getElementById('agentInput').value='测试失败收尾';document.getElementById('agentComposer').requestSubmit();`);
+    await waitFor("document.getElementById('agentMessages').textContent.includes('本地部分结果')");
+    assert.ok(await evaluate("document.getElementById('agentMessages').textContent.includes('结果未知')"));
+    await evaluate("[...document.querySelectorAll('#agentMessages button')].find(b=>b.textContent==='核对迟到的写入回执').click()");
+    await waitFor("document.getElementById('agentMessages').textContent.includes('weaponSet1：已生效')");
+    assert.ok(await evaluate("[...document.querySelectorAll('#agentMessages .agent-message')].filter(e=>e.textContent.includes('本地部分结果')).every(e=>e.getBoundingClientRect().height>0)"));
+    console.log("PASS: final failure preserves local partial evidence and unknown write receipt; late receipt resolves in original UI");
     console.log("PASS: dark nested scrollbars; running activity and tool/reply completion follow bottom; timer does not steal scroll position");
     console.log("PASS: production panel expands/collapses parameters, results, timing and memory links; reload restores details; HTML stays inert");
   } finally { window.destroy(); await isolated.clearStorageData(); }
