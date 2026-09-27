@@ -1,4 +1,10 @@
-# Agent/tree integration — REVIEW
+# Agent/tree integration — ACCEPTED
+
+Controller acceptance: 2026-09-27, integration `359e27a45b2a3410954d4e65d5cbaf045ab73c64`.
+Reviewed conflict reconciliation and delivery evidence; independently reran 13 Python
+retrieval-retry tests and 30 Node service/refund tests, all passing with no skips.
+Owner delegated small-scale acceptance and main integration; owner big-version
+acceptance remains pending. The running owner application was not restarted.
 
 Date: 2026-09-27. Branch: `task/integrate-agent-tree`.
 Controller-authorized integration; no new numbered task ID was assigned.

@@ -1,12 +1,21 @@
 # Project status
 
-Last updated: 2026-09-23
+Last updated: 2026-09-27
 
 ## Product objective
 
 Build a maintainable, free-to-use and publicly released PoE2 desktop build planner with reliable passive-tree allocation, localized data, offline-capable resources and an extensible jewel/rule engine. Voluntary donations or sponsorship may support the project without gating application features.
 
 ## Current baseline
+
+Agent/tree follow-up integration is controller-ACCEPTED at `359e27a` (2026-09-27):
+overview allocations mode removed; default whole-chat timeout removed; cluster-only
+category-specific refund previews and request-local transient retrieval retries
+integrated. Per-request bounds and Stop remain; no hidden 300s run budget.
+Executor full regression: Node 238/238 and Python 124/124 plus synthetic Electron
+bridge; controller reran 43 focused tests successfully. See
+`docs/AGENT_TREE_INTEGRATION.md` for evidence and limitations. Owner big-version
+acceptance is pending; existing running application was not restarted.
 
 P2AT-031A and P2AT-031B are ACCEPTED (2026-09-23). The owner verified the
 running UI and authorized integration through `07a0d1de5ca408ddfeba089fb27805bc336e2ec7`.

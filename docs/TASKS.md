@@ -6,6 +6,14 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### Agent/tree follow-up integration (no numbered ID assigned)
+
+- Status: `ACCEPTED` (controller, 2026-09-27); owner big-version acceptance pending.
+- Assignment target: Codex local executor; integration `359e27a`.
+- Includes overview allocations removal, no whole-chat deadline, cluster refund
+  impact preview and request-local transient retrieval retries.
+- Evidence and boundaries: `docs/AGENT_TREE_INTEGRATION.md`.
+
 ### P2AT-031A — Delete agent conversations with confirmation
 
 - Status: `ACCEPTED` (2026-09-23; owner UI approval and controller regression)
