@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const jewelCatalog = require("../src/jewels/catalog.js");
 const {
   BUILD_FORMAT,
   BUILD_SCHEMA_VERSION,
@@ -15,7 +16,7 @@ const {
 function validDocument(overrides = {}) {
   const document = {
     format: BUILD_FORMAT,
-    schemaVersion: BUILD_SCHEMA_VERSION,
+    schemaVersion: 1,
     build: {
       class: { base: "Mercenary", ascendancyId: "Mercenary1" },
       budgets: { passive: 123, weaponSet: 24, ascendancy: 8 },
@@ -38,6 +39,25 @@ function validDocument(overrides = {}) {
   return Object.assign(document, overrides);
 }
 
+test('v1 private jewels remain inert and prevent destructive upgrade saves',()=>{
+  const source=validDocument();source.build.jewels={instances:[{legacy:42}],placements:[{legacy:43}],future:true};
+  const result=decodeBuildDocument(source);assert.equal(result.ok,true);
+  assert.deepEqual(result.value.build.jewels,{instances:[],placements:[]});
+  assert.deepEqual(result.preservation.source.build.jewels,source.build.jewels);
+  assert.throws(()=>serializeBuildDocument(result.value,result.preservation),/冲突/);
+});
+
+test('duplicate and escaped-equivalent JSON keys fail without confusing quoted punctuation',()=>{
+  const source=validDocument({schemaVersion:2});source.build.jewels={instances:[{id:'jwl_a',definitionId:jewelCatalog.definitions[0].definitionId,properties:{}}],placements:[]};
+  const text=JSON.stringify(source);
+  for(const properties of ['{"seed":1,"seed":2}','{"seed":1,"\\u0073eed":2}']) {
+    const result=decodeBuildDocument(text.replace('"properties":{}','"properties":'+properties));
+    assert.equal(result.ok,false);assert.ok(result.diagnostics.fatals.some(d=>d.code==='duplicate_json_key'));
+  }
+  source.build.jewels.instances[0].properties={text:'{"seed":1,"seed":2}',nested:{seed:2},seed:1};
+  assert.equal(decodeBuildDocument(JSON.stringify(source)).ok,true);
+});
+
 test("valid schema-v1 documents round-trip all allocation categories deterministically", () => {
   const source = validDocument();
   const before = structuredClone(source);
@@ -53,9 +73,10 @@ test("valid schema-v1 documents round-trip all allocation categories determinist
     instilledPassives: ["Augmented Flesh", "Paragon"],
   });
   assert.deepEqual(createBuildDocument(decoded.value, decoded.preservation), {
-    ...before,
+    ...before, schemaVersion: 2,
     build: {
       ...before.build,
+      jewels: {instances:[],placements:[]},
       allocations: {
         normal: ["3", "20"],
         weaponSet1: ["40"],
@@ -146,7 +167,7 @@ test("diagnostic details are capped while aggregate warning counts remain", () =
 });
 
 test("a future schema version is rejected without a normalized value", () => {
-  const decoded = decodeBuildDocument(validDocument({ schemaVersion: 2 }));
+  const decoded = decodeBuildDocument(validDocument({ schemaVersion: 3 }));
 
   assert.equal(decoded.ok, false);
   assert.equal(decoded.value, null);
@@ -320,5 +341,96 @@ test("the codec exports a browser global without CommonJS or platform APIs", () 
   vm.runInContext(fs.readFileSync(filename, "utf8"), context);
 
   assert.equal(typeof context.plannerBuildCodec.decodeBuildDocument, "function");
-  assert.equal(context.plannerBuildCodec.BUILD_SCHEMA_VERSION, 1);
+  assert.equal(context.plannerBuildCodec.BUILD_SCHEMA_VERSION, 2);
+});
+
+test("schema-v1 migrates only in memory and explicit save emits empty schema-v2 jewels", () => {
+  const source = validDocument(); const before = structuredClone(source);
+  const decoded = decodeBuildDocument(source);
+  assert.equal(decoded.ok, true); assert.equal(decoded.value.schemaVersion, 2);
+  assert.deepEqual(decoded.value.build.jewels, { instances: [], placements: [] });
+  assert.deepEqual(source, before);
+  const saved = createBuildDocument(decoded.value, decoded.preservation);
+  assert.equal(saved.schemaVersion, 2); assert.deepEqual(saved.build.jewels, { instances: [], placements: [] });
+});
+
+test("schema-v2 jewel records round trip deterministically and preserve opaque fields", () => {
+  const source = validDocument({ schemaVersion: 2 });
+  source.build.jewels = { instances: [
+    { id: "jwl_z", definitionId: "poe2-jewel:unique-voices", properties: { z: 1, a: { y: true } }, extra: "keep" },
+    { id: "jwl_a", definitionId: "partner:x", properties: { future: 1 } },
+  ], placements: [
+    { socketNodeId: "61834", instanceId: "jwl_z", future: true },
+    { socketNodeId: "2491", instanceId: "jwl_a" },
+  ] };
+  const decoded = decodeBuildDocument(source); assert.equal(decoded.ok, true);
+  const saved = createBuildDocument(decoded.value, decoded.preservation);
+  assert.deepEqual(saved.build.jewels.instances.map(x => x.id), ["jwl_a", "jwl_z"]);
+  assert.deepEqual(saved.build.jewels.placements.map(x => x.socketNodeId), ["2491", "61834"]);
+  assert.equal(saved.build.jewels.instances[1].extra, "keep");
+  assert.equal(saved.build.jewels.placements[1].future, true);
+});
+
+test("v2 requires jewels and rejects duplicate instances, malformed placement, and jewel limits", () => {
+  const missing = validDocument({ schemaVersion: 2 }); delete missing.build.jewels; assert.equal(decodeBuildDocument(missing).ok, false);
+  const duplicate = validDocument({ schemaVersion: 2 }); duplicate.build.jewels = { instances: [
+    { id: "jwl_a", definitionId: "poe2-jewel:x", properties: {} }, { id: "jwl_a", definitionId: "poe2-jewel:x", properties: {} },
+  ], placements: [] }; assert.ok(decodeBuildDocument(duplicate).diagnostics.fatals.some(x => x.code === "duplicate_instance_id"));
+  const malformed = validDocument({ schemaVersion: 2 }); malformed.build.jewels = { instances: [], placements: [{ socketNodeId: 2491, instanceId: "jwl_a" }] }; assert.equal(decodeBuildDocument(malformed).ok, false);
+});
+
+test("jewel catalog diagnostics preserve inactive unknown, special, dangling, and conflict records", () => {
+  const source = validDocument({ schemaVersion: 2 }); source.build.jewels = { instances: [
+    { id: "jwl_a", definitionId: "partner:future", properties: {} }, { id: "jwl_b", definitionId: jewelCatalog.definitions[0].definitionId, properties: {} },
+  ], placements: [
+    { socketNodeId: "999", instanceId: "jwl_a" }, { socketNodeId: "2491", instanceId: "jwl_b" }, { socketNodeId: "7960", instanceId: "jwl_b" }, { socketNodeId: "2491", instanceId: "missing" },
+  ] };
+  const decoded = decodeBuildDocument(source, { jewelCatalog: { ...jewelCatalog, sockets: [...jewelCatalog.sockets, { nodeId: "17788", officialRawId: "special", category: "ascendancy-special" }] } });
+  assert.equal(decoded.ok, true); assert.ok(decoded.diagnostics.warnings.some(x => x.code === "unknown_definition"));
+  assert.ok(decoded.diagnostics.warnings.some(x => x.code === "unknown_socket")); assert.ok(decoded.diagnostics.warnings.some(x => x.code === "socket_conflict")); assert.ok(decoded.diagnostics.warnings.some(x => x.code === "instance_conflict"));
+});
+
+test("explicit jewel deletion removes opaque instance and placement data while unrelated saves preserve it", () => {
+  const source = validDocument({ schemaVersion: 2 }); source.build.jewels = { instances: [{ id: "jwl_a", definitionId: "partner:future", properties: { future: 1 }, extra: true }], placements: [{ socketNodeId: "999", instanceId: "jwl_a", extra: true }] };
+  const decoded = decodeBuildDocument(source); const untouched = createBuildDocument(decoded.value, decoded.preservation);
+  assert.equal(untouched.build.jewels.instances[0].extra, true);
+  decoded.value.build.jewels.instances = []; decoded.value.build.jewels.placements = [];
+  assert.deepEqual(createBuildDocument(decoded.value, decoded.preservation).build.jewels, { instances: [], placements: [] });
+});
+
+test("duplicate placement canonical selection is deterministic across order and nested key order", () => {
+  const candidates = [
+    { socketNodeId: "2491", instanceId: "jwl_a", x: 2, nested: { z: 1, a: 2 } },
+    { instanceId: "jwl_a", socketNodeId: "2491", nested: { a: 2, z: 1 }, x: 2 },
+    { socketNodeId: "2491", instanceId: "jwl_a", x: 1, future: true },
+  ];
+  const permutations = [candidates, [...candidates].reverse(), [candidates[1], candidates[2], candidates[0]]];
+  const outputs = permutations.map(placements => {
+    const source = validDocument({ schemaVersion: 2 });
+    source.build.jewels = { instances: [{ id: "jwl_a", definitionId: jewelCatalog.definitions[0].definitionId, properties: {} }], placements };
+    const decoded = decodeBuildDocument(source, { jewelCatalog });
+    assert.equal(decoded.diagnostics.warnings.filter(item => item.code === "duplicate_placement").length, 2);
+    return { placement: decoded.value.build.jewels.placements[0], text: serializeBuildDocument(decoded.value, decoded.preservation) };
+  });
+  assert.ok(outputs.every(output => output.text === outputs[0].text));
+  assert.equal(outputs[0].placement.future, true);
+  const pure = require("../renderer/jewel-state.js").normalizeJewelState({ instances: [{ id: "jwl_a", definitionId: jewelCatalog.definitions[0].definitionId, properties: {} }], placements: candidates }, jewelCatalog);
+  assert.deepEqual(outputs[0].placement, pure.state.placements[0]);
+});
+
+test("duplicate placement canonicalization preserves __proto__ as opaque data across modules", () => {
+  const withProto = JSON.parse('{"socketNodeId":"2491","instanceId":"jwl_a","__proto__":{"future":true}}');
+  const plain = { socketNodeId: "2491", instanceId: "jwl_a", z: 1 };
+  const decode = placements => {
+    const source = validDocument({ schemaVersion: 2 });
+    source.build.jewels = { instances: [{ id: "jwl_a", definitionId: jewelCatalog.definitions[0].definitionId, properties: {} }], placements };
+    return decodeBuildDocument(source, { jewelCatalog }).value.build.jewels.placements[0];
+  };
+  const first = decode([withProto, plain]);
+  const reversed = decode([plain, withProto]);
+  const pure = require("../renderer/jewel-state.js").normalizeJewelState({ instances: [{ id: "jwl_a", definitionId: jewelCatalog.definitions[0].definitionId, properties: {} }], placements: [plain, withProto] }, jewelCatalog).state.placements[0];
+  assert.deepEqual(first, reversed);
+  assert.deepEqual(first, pure);
+  assert.equal(Object.hasOwn(first, "__proto__"), true);
+  assert.deepEqual(first.__proto__, { future: true });
 });

@@ -19,6 +19,7 @@ function scope({edges,normal,ws1=[],ws2=[],asc=["a"],conditional=[]}){
   s.hiddenDependentsOf=ids=>conditional.filter(([id,req])=>s.allocated.has(id)&&ids.has(req)).map(([id])=>s.byId.get(id));
   s.canTraverseWithActive=(n,active)=>!n.asc&&s.constraintSatisfied(n,active);
   s.canTraverse=n=>s.canTraverseWithActive(n,null);s.canTraverseAsc=n=>n.asc==="asc";
+  s.jewelStateCore=require("../renderer/jewel-state.js");s.jewelState={instances:[],placements:[]};
   vm.createContext(s);
   for(const name of ["planCurrentRefund","applyCurrentRefund","pruneWeaponSet","revalidateOrdinaryAllocated","refundNormalTarget","refundWeaponTarget","refundAscTarget"])
     vm.runInContext(extract(name),s);
@@ -26,6 +27,16 @@ function scope({edges,normal,ws1=[],ws2=[],asc=["a"],conditional=[]}){
 }
 const state=s=>JSON.stringify([s.allocated,s.weaponSet1Allocated,s.weaponSet2Allocated,s.ascAllocated].map(x=>[...x].sort()));
 const chain={edges:[["0","1"],["1","2"],["2","3"],["a","a1"],["a1","a2"]],normal:["0","1","2","3"],asc:["a","a1","a2"]};
+test('occupied socket blocks direct and cascade refunds without edits or undo records',()=>{
+  for(const id of ['3','1']) {
+    const s=scope(chain),before=state(s);
+    s.jewelState.placements=[{socketNodeId:'3',instanceId:'jwl_a'}];
+    assert.equal(s.planCurrentRefund(id,'general').errorCode,'JEWEL_EQUIPPED');
+    assert.equal(s.applyCurrentRefund(id,'general').success,false);
+    s.refundNormalTarget(s.byId.get(id));assert.equal(state(s),before);assert.equal(s.undo,0);
+    s.jewelState.placements=[];assert.equal(s.applyCurrentRefund(id,'general').success,true);
+  }
+});
 test("confirmed refunds compare live snapshot and exact category sets before one atomic commit",()=>{
   for(const kind of ["missing","stale","same-count","duplicate","wrong-category","valid"]){
     const s=scope(chain),before=state(s),plan=s.planCurrentRefund("1","general");

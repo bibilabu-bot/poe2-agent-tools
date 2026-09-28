@@ -21,6 +21,10 @@ const buildCodec = typeof module === "object" && module.exports
 const buildStateAdapter = typeof module === "object" && module.exports
   ? require("./build-state-adapter.js")
   : window.plannerBuildStateAdapter;
+const jewelStateCore = window.plannerJewelState;
+const jewelCatalog = window.plannerJewelCatalog;
+let liveJewelCatalog = {definitions:jewelCatalog.definitions,sockets:[]};
+let jewelPanel = null;
 const weGameImportUI = typeof module === "object" && module.exports
   ? require("./wegame-import-ui.js")
   : window.plannerWeGameImportUI;
@@ -77,6 +81,7 @@ let maxWeaponPoints = 24;                // campaign default; adjustable for spe
 let ascAllocated = new Set();           // current ascendancy nodes
 let ascStartId = null;
 let buildPreservation = null;
+let jewelState = {instances:[],placements:[]};
 let plannerDataReady = false;
 let buildStateUnsafe = false;
 let weGamePreviewValue = null;
@@ -356,6 +361,7 @@ async function loadOfficialHiddenSidecar() {
   if(!res.ok) throw new Error(`GGG data.json HTTP ${res.status}`);
   const data=await res.json();
 
+  liveJewelCatalog = jewelStateCore.verifyRuntimeCatalog(jewelCatalog, data, byId);
   const orbitCounts=officialOrbitCounts(data);
   deriveOfficialToCurrentTransform(data,orbitCounts);
 
@@ -1490,7 +1496,7 @@ function refreshLocalizedUI() {
   populateClassSelect();
   if(prevClass) $("#classSelect").value=prevClass;
   populateAscendancySelect(prevClass, prevAsc);
-  if (selected) showNodeInfo(selected);
+  if (selected) showNodeInfo(selected, false);
   if (hovered) updateHoverMessage(hovered);
   renderInstillCatalog();
   scheduleDraw();
@@ -2077,6 +2083,7 @@ function drawTranslatedAscendancy(lod) {
 }
 
 function nodeRingStyle(n,id) {
+  if(jewelState.placements.some(p=>p.socketNodeId===id)) return {color:selected===n?"#ffffff":"#63d6bb",width:selected===n?4:3};
   if(isInstillExclusiveNode(n)) {
     if(instillAllocated.has(String(n.name||""))) {
       return {color:"rgba(91,195,235,.99)",width:3.0};
@@ -2549,6 +2556,7 @@ function updateConditionalUI() {
 
 
 function updatePlannerUI(message="") {
+  jewelPanel?.render();
   const generalUsed=usedPoints();
   const effectiveUsed=effectivePassivePointsUsed();
   const ascUsed=usedAscPoints();
@@ -2573,14 +2581,11 @@ function updatePlannerUI(message="") {
 
   $("#undo").disabled=undoStack.length===0;
   $("#redo").disabled=redoStack.length===0;
-  $("#resetBuild").disabled=!classStartId || (
-    allocated.size<=1 &&
-    ws1===0 &&
-    ws2===0 &&
-    ascUsed===0 &&
-    instillAllocated.size===0 &&
-    !buildPreservation
-  );
+  const hasJewels=jewelStateCore.hasJewelState(jewelState);
+  $("#resetBuild").disabled=classStartId
+    ? allocated.size<=1 && ws1===0 && ws2===0 && ascUsed===0
+      && instillAllocated.size===0 && !hasJewels && !buildPreservation
+    : !hasJewels && !buildPreservation;
 
   renderInstillCatalog();
   updateConditionalUI();
@@ -2806,11 +2811,15 @@ function snapshot() {
     weaponSet2Allocated:[...weaponSet2Allocated],
     ascAllocated:[...ascAllocated],
     ascStartId,
+    jewelState:structuredClone(jewelState),
+    preservation:structuredClone(buildPreservation),
     instillAllocated:[...instillAllocated]
   };
 }
 
 function restoreSnapshot(s) {
+  jewelState=structuredClone(s.jewelState || {instances:[],placements:[]});
+  buildPreservation=structuredClone(s.preservation ?? null);
   allocated=new Set(s.allocated||[]);
   weaponSet1Allocated=new Set(s.weaponSet1Allocated||[]);
   weaponSet2Allocated=new Set(s.weaponSet2Allocated||[]);
@@ -2996,6 +3005,7 @@ function refundNormalTarget(n) {
     : new Set();
 
   const removedIds=new Set([...allocated].filter(x=>!reachable.has(x)));
+  if(jewelStateCore.blocksRefund(jewelState,removedIds)) { updatePlannerUI("不能退点：请先卸下受影响插槽中的珠宝。"); return; }
   const blocked=hiddenDependentsOf(removedIds);
   if(blocked.length) {
     updatePlannerUI(`不能退点：会破坏已分配条件显现天赋「${displayNodeName(blocked[0])}」的前置条件。`);
@@ -3059,6 +3069,7 @@ function refundAscTarget(n) {
     : new Set();
 
   const removedIds=new Set([...ascAllocated].filter(x=>!reachable.has(x)));
+  if(jewelStateCore.blocksRefund(jewelState,removedIds)) { updatePlannerUI("不能退点：请先卸下受影响插槽中的珠宝。"); return; }
   const blocked=hiddenDependentsOf(removedIds);
   if(blocked.length) {
     const names=blocked.slice(0,3).map(displayNodeName).join("、");
@@ -3090,13 +3101,15 @@ function allocateTarget(n) {
 }
 
 function resetBuild() {
-  if(!classStartId) return;
+  if(jewelStateCore.hasJewelState(jewelState) && !confirm("重置将清空所有珠宝实例及装备记录。继续？")) return;
+  if(!classStartId && !jewelStateCore.hasJewelState(jewelState) && !buildPreservation) return;
   pushUndo();
-  allocated=new Set([classStartId]);
+  allocated=classStartId?new Set([classStartId]):new Set();
   weaponSet1Allocated=new Set();
   weaponSet2Allocated=new Set();
   resetAscAllocation();
   instillAllocated=new Set();
+  jewelState=jewelStateCore.clearJewelState();
   buildPreservation=null;
   clearPreviews();
   rebuildPathIndex();
@@ -3251,7 +3264,9 @@ function selectAscendancy(id, doFocus=true) {
 
 
 function selectClass(name) {
+  if(jewelStateCore.hasJewelState(jewelState) && !confirm("换职业将清空所有珠宝实例及装备记录。继续？")) { $("#classSelect").value=baseClassName||""; return; }
   buildPreservation=null;
+  jewelState=jewelStateCore.clearJewelState();
   baseClassName=name||null;
   // Invalidate the previous class portrait before any async load starts.
   if(classPortraitRenderedClass!==baseClassName) {
@@ -3287,8 +3302,9 @@ function selectClass(name) {
   updatePlannerUI(`职业：${displayClassName(baseClassName)}`);
 }
 
-function showNodeInfo(n) {
+function showNodeInfo(n, openJewels = true) {
   selected=n;
+  if(openJewels && liveJewelCatalog.sockets.some(s=>s.nodeId===idOf(n))) jewelPanel?.selectSocket(idOf(n));
   const id=idOf(n);
   const box=$("#nodeInfo");
   box.innerHTML="";
@@ -3535,6 +3551,7 @@ function currentBuildRuntimeState() {
     showAsc,
     showLockedConditional,
     showInstillOnGraph,
+    jewelState,
     preservation:buildPreservation
   };
 }
@@ -3571,6 +3588,7 @@ function applyPlannerBuildState(next, clearTransient=true) {
   weaponSet2Allocated=new Set(next.weaponSet2Allocated);
   ascAllocated=new Set(next.ascAllocated);
   instillAllocated=new Set(next.instillAllocated);
+  jewelState=next.jewelState||{instances:[],placements:[]};
   buildPreservation=next.preservation;
 
   if(Number.isFinite(next.camera.x)) camera.x=next.camera.x;
@@ -3653,7 +3671,7 @@ function buildCatalogs() {
     const start=ascendancyStartFor(n.asc);
     if(start) ascendancyStartIds.set(n.asc,start);
   }
-  return {classStartIds,ascendancyStartIds};
+  return {classStartIds,ascendancyStartIds,normalizeJewelState:state=>jewelStateCore.normalizeJewelState(state,liveJewelCatalog)};
 }
 
 function knownAscendancy(id,base) {
@@ -3675,6 +3693,7 @@ function decodeBuildForCurrentCatalogs(text) {
     knownBaseClasses:new Set(classOptions.map(option=>option.name)),
     knownAscendancies:knownAscendancy,
     knownInstilledPassives:INSTILL_EXCLUSIVE_NAME_SET
+    ,jewelCatalog:liveJewelCatalog
   });
   if(!first.ok) return first;
   const catalogs=buildCatalogs();
@@ -3685,6 +3704,7 @@ function decodeBuildForCurrentCatalogs(text) {
     knownBaseClasses:new Set(classOptions.map(option=>option.name)),
     knownAscendancies:knownAscendancy,
     knownInstilledPassives:INSTILL_EXCLUSIVE_NAME_SET,
+    jewelCatalog:liveJewelCatalog,
     knownNodeIds:(id,category)=>nodeAllowedForBuild(id,category,selectedAsc,classStart,ascStart)
   });
 }
@@ -3890,7 +3910,7 @@ function applyWeGamePreview() {
   if(!weGamePreviewValue) return;
   const previous=currentBuildRuntimeState();
   if(weGameImportUI.isNonEmptyBuild(previous) && !$("#weGameReplaceAck").checked) {
-    setWeGameStatus("当前 Build 非空，请明确确认覆盖。",true); return;
+    setWeGameStatus("当前 Build 非空，请明确确认覆盖（含珠宝实例和装备记录）。",true); return;
   }
   let candidate;
   try {
@@ -4026,6 +4046,7 @@ async function openBuild() {
 
 function setBuildControlsReady(ready) {
   plannerDataReady=ready;
+  jewelPanel?.render();
   const supported=Boolean(window.desktopAPI?.saveBuildJson && window.desktopAPI?.openBuildJson);
   $("#saveBuild").disabled=!weGameImportUI.canSaveBuild({ready,supported,unsafe:buildStateUnsafe});
   $("#openBuild").disabled=!(ready&&supported);
@@ -4535,7 +4556,7 @@ function planCurrentRefund(id, category) {
   if(isMasteryVisual(node)) return {success:false,category,errorCode:"INVALID_NODE",message:"精通可视化节点不可取消"};
   if(isInstillExclusiveNode(node)) return {success:false,category,errorCode:"INSTILL_ONLY",message:"涂油节点请通过涂油系统处理"};
   const active=sets=>new Set([...sets.general,...sets.ascendancy]);
-  return window.plannerRefundPlan.planRefund({
+  const plan = window.plannerRefundPlan.planRefund({
     graph:passiveGraph,classStartId,ascStartId,
     sets:{general:allocated,weaponSet1:weaponSet1Allocated,weaponSet2:weaponSet2Allocated,ascendancy:ascAllocated},
     blockedBy:hiddenDependentsOf,
@@ -4546,11 +4567,14 @@ function planCurrentRefund(id, category) {
       return !n || !isHiddenConditional(n) || constraintSatisfiedWithActive(n,active(sets));
     },
   },id,category);
+  if(plan.success && jewelStateCore.blocksRefund(jewelState,plan.removedByCategory.general)) return {success:false,category,errorCode:"JEWEL_EQUIPPED",message:"请先卸下受影响插槽中的珠宝，再退点。"};
+  return plan;
 }
 
 function applyCurrentRefund(id, category, confirmedPlan = null) {
   const plan=confirmedPlan || planCurrentRefund(id,category);
   if(!plan.success) return plan;
+  if(jewelStateCore.blocksRefund(jewelState,plan.removedByCategory.general)) return {success:false,errorCode:"JEWEL_EQUIPPED",message:"请先卸下珠宝。"};
   pushUndo();
   allocated=plan.next.general;
   weaponSet1Allocated=plan.next.weaponSet1;
@@ -4601,6 +4625,11 @@ window.plannerWriteAPI = Object.freeze({
 });
 // ── end narrow write API ──
 
+jewelPanel = window.plannerJewelPanel.mount({
+  read:()=>({state:jewelState,catalog:liveJewelCatalog,allocated,ready:plannerDataReady&&!buildStateUnsafe}),
+  commit:next=>{pushUndo();jewelState=next;updatePlannerUI("珠宝记录已更新；属性、半径与规则效果尚未计算。");scheduleDraw();},
+  focus:id=>{const n=byId.get(id);if(n){focusNode(n,.3);selected=n;scheduleDraw();}}
+});
 bindUI();
 bindCanvas();
 new ResizeObserver(resize).observe(wrap);

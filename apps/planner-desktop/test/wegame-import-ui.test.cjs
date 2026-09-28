@@ -27,7 +27,7 @@ function current() {
 function catalog() {
   return {
     classStartIds: new Map([["Mercenary", "start"]]),
-    ascendancyStartIds: new Map([["Mercenary3", "astart"]]),
+    normalizeJewelState:state=>require("../renderer/jewel-state.js").normalizeJewelState(state,require("../src/jewels/catalog.js")),ascendancyStartIds: new Map([["Mercenary3", "astart"]]),
     freeAscendancyIds: new Map([["Mercenary3", new Set(["astart"])]]),
     ascendanciesByClass: new Map([["Mercenary", new Set(["Mercenary3"])]]),
     nodeIds: new Set(["1", "2", "3", "4", "5"]), normalIds: new Set(["1"]),
@@ -95,6 +95,7 @@ test("mapped weapon sets survive the existing native save and reopen path", () =
   });
   assert.equal(decoded.ok, true);
   const reopened = adapter.createBuildCandidate(decoded.value, decoded.preservation, {
+    normalizeJewelState:state=>require("../renderer/jewel-state.js").normalizeJewelState(state,require("../src/jewels/catalog.js")),
     classStartIds: new Map([["Mercenary", "start"]]), ascendancyStartIds: new Map([["Mercenary3", "astart"]]),
   });
   assert.deepEqual([...reopened.weaponSet1Allocated], ["4"]);

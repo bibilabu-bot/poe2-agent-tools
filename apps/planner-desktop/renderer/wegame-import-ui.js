@@ -104,6 +104,7 @@
       weaponSet2Allocated: weapon2,
       ascAllocated: asc,
       instillAllocated: new Set(),
+      jewelState: {instances:[],placements:[]},
       camera: { ...current.camera },
       weaponMode: "general",
       showAsc: Boolean(ascendancyId),
@@ -116,7 +117,7 @@
   }
 
   function isNonEmptyBuild(state) {
-    return Boolean(state.classStartId || state.allocated.size || state.ascAllocated.size ||
+    return Boolean(state.jewelState?.instances.length || state.jewelState?.placements.length || state.classStartId || state.allocated.size || state.ascAllocated.size ||
       state.weaponSet1Allocated.size || state.weaponSet2Allocated.size || state.instillAllocated.size);
   }
 

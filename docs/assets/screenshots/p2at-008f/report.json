@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "real socket equip and direct/API/preview refund blocked",
+    "replace preserves inventory; real Save IPC -> reset -> Open IPC restores allocations and jewels",
+    "remove keeps instance; copy/delete; refund succeeds after unequip",
+    "invalid file leaves current jewels unchanged",
+    "reset/class cancel preserves jewels; localization does not reopen dialog; v1 stays unchanged until Save; private collision never overwrites source"
+  ],
+  "errors": []
+}
