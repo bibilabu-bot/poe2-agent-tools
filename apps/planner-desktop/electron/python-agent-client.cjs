@@ -6,7 +6,13 @@ const readline = require("node:readline");
 const { spawn } = require("node:child_process");
 
 class PythonAgentError extends Error {
-  constructor(code, message) { super(message); this.name = "PythonAgentError"; this.code = code; }
+  constructor(code, message, diagnostic = null) {
+    super(message); this.name = "PythonAgentError"; this.code = code;
+    if(diagnostic && /^diag-[a-f0-9]{32}$/.test(diagnostic.id) &&
+       ["run_setup","prepare_context","model_request","tool_execute","tool_result","history_commit","rpc","unknown"].includes(diagnostic.phase)) {
+      this.diagnostic={id:diagnostic.id,phase:diagnostic.phase,modelRound:Number.isInteger(diagnostic.modelRound)?Math.max(0,Math.min(20,diagnostic.modelRound)):0,stored:diagnostic.stored===true};
+    }
+  }
 }
 
 class PythonAgentClient {
@@ -84,7 +90,7 @@ class PythonAgentClient {
     }
     this.pending.delete(response.id);
     if (response.ok) pending.resolve(response.result);
-    else pending.reject(new PythonAgentError(response.error?.code || "AGENT_FAILED", response.error?.message || "智能体运行失败"));
+    else pending.reject(new PythonAgentError(response.error?.code || "AGENT_FAILED", response.error?.message || "智能体运行失败", response.error?.diagnostic));
   }
   #rejectAll(error) { for (const pending of this.pending.values()) pending.reject(error); this.pending.clear(); }
   async _handleCallback(child, msg) {

@@ -6,6 +6,18 @@ const http = require("node:http");
 const { PythonAgentClient } = require("../electron/python-agent-client.cjs");
 const { AgentService } = require("../electron/agent-service.cjs");
 
+test("real RPC unexpected exceptions return a safe correlation ID and recover",async(t)=>{
+  const client=new PythonAgentClient({memoryPath:":memory:"});t.after(()=>client.terminate());
+  await client.request("configure",{baseUrl:"http://127.0.0.1:1/v1",apiKey:"DO_NOT_LOG_KEY"});
+  await assert.rejects(client.request("send",{model:"fixture",text:{private:"DO_NOT_LOG_USER"}}),error=>{
+    assert.equal(error.code,"AGENT_FAILED");
+    assert.match(error.diagnostic.id,/^diag-[a-f0-9]{32}$/);
+    assert.equal(error.diagnostic.phase,"run_setup");assert.equal(error.diagnostic.stored,true);
+    assert.ok(!JSON.stringify(error).includes("DO_NOT_LOG"));return true;
+  });
+  assert.equal((await client.request("status")).configured,true);
+});
+
 test("real process selects 100k historical characters without dropping stored turns or current tools", async (context) => {
   const observed = [];
   const server = http.createServer(async (request, response) => {

@@ -16,7 +16,7 @@ class SummaryTests(unittest.IsolatedAsyncioTestCase):
         registry=ToolRegistry()
         registry.register(TreeOverviewTool(snap))
         runner=AgentRunner(None,registry)
-        output=await runner._tools_step({"messages":[],"trace":[],"reads":{},"calls":[ToolCall("c","tree_overview","{}")],"tool_count":0})
+        output=await runner._tools_step({"messages":[],"trace":[],"reads":{},"rounds":1,"calls":[ToolCall("c","tree_overview","{}")],"tool_count":0})
         wire=output["messages"][0]["content"]
         self.assertGreater(len(wire),8000)
         self.assertTrue(output["trace"][0]["ok"])

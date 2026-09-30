@@ -16,6 +16,7 @@ from langsmith import tracing_context
 
 from .context import ContextError, HISTORY_CONTEXT_CHARS, select_context
 from .prompts import build_system_prompt, MEMORY_PREFIX
+from .diagnostics import phase
 
 
 class AgentError(Exception):
@@ -239,6 +240,7 @@ class AgentRunner:
                              state["trace"], state["rounds"], state["tool_count"], state["context_report"])
 
     def _prepare_context(self, state: RunState) -> dict[str, Any]:
+        phase("prepare_context", model_round=state["rounds"]+1, tool_position=0)
         self._emit({"type": "phase", "phase": "preparing_context", "round": state["rounds"] + 1})
         instructions = list(state["instructions"])
         final = self._closing(state)
@@ -291,6 +293,7 @@ class AgentRunner:
         if state["rounds"] >= self.limits.max_model_rounds:
             raise AgentError("MODEL_ROUND_LIMIT", "Model-round limit exceeded")
         closing = self._closing(state)
+        phase("model_request", model_round=state["rounds"]+1, tool_position=0)
         self._emit({"type": "phase", "phase": "final_summary" if closing else "waiting_for_model", "round": state["rounds"] + 1})
         reply = await self.provider.complete(
             model=state["model"], messages=state["model_input"],
@@ -347,11 +350,13 @@ class AgentRunner:
         messages = list(state["messages"])
         trace = list(state["trace"])
         reads = {key:dict(value) for key,value in state["reads"].items()}
-        for call in state["calls"]:
+        for position, call in enumerate(state["calls"], 1):
+            phase("tool_execute", model_round=state["rounds"], tool_position=position)
             self._emit({"type": "tool_started", "name": call.name[:64]})
             started = time.monotonic()
             read_key = self._read_key(call)
             result, ok = await self._execute_tool(call)
+            phase("tool_result")
             duration_ms = round((time.monotonic() - started) * 1000, 3)
             # Full Build cluster graphs must not be sliced at the ordinary 8k detail limit.
             result_limit = 64000 if call.name == "tree_overview" else self.limits.max_tool_result_chars
@@ -370,6 +375,7 @@ class AgentRunner:
             self._emit({"type": "tool_finished", "name": call.name[:64], "ok": ok,
                         "durationMs": duration_ms, "trace": trace[-1]})
             messages.append({"role": "tool", "tool_call_id": call.call_id, "content": result_text})
+            phase("tool_result", completed_tools=state["tool_count"]+position)
         return {"messages": messages, "trace": trace,
                 "tool_count": state["tool_count"] + len(state["calls"]), "calls": [], "reads": reads}
 

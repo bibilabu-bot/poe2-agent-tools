@@ -6,6 +6,19 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-034 — Safe failure diagnostics and provider shape validation
+
+- Status: `REVIEW`
+- Assignment target: Codex local executor, `task/P2AT-034-safe-diagnostics`.
+- Persist bounded content-free exception/stage/protocol diagnostics, display a
+  correlation ID, distinguish service stream error from EOF, validate malformed
+  Chat/Responses structures without rejecting harmless null heartbeat fields.
+- No automatic chat retries, budget/timeout changes, Build changes or real API
+  calls. Synthetic tests, independent review; controller merges and restarts.
+- Verification: Node 244/244, Python 139/139, syntax checks and isolated Electron
+  panel passed; independent review APPROVE with no P1/P2 findings.
+- Evidence: `docs/P2AT_034_SAFE_DIAGNOSTICS.md`.
+
 ### P2AT-032 — Confirm tree write impact and report actual operations
 
 - Status: `ACCEPTED` (controller, 2026-09-27; owner big-version acceptance pending)

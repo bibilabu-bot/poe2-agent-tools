@@ -172,12 +172,16 @@ app.whenReady().then(async () => {
       assert.equal(style.scheme,'dark'); assert.equal(style.width,'thin');
       assert.equal(style.color,'rgb(85, 90, 99) rgb(16, 18, 22)');
     }
-    await evaluate(`window.desktopAPI.agent.send=async()=>({ok:false,error:{message:'synthetic final summary failed'},
+    const {safeError}=require("../electron/agent-service.cjs");
+    const {PythonAgentError}=require("../electron/python-agent-client.cjs");
+    const diagnosticError=safeError(new PythonAgentError("AGENT_FAILED","synthetic final summary failed",{id:"diag-"+"a".repeat(32),phase:"model_request",modelRound:3,stored:true}));
+    await evaluate(`window.desktopAPI.agent.send=async()=>({ok:false,error:${JSON.stringify(diagnosticError)},
       trace:[{name:'search_tree_nodes',ok:true,result:'{"matches":[],"total":0}',arguments:'{"query":"fixture"}'}],
       writeSummary:{runId:'fixture',interrupted:true,operations:[{method:'allocate',nodeId:'42',category:'weaponSet1',status:'unknown'}]}});
       window.desktopAPI.agent.writeReceipt=async()=>({ok:true,writeSummary:{operations:[{method:'allocate',nodeId:'42',category:'weaponSet1',status:'applied',addedCount:1,removedCounts:{}}]}});
       document.getElementById('agentInput').value='测试失败收尾';document.getElementById('agentComposer').requestSubmit();`);
     await waitFor("document.getElementById('agentMessages').textContent.includes('本地部分结果')");
+    assert.ok(await evaluate("document.getElementById('agentMessages').textContent.includes('diag-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') && document.getElementById('agentMessages').textContent.includes('接收模型回复（模型第 3 轮）')"));
     assert.ok(await evaluate("document.getElementById('agentMessages').textContent.includes('结果未知')"));
     await evaluate("[...document.querySelectorAll('#agentMessages button')].find(b=>b.textContent==='核对迟到的写入回执').click()");
     await waitFor("document.getElementById('agentMessages').textContent.includes('weaponSet1：已生效')");

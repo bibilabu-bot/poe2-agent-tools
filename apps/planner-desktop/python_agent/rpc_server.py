@@ -20,6 +20,7 @@ from typing import Any
 
 from .core import AgentError
 from .service import AgentService
+from .diagnostics import record_failure, public_diagnostic
 
 _callback_futures: dict[str, asyncio.Future] = {}
 _request_queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
@@ -175,9 +176,11 @@ async def main() -> None:
                 result = await dispatch(service, msg.get("method", ""), msg.get("params") or {}, request_id)
                 response = {"id": request_id, "ok": True, "result": result}
             except AgentError as error:
-                response = {"id": request_id, "ok": False, "error": {"code": error.code, "message": str(error)}}
-            except Exception:
-                response = {"id": request_id, "ok": False, "error": {"code": "AGENT_FAILED", "message": "Python agent runtime failed safely"}}
+                diagnostic = record_failure(error, service.memory_store, service.conversation_id)
+                response = {"id": request_id, "ok": False, "error": {"code": error.code, "message": str(error), "diagnostic":public_diagnostic(diagnostic)}}
+            except Exception as error:
+                diagnostic = record_failure(error, service.memory_store, service.conversation_id)
+                response = {"id": request_id, "ok": False, "error": {"code": "AGENT_FAILED", "message": "Python agent runtime failed safely", "diagnostic":public_diagnostic(diagnostic)}}
             write_message(response)
     finally:
         # Cancel any pending callbacks before shutting down.

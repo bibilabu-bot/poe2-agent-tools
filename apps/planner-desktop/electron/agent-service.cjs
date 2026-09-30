@@ -15,6 +15,11 @@ for (const id of [...PROMPT_BLOCK_IDS]) if (id.startsWith("tool_")) PROMPT_BLOCK
 
 function safeError(error) {
   const known = error instanceof PythonAgentError || ["SECURE_STORAGE_UNAVAILABLE", "CREDENTIAL_CACHE_INVALID"].includes(error?.code);
+  if(error instanceof PythonAgentError && error.diagnostic) {
+    const d=error.diagnostic;
+    const labels={run_setup:"准备请求",prepare_context:"准备上下文",model_request:"接收模型回复",tool_execute:"执行工具",tool_result:"处理工具结果",history_commit:"保存已完成回复",rpc:"运行时通信",unknown:"未知阶段"};
+    return {code:error.code,message:`${error.message}\n诊断 ${d.id} · ${labels[d.phase]}${d.modelRound?`（模型第 ${d.modelRound} 轮）`:""}${d.stored?"":"（诊断未持久保存）"}`,diagnostic:d};
+  }
   return { code: known ? error.code : "AGENT_FAILED", message: known ? error.message : "智能体运行失败" };
 }
 

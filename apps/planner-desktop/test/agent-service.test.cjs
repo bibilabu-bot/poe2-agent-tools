@@ -4,6 +4,17 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { AgentService, createAgentIpcHandlers } = require("../electron/agent-service.cjs");
 
+test("safe diagnostic ID and phase reach UI without exposing private exception fields",()=>{
+  const {PythonAgentError}=require("../electron/python-agent-client.cjs");
+  const {safeError}=require("../electron/agent-service.cjs");
+  const error=new PythonAgentError("AGENT_FAILED","运行失败",{id:"diag-"+"a".repeat(32),phase:"model_request",modelRound:3,stored:true,frames:["PRIVATE"],body:"SECRET"});
+  const output=safeError(error);
+  assert.match(output.message,/接收模型回复/);assert.match(output.message,/第 3 轮/);
+  assert.equal(output.diagnostic.id,error.diagnostic.id);
+  assert.ok(!JSON.stringify(output).includes("PRIVATE"));assert.ok(!JSON.stringify(output).includes("SECRET"));
+  assert.equal(new PythonAgentError("X","X",{id:"unsafe",phase:"model_request"}).diagnostic,undefined);
+});
+
 class MockPythonClient {
   constructor() { this.configured = false; this.calls = []; this.block = null; }
   setTreeWriteHandler(_handler) { /* noop in tests */ }

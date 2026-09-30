@@ -14,6 +14,7 @@ from .provider import OpenAICompatibleProvider
 from .session_display import redact
 from .prompts import build_system_prompt, PromptStore, DEFAULTS, BLOCK_LABELS, TOOL_DESCRIPTIONS
 from .retrieval_retry import retrieval_budget
+from .diagnostics import run_diagnostic, phase, record_failure
 
 MAX_INPUT_CHARS = 12_000
 MAX_HISTORY_MESSAGES = 60
@@ -189,8 +190,14 @@ class AgentService:
         self._idle()
         self.running = True
         try:
-            with retrieval_budget(remaining_ms):
-                return await self._send(model, text, tools_enabled, on_event)
+            with run_diagnostic():
+                phase("run_setup")
+                try:
+                    with retrieval_budget(remaining_ms):
+                        return await self._send(model, text, tools_enabled, on_event)
+                except Exception as error:
+                    record_failure(error, self.memory_store, self.conversation_id)
+                    raise
         finally:
             self.running = False
 
@@ -230,29 +237,15 @@ class AgentService:
                         self._cluster_summary_cache, self.memory_store.db if self.memory_store else None,
                         prompt_values["hook_tree_overview"])
                 registry.register(tool)
-        failure_trace = []
         def progress(event):
-            if event.get("type") == "tool_finished" and event.get("trace"):
-                failure_trace.append(event["trace"])
             if on_event:
                 on_event(event)
         runner = AgentRunner(self._provider(), registry, memory_context=memory.model_context if memory else None,
                              on_event=progress, memory_prefix=prompt_values["memory_prefix"],
                              tool_prompts={name: prompt_values["tool_" + name] for name in TOOL_DESCRIPTIONS
                                            if registry.get(name) is not None})
-        try:
-            result = await runner.run(agent=agent, history=candidate, model=model, tools_enabled=enabled_tools)
-        except Exception as error:
-            # Diagnostics are separate from completed turns and never enter model history.
-            if self.memory_store:
-                secret = getattr(self.provider, "_api_key", "")
-                details = redact({"model":model,"input":text,"code":getattr(error,"code","AGENT_FAILED"),
-                                  "trace":failure_trace}, secret)
-                self.memory_store.db.execute("CREATE TABLE IF NOT EXISTS failed_runs (id INTEGER PRIMARY KEY, created_at TEXT DEFAULT CURRENT_TIMESTAMP, conversation_id TEXT, details TEXT)")
-                self.memory_store.db.execute("INSERT INTO failed_runs (conversation_id,details) VALUES (?,?)",
-                                             (self.conversation_id,json.dumps(details,ensure_ascii=False)))
-                self.memory_store.db.commit()
-            raise
+        result = await runner.run(agent=agent, history=candidate, model=model, tools_enabled=enabled_tools)
+        phase("history_commit")
         completed_history = [message for message in result.messages if message.get("role") != "system"]
         retained = _trim_history(completed_history)
         if memory:
