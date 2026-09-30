@@ -6,6 +6,68 @@ import unittest
 
 
 class WriteRefreshTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cluster_detail_contract_rejects_legacy_sections_before_snapshot_checks(self):
+        from python_agent.core import AgentRunner, ToolCall, ToolRegistry
+        from python_agent.tree_tools import SemanticTopologyTool
+        for state in ("healthy", "missing", "degraded"):
+            snap = TreeSnapshot(semantic_topology={"clusters": []} if state == "healthy" else None,
+                                _error="fixture failure" if state == "degraded" else None)
+            tool = SemanticTopologyTool(snap)
+            self.assertEqual(tool.parameters["properties"]["section"]["enum"],
+                             ["nodes", "edges", "boundaries"])
+            for section in ("allocations", "clusters", "unclassified", "unclassifiedEdges", "ascendancy"):
+                args = {"nodeId": "special", "section": section}
+                with self.subTest(state=state, section=section):
+                    for check in (tool.validate, lambda a: tool.parse_arguments(json.dumps(a))):
+                        with self.assertRaises(AgentError) as caught:
+                            check(args)
+                        self.assertEqual(caught.exception.code, "INVALID_TOOL_ARGUMENTS")
+                    with self.assertRaises(AgentError) as caught:
+                        await tool.execute(args)
+                    self.assertEqual(caught.exception.code, "INVALID_TOOL_ARGUMENTS")
+            runner = AgentRunner(None, ToolRegistry([tool]))
+            result, ok = await runner._execute_tool(ToolCall(
+                "legacy", "read_tree_cluster", '{"clusterId":"p","section":"allocations"}'))
+            self.assertFalse(ok)
+            self.assertEqual(result["error"]["code"], "INVALID_TOOL_ARGUMENTS")
+
+    async def test_cluster_details_remain_local_with_paging_special_lookup_and_refunds(self):
+        snap = TreeSnapshot(snapshot_id="detail-fixture", build={"allocations": {
+            "normal": ["a"], "weaponSet1": ["x"], "weaponSet2": ["b"], "ascendancy": ["asc"]}},
+            semantic_topology={"version": "v1", "clusters": [
+                {"id": "p", "type": "passive", "nodeIds": ["a", "b"], "edges": [["a", "b"]]},
+                {"id": "q", "type": "passive", "nodeIds": ["x", "y"], "edges": [["x", "y"]]},
+                {"id": "r", "type": "jewel", "nodeIds": ["z"], "edges": []}],
+                "nodeToCluster": {"a": "p", "b": "p", "x": "q", "y": "q", "z": "r"},
+                "clusterEdges": [
+                    {"source": "p", "target": "q", "physicalEdges": [["b", "x"]]},
+                    {"source": "q", "target": "r", "physicalEdges": [["y", "z"]]}],
+                "unclassifiedNodes": [{"nodeId": "special", "reason": "special-socket"}],
+                "unclassifiedEdges": [["special", "a"]], "excludedAscendancyNodeIds": ["asc"]})
+        impact = {"category": "weaponSet2", "refundable": True, "complete": True,
+                  "removedByCategory": {"general": [], "weaponSet1": [], "weaponSet2": ["b"], "ascendancy": []},
+                  "cascadeNodeIds": [], "additionalRefundCount": 0, "totalRefundCount": 1}
+        snap.refund_impacts = {"b": [impact], "asc": [{"category": "ascendancy", "refundable": False}]}
+        before = copy.deepcopy(snap.__dict__)
+        tool = next(t for t in register_tree_tools(snap) if t.name == "read_tree_cluster")
+        first = await tool.execute({"clusterId": "p", "limit": 1})
+        second = await tool.execute({"nodeId": "b", "offset": first["nextOffset"], "limit": 1})
+        self.assertEqual(first["items"] + second["items"], ["a", "b"])
+        self.assertIsNone(second["nextOffset"])
+        self.assertEqual(second["refundImpacts"]["b"]["categories"], [impact])
+        self.assertEqual(second["refundImpacts"]["b"]["snapshotId"], snap.snapshot_id)
+        self.assertEqual((await tool.execute({"clusterId": "q"}))["items"], ["x", "y"])
+        self.assertEqual((await tool.execute({"clusterId": "p", "section": "edges"}))["items"], [["a", "b"]])
+        boundaries = await tool.execute({"nodeId": "a", "section": "boundaries"})
+        self.assertEqual(boundaries["items"], [{"source": "p", "target": "q", "physicalEdge": ["b", "x"]}])
+        self.assertNotIn("refundImpacts", boundaries)
+        for node_id, reason in (("special", "special-socket"), ("asc", "ascendancy-excluded"), ("missing", "node-not-found")):
+            result = await tool.execute({"nodeId": node_id})
+            self.assertIsNone(result["clusterId"])
+            self.assertEqual(result["reason"], reason)
+            self.assertIn(node_id, result["refundImpacts"])
+        self.assertEqual(snap.__dict__, before)
+
     async def test_refund_requires_exact_explicit_preview(self):
         from python_agent.tree_tools import DeallocateTreeNodeTool
         from python_agent.core import AgentError

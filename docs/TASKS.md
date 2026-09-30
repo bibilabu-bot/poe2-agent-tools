@@ -6,6 +6,18 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-035 — Keep cluster reads scoped to cluster details
+
+- Status: `REVIEW`
+- Assignment target: Codex local executor, `task/P2AT-035-cluster-detail-contract`.
+- Limit `read_tree_cluster` to nodes/edges/boundaries; reject legacy whole-tree
+  sections through schema, validation and direct execution, including degraded snapshots.
+- Preserve nodeId special lookup, pagination, category-specific refund metadata,
+  Build allocations and write safety. No path/budget changes or custom prompt edits.
+- Focused synthetic tests and independent review; controller merges and restarts.
+- Verification: Python 67/67, Node 34/34, syntax/diff checks passed;
+  independent review APPROVE with no blockers. Evidence: `docs/SEMANTIC_TOPOLOGY_MVP.md`.
+
 ### P2AT-034 — Safe failure diagnostics and provider shape validation
 
 - Status: `ACCEPTED` (controller, 2026-09-30)

@@ -34,13 +34,15 @@ class PromptTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as folder:
             filename = Path(folder) / "prompts.json"
             original = {"version": "chat-prompts-zh-v5", "overrides":
-                        {"tool_tree_overview": "  我的旧规则🙂 section=allocations 分页\n", "base": "自定义系统规则"}}
+                        {"tool_tree_overview": "  我的旧规则🙂 section=allocations 分页\n", "base": "自定义系统规则",
+                         "tool_read_tree_cluster": "自定义旧规则 section=allocations 不自动改写"}}
             filename.write_text(json.dumps(original, ensure_ascii=False), encoding="utf-8")
             before = filename.read_bytes()
             store = PromptStore(str(filename))
             self.assertIsNone(store.error)
             self.assertEqual(filename.read_bytes(), before)
             self.assertEqual(dict(store.blocks)["tool_tree_overview"], original["overrides"]["tool_tree_overview"])
+            self.assertEqual(dict(store.blocks)["tool_read_tree_cluster"], original["overrides"]["tool_read_tree_cluster"])
             self.assertEqual(dict(store.blocks)["purpose_tree_overview"], TOOL_PURPOSES["tree_overview"])
             store.save(dict(store.blocks))
             self.assertEqual(json.loads(filename.read_text(encoding="utf-8"))["overrides"], original["overrides"])

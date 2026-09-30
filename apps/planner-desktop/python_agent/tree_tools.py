@@ -512,7 +512,7 @@ class SemanticTopologyTool(_TreeTool):
     def _parameters(self) -> dict[str, Any]:
         return {"required": [], "properties": {
             "nodeId": {"type":"string"}, "clusterId": {"type":"string"},
-            "section": {"type":"string", "enum":["clusters","nodes","edges","boundaries","unclassified","unclassifiedEdges","ascendancy","allocations"]},
+            "section": {"type":"string", "enum":["nodes","edges","boundaries"]},
             "offset": {"type":"integer", "minimum":0},
             "limit": {"type":"integer", "minimum":1, "maximum":20},
         }}
@@ -537,7 +537,7 @@ class SemanticTopologyTool(_TreeTool):
         offset,limit=arguments.get("offset",0),arguments.get("limit",20)
         if type(offset) is not int or offset<0 or type(limit) is not int or not 1<=limit<=20:
             raise AgentError("INVALID_TOOL_ARGUMENTS", "分页范围无效")
-        section=arguments.get("section", "nodes" if self.name=="read_tree_cluster" else "clusters")
+        section=arguments.get("section", "nodes")
         if section not in self.parameters["properties"]["section"]["enum"]:
             raise AgentError("INVALID_TOOL_ARGUMENTS", "未知拓扑分区")
         for key in ("nodeId","clusterId"):
@@ -564,14 +564,7 @@ class SemanticTopologyTool(_TreeTool):
             raise AgentError("CLUSTER_NOT_FOUND", "簇不存在")
         if self.name=="read_tree_cluster" and cluster is None:
             raise AgentError("INVALID_TOOL_ARGUMENTS", "请指定 clusterId 或 nodeId")
-        if section=="clusters":
-            rows=[{"id":c["id"],"type":c["type"],"nodeCount":len(c["nodeIds"]),"edgeCount":len(c["edges"])} for c in clusters if not cluster or c["id"]==cluster_id]
-        elif section=="unclassified": rows=topology["unclassifiedNodes"]
-        elif section=="unclassifiedEdges": rows=topology.get("unclassifiedEdges",[])
-        elif section=="ascendancy": rows=topology["excludedAscendancyNodeIds"]
-        elif section=="allocations":
-            rows=[{"nodeId":node_id,"category":category} for category,ids in self._snapshot.build.get("allocations",{}).items() for node_id in ids]
-        elif section=="boundaries":
+        if section=="boundaries":
             rows=[{"source":e["source"],"target":e["target"],"physicalEdge":edge}
                   for e in topology["clusterEdges"] if not cluster or cluster_id in (e["source"],e["target"])
                   for edge in e["physicalEdges"]]

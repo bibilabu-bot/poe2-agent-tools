@@ -23,7 +23,7 @@ unclassifiedEdges: [[nodeA, nodeB], ...]
 excludedAscendancyNodeIds: [nodeId, ...]
 ```
 
-L1 is a pure quotient of the existing published L0 `nodes + adjacency`; it does not reconstruct a second physical graph from official in/out records. L0 retains all original snapshot data. No existing Graph or pathfinding function is changed. Physical edges are undirected, canonicalized and deduplicated; every edge between classified nodes appears either inside one cluster or as a physical boundary edge between two clusters. Ordinary edges incident to unclassified nodes are retained in `unclassifiedEdges` (also pageable via section=unclassifiedEdges), not fabricated as cluster connections. Ascendancy-incident edges remain separate in L0.
+L1 is a pure quotient of the existing published L0 `nodes + adjacency`; it does not reconstruct a second physical graph from official in/out records. L0 retains all original snapshot data. No existing Graph or pathfinding function is changed. Physical edges are undirected, canonicalized and deduplicated; every edge between classified nodes appears either inside one cluster or as a physical boundary edge between two clusters. Ordinary edges incident to unclassified nodes are retained in the snapshot's `unclassifiedEdges`, not fabricated as cluster connections or exposed as a whole-tree cluster-detail mode. Ascendancy-incident edges remain separate in L0.
 
 Attribute and passive clusters are induced connected components; ordinary jewel sockets are singletons. Ascendancies are excluded separately. Class starts, conditional nodes, Blighted nodes, special sockets and unknown/empty-schema nodes remain unclassified. This conservative policy may split areas more finely; it does not invent passage through unknown nodes. Unlock/allocation/display state is never used to partition clusters.
 
@@ -32,7 +32,7 @@ IDs use `type:lexicographically-smallest-member-id`, deterministic for the same 
 ## AI access
 
 - `tree_overview`: current-Build-only overview (replaces tree_summary, build_summary and list_tree_clusters, without aliases). Includes class, ascendancy, budgets/remaining/over-budget, allocation counts, and ALL touched clusters plus their complete cluster graph in one response. No highlights, whole-tree statistics or whole-tree directory. Default `clusters` ignores legacy offset/limit and returns complete=true, nextOffset=null. Names and one-line summaries describe entire clusters, not effects currently gained. Edges retain original source/target IDs and add sourceName/targetName. `section=boundaries` pages physical edges between touched clusters and marks whether both endpoints are allocated. Allocated unclassified and ascendancy IDs are separate. Build filtering does not change L1 partitioning.
-- `read_tree_cluster`: locate by `clusterId` or `nodeId`; page `nodes`, internal `edges`, or `boundaries`. Node IDs can then be passed to existing `read_tree_nodes`; existing lexical/semantic node searches can locate the initial target node.
+- `read_tree_cluster`: locate by `clusterId` or `nodeId`; page only `nodes`, internal `edges`, or `boundaries`. Legacy whole-tree sections (`allocations`, `clusters`, `unclassified`, `unclassifiedEdges`, `ascendancy`) are rejected with `INVALID_TOOL_ARGUMENTS`, including direct calls on degraded snapshots. A `nodeId` without cluster membership still returns its unclassified/ascendancy-excluded/not-found reason and available refund metadata. Node IDs can then be passed to existing `read_tree_nodes`; existing lexical/semantic node searches can locate the initial target node. Build allocation storage and user-customized prompts are unchanged.
 - Only detail sections use offset/limit (1–20) and `nextOffset`. Full overview uses a 64k runtime result limit; excessive results produce a structured error rather than a broken partial graph.
 - The before hook names/summarizes passive clusters in isolated model requests (8 per batch, concurrency 3, 45s per batch / 60s total). Attribute and jewel labels are deterministic. Content-addressed named-cluster-v1 cache includes model, endpoint, prompt and complete evidence; old description-only cache entries are not reused. Prompt is editable on the overview maintenance page. Failures return explicit unavailable labels, preserving the graph.
 - Python preserves semanticTopology on snapshot publication and refreshes it after successful Build writes. A failed refresh invalidates it along with the old L0 data.
@@ -62,3 +62,24 @@ The complete Node/Python suites, syntax check, real synthetic Electron bridge an
 The import preview now embeds a read-only semantic verification panel. It shows full-tree cluster totals and the clusters touched by the candidate import, defaults to candidate-touched clusters, locates clusters by numeric node ID, pages internal nodes/edges and boundary edges (30 rows), and supports jumping to neighboring clusters. Node labels identify candidate general/weapon/ascendancy membership, not the currently active Build. The panel reuses the same snapshot and semantic derivation modules as the agent; it never applies the candidate. Unsupported/ascendancy IDs report their separate status.
 
 The real Electron bridge opens the preview using the sanitized import fixture, locates node 722, inspects boundaries, navigates a neighbor, closes the dialog and asserts the entire captured current Build state is byte-identical before/after. Offscreen rendering supplies a screenshot for visual inspection. Independent review: APPROVE. Reopen the import dialog after restarting the saved application to load the new code.
+
+## P2AT-035 cluster-detail contract correction
+
+The inherited schema had advertised whole-tree modes on `read_tree_cluster`;
+in particular, `allocations` ignored the selected cluster and returned the same
+Build allocation page. The detail schema and implementation now allow only
+`nodes`, `edges`, and `boundaries`. Invalid legacy modes fail before snapshot
+availability checks or special-node early returns. `tree_overview` keeps its
+separate existing schema. Snapshot fields, Build allocation state, special-node
+lookup and category-specific refund information are not removed.
+
+Verification: 67 focused Python tests (tree tools, prompt contracts and cluster
+summaries), 34 Node tests (snapshot, topology, refund plans and category writes),
+`npm run check` and `git diff --check` passed. New tests cover invalid legacy modes
+through parsing/validation/direct execution and the runner, unavailable snapshots,
+per-cluster pages/edges/boundaries, special lookups, unchanged Build state and
+preservation of a synthetic custom prompt containing the legacy mode. No real
+user data, credentials or paid APIs were accessed; no application restart or
+main merge was performed. Path/budget counting is unchanged and outside this fix.
+Independent review: APPROVE, no blockers. Executor status: REVIEW; controller
+owns acceptance, merge and application restart.
