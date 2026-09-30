@@ -1,12 +1,19 @@
 # Project status
 
-Last updated: 2026-09-27
+Last updated: 2026-09-30
 
 ## Product objective
 
 Build a maintainable, free-to-use and publicly released PoE2 desktop build planner with reliable passive-tree allocation, localized data, offline-capable resources and an extensible jewel/rule engine. Voluntary donations or sponsorship may support the project without gating application features.
 
 ## Current baseline
+
+P2AT-035 controller-ACCEPTED on 2026-09-30 through `c61c952`:
+`read_tree_cluster` exposes only nodes/edges/boundaries and rejects legacy global
+sections, including allocations. Build state, refund metadata and write safety
+are unchanged; path/budget semantics are outside this fix. Executor Python 67/67
+and Node 34/34 passed with independent review APPROVE; controller reran Python
+67/67 successfully.
 
 P2AT-034 controller-ACCEPTED on 2026-09-30 through `3b04582`: safe correlated
 failure diagnostics and controlled provider response-shape validation. Executor

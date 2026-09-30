@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-035 — Keep cluster reads scoped to cluster details
 
-- Status: `REVIEW`
+- Status: `ACCEPTED` (controller, 2026-09-30)
 - Assignment target: Codex local executor, `task/P2AT-035-cluster-detail-contract`.
 - Limit `read_tree_cluster` to nodes/edges/boundaries; reject legacy whole-tree
   sections through schema, validation and direct execution, including degraded snapshots.
@@ -17,6 +17,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 - Focused synthetic tests and independent review; controller merges and restarts.
 - Verification: Python 67/67, Node 34/34, syntax/diff checks passed;
   independent review APPROVE with no blockers. Evidence: `docs/SEMANTIC_TOPOLOGY_MVP.md`.
+- Controller verified commit `c61c952` and independently reran Python 67/67 successfully.
 
 ### P2AT-034 — Safe failure diagnostics and provider shape validation
 
