@@ -1,11 +1,15 @@
 # P2AT-034 — Safe runtime diagnostics and provider validation
 
-Status: REVIEW; executor branch `task/P2AT-034-safe-diagnostics`, base
+Status: ACCEPTED by controller (2026-09-30); executor branch `task/P2AT-034-safe-diagnostics`, base
 `7227dcb`. The two owner failures prompted this work, but their original exception
 stack/service event body was not retained. Synthetic reproductions prove the
 fixed parsing gaps, not the original failures' ultimate cause.
 
 ## Behavior
+
+Controller verified commit `3b04582` and independently reran 8 safe-diagnostic
+Python tests plus 27 Node service/real-RPC tests: all passed, zero skips.
+This acceptance does not retrospectively establish the cause of the owner's failures.
 
 - Every captured run failure receives a random `diag-` correlation ID. The UI
   shows the ID, understandable execution phase and model round (zero means not

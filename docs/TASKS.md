@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-034 — Safe failure diagnostics and provider shape validation
 
-- Status: `REVIEW`
+- Status: `ACCEPTED` (controller, 2026-09-30)
 - Assignment target: Codex local executor, `task/P2AT-034-safe-diagnostics`.
 - Persist bounded content-free exception/stage/protocol diagnostics, display a
   correlation ID, distinguish service stream error from EOF, validate malformed

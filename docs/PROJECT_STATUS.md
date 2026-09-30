@@ -8,6 +8,12 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+P2AT-034 controller-ACCEPTED on 2026-09-30 through `3b04582`: safe correlated
+failure diagnostics and controlled provider response-shape validation. Executor
+Node 244/244 and Python 139/139 passed; controller reran 35 focused tests successfully.
+Historical failures cannot be reconstructed from previously discarded evidence.
+See `docs/P2AT_034_SAFE_DIAGNOSTICS.md` for privacy and troubleshooting boundaries.
+
 P2AT-032/033 controller-ACCEPTED on 2026-09-27 through `b4a7b62`:
 exact category/snapshot refund confirmation, main-owned actual write receipts,
 bounded cancellation settlement, and no-tool closure within 20 model rounds.
