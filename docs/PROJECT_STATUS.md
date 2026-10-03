@@ -1,12 +1,19 @@
 # Project status
 
-Last updated: 2026-09-30
+Last updated: 2026-10-03
 
 ## Product objective
 
 Build a maintainable, free-to-use and publicly released PoE2 desktop build planner with reliable passive-tree allocation, localized data, offline-capable resources and an extensible jewel/rule engine. Voluntary donations or sponsorship may support the project without gating application features.
 
 ## Current baseline
+
+P2AT-036 controller-ACCEPTED on 2026-10-03 through `9c844ec`: optional local
+startup video runs alongside real loading, with skip/mute, retry and media failure
+fallback. Controller reran four state tests and all ten isolated Electron cases
+with the pinned v7 video successfully. Media remains ignored/local-only; the
+960x540/15fps preview is not an approved public distribution asset. See
+`docs/P2AT_036_STARTUP_VIDEO.md` for deployment and executor regression evidence.
 
 P2AT-035 controller-ACCEPTED on 2026-09-30 through `c61c952`:
 `read_tree_cluster` exposes only nodes/edges/boundaries and rejects legacy global

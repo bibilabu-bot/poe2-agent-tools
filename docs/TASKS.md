@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-036 — Connect the approved local startup video to real loading
 
-- Status: `REVIEW`
+- Status: `ACCEPTED` (controller, 2026-10-03)
 - Assignment target: Codex local executor, `task/P2AT-036-video-startup`.
 - Base: `7252d125b58f526fba4d6032fe3e7c62e3053d35` (verified origin/main 2026-10-03).
 - Scope: local optional video, parallel real loading stages, skip/mute, error/retry,

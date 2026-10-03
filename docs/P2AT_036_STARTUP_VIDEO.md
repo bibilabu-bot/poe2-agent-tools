@@ -1,7 +1,9 @@
 # P2AT-036 — Local startup video integration
 
-Status: REVIEW pending controller acceptance. No production application restart,
-main modification, animation edit, paid model call or private-profile inspection.
+Status: ACCEPTED by controller on 2026-10-03 through `9c844ec`.
+Controller reran four state tests and all ten pinned-video Electron cases (exit 0).
+Executor did not restart the production app or modify main. Integration and local
+media deployment are controller-owned; no media is uploaded to Git.
 
 ## Behavior
 
