@@ -6,6 +6,22 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-036 — Connect the approved local startup video to real loading
+
+- Status: `REVIEW`
+- Assignment target: Codex local executor, `task/P2AT-036-video-startup`.
+- Base: `7252d125b58f526fba4d6032fe3e7c62e3053d35` (verified origin/main 2026-10-03).
+- Scope: local optional video, parallel real loading stages, skip/mute, error/retry,
+  media failure fallback and teardown. Preserve Planner/localization/sprite semantics.
+- Acceptance: focused tests, isolated Electron fast/slow/error/media cases,
+  independent review; no private user data, paid services, application restart,
+  third-party media commits, animation edits or public redistribution.
+- Production merge and acceptance remain controller-owned.
+- Evidence: Node 247 passed / 1 conditional skip, Python 141 passed, syntax checks
+  passed; isolated Electron 10/10 synthetic and 10/10 pinned local v7 scenarios.
+  Independent review APPROVE after fixing Escape propagation to Planner shortcuts.
+  Deployment and redistribution boundaries: `docs/P2AT_036_STARTUP_VIDEO.md`.
+
 ### P2AT-035 — Keep cluster reads scoped to cluster details
 
 - Status: `ACCEPTED` (controller, 2026-09-30)

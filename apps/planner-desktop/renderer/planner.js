@@ -4252,6 +4252,7 @@ function bindCanvas() {
 
 async function load() {
   try {
+    window.plannerStartup?.phase('正在读取天赋树数据…');
     $("#status").textContent="加载完整 PoE2 Graph…";
     const [res,jumpRes]=await Promise.all([fetch(DATA_URL),fetch(TREE_JUMP_URL)]);
     if(!res.ok) throw new Error("tree-pre.json HTTP "+res.status);
@@ -4259,6 +4260,7 @@ async function load() {
     tree=await res.json();
     jump=await jumpRes.json();
 
+    window.plannerStartup?.phase('正在构建天赋图…');
     nodes=Object.entries(tree.nodes)
       .filter(([id])=>id!=="root")
       .map(([id,n])=>({...n,_id:String(id)}));
@@ -4297,6 +4299,7 @@ async function load() {
     // Point-cost semantics (including zero-cost ascendancy choice effects) live
     // in the canonical export, so do not expose build/import/Agent state until
     // that metadata has been merged into the slim renderer tree.
+    window.plannerStartup?.phase('正在校验官方节点信息…');
     await loadOfficialHiddenSidecar();
 
     document.querySelectorAll("button,input,select").forEach(x=>x.disabled=false);
@@ -4310,6 +4313,7 @@ async function load() {
     updatePlannerUI();
     renderInstillCatalog();
 
+    window.plannerStartup?.ready();
     loadChineseI18n().catch(()=>{}); // display-only layer; graph remains usable if it fails
 
     const results=await Promise.allSettled([
@@ -4344,6 +4348,7 @@ async function load() {
     const box=$("#error");
     box.style.display="block";
     box.textContent="无法加载天赋树数据："+(err?.message||String(err));
+    window.plannerStartup?.fail(box.textContent);
   }
 }
 
@@ -4606,6 +4611,10 @@ bindCanvas();
 new ResizeObserver(resize).observe(wrap);
 window.addEventListener("resize",resize);
 resize();
+window.plannerStartup?.setRetry(() => {
+  $("#error").style.display="none";
+  return load();
+});
 load();
 
 // --- Narrow Build state capture for external read-only tools ---

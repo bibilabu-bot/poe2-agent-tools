@@ -24,3 +24,6 @@ apps/planner-desktop/data/cache/tmp/
 .env
 .env.*
 !.env.example
+
+# Optional local startup video: third-party redistribution rights unconfirmed.
+apps/planner-desktop/renderer/local-startup/
