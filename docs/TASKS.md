@@ -6,6 +6,19 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-037 — Make WeGame confirmation outcomes visible
+
+- Status: `REVIEW`
+- Assignment target: Codex local executor, `task/P2AT-037-wegame-confirm`.
+- Base: `8851eeaf207e524a8a7aeaab1bc9aaf07a7731f6`.
+- Owner's silent confirmation failure not reproduced with the sanitized fixture.
+  Add local visible progress/rejection/error feedback without changing import
+  semantics, gates or transaction rollback. No owner-window writes or private data.
+- Verify long-dialog real clicks and failure/state-preservation cases in isolated
+  Electron; independent review, then controller acceptance/merge/restart.
+- Evidence: `docs/P2AT_037_WEGAME_CONFIRM.md`; 31 focused Node tests, syntax checks
+  and isolated Electron click scenarios passed; independent review APPROVE.
+
 ### P2AT-036 — Connect the approved local startup video to real loading
 
 - Status: `ACCEPTED` (controller, 2026-10-03)

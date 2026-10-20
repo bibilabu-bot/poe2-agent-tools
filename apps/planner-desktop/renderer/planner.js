@@ -80,6 +80,7 @@ let buildPreservation = null;
 let plannerDataReady = false;
 let buildStateUnsafe = false;
 let weGamePreviewValue = null;
+let weGameApplyBusy = false;
 const weGameRequestGate=weGameImportUI.createLatestRequestGate();
 
 let previewPath = [];                    // ordinary hover path
@@ -3710,9 +3711,11 @@ function ipcErrorMessage(result,fallback) {
 }
 
 function setWeGameStatus(message,isError=false) {
-  const status=$("#weGameStatus");
-  status.textContent=message;
-  status.classList.toggle("wegame-error",isError);
+  for(const id of ["#weGameStatus","#weGameActionStatus"]) {
+    const status=$(id);
+    status.textContent=message;
+    status.classList.toggle("wegame-error",isError);
+  }
 }
 
 function resetWeGameDialog() {
@@ -3886,11 +3889,47 @@ function weGamePlannerCatalog() {
   };
 }
 
-function applyWeGamePreview() {
-  if(!weGamePreviewValue) return;
+async function applyWeGamePreview() {
+  if(weGameApplyBusy) return;
+  weGameApplyBusy=true;
+  const controls=Array.from($("#weGameForm").querySelectorAll("button,input,select"),el=>[el,el.disabled]);
+  const preview=weGamePreviewValue;
+  let applicationStarted=false, applicationCompleted=false;
+  try {
+    for(const [el] of controls) el.disabled=true;
+    setWeGameStatus("正在校验导入条件，请稍候…");
+    // Let the local status paint before synchronous candidate/transaction work.
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    if(!$("#weGameDialog").open || preview!==weGamePreviewValue) {
+      setWeGameStatus("导入已取消或预览已变化，未执行替换。",true); return;
+    }
+    if(!weGamePreviewValue) {
+      setWeGameStatus("没有可应用的预览，请取消后重新读取分享。当前 Build 未改变。",true); return;
+    }
+    applyWeGamePreviewNow(()=>{applicationStarted=true;},()=>{applicationCompleted=true;});
+  } catch(error) {
+    if(applicationCompleted) {
+      setWeGameStatus("Build 已替换，但界面更新异常。请勿重复导入，请检查当前构筑。",true);
+    } else if(applicationStarted) {
+      buildStateUnsafe=true;
+      setBuildControlsReady(plannerDataReady);
+      setWeGameStatus("导入操作异常，无法确认回滚结果，保存已禁用。请重新打开 Build 或重启应用。",true);
+    } else {
+      setWeGameStatus("导入校验异常，未执行替换。请取消后重新读取预览。",true);
+    }
+  } finally {
+    for(const [el,disabled] of controls) el.disabled=disabled;
+    weGameApplyBusy=false;
+  }
+}
+
+function applyWeGamePreviewNow(onStart,onComplete) {
   const previous=currentBuildRuntimeState();
   if(weGameImportUI.isNonEmptyBuild(previous) && !$("#weGameReplaceAck").checked) {
     setWeGameStatus("当前 Build 非空，请明确确认覆盖。",true); return;
+  }
+  if(!$("#weGamePartialAck").checked) {
+    setWeGameStatus("请勾选实验性部分导入确认。当前 Build 未改变。",true); return;
   }
   let candidate;
   try {
@@ -3899,10 +3938,13 @@ function applyWeGamePreview() {
       ascendancyId:$("#weGameAscendancy").value||null,
       partialImportAcknowledged:$("#weGamePartialAck").checked
     },previous,weGamePlannerCatalog());
-  } catch(error) { setWeGameStatus(`不能应用：${error.message}`,true); return; }
+  } catch(error) {
+    setWeGameStatus("不能应用：导入候选与所选职业、升华或当前节点目录不匹配。请核对选择后重新读取预览。当前 Build 未改变。",true); return;
+  }
   if(candidate.weaponSetOmissions.length && !$("#weGameOmissionAck").checked) {
     setWeGameStatus("存在将被省略的武器组节点，请展开查看明细并明确确认。",true); return;
   }
+  onStart();
   const applied=weGameImportUI.applyImportTransaction(candidate,{
     snapshot:captureBuildTransactionState,
     commit:next=>applyPlannerBuildState(next,true),
@@ -3912,18 +3954,20 @@ function applyWeGamePreview() {
   if(!applied.ok) {
     if(applied.unsafe) {
       buildStateUnsafe=true; setBuildControlsReady(plannerDataReady);
-      setWeGameStatus(`应用和回滚均失败，保存已禁用：${applied.rollbackError?.message||"未知错误"}`,true);
-    } else setWeGameStatus(`应用失败，已恢复原 Build：${applied.error?.message||"未知错误"}`,true);
+      setWeGameStatus("应用和回滚均失败，保存已禁用。请重新打开 Build 或重启应用。",true);
+    } else setWeGameStatus("应用失败，已恢复原 Build。请重新读取预览后重试。",true);
     return;
   }
+  onComplete();
+  setWeGameStatus("Build 已成功替换。");
   buildStateUnsafe=false; setBuildControlsReady(plannerDataReady);
   const counts=candidate.counts;
-  closeWeGameDialog();
   const omissionDiagnostics=candidate.weaponSetOmissions.length ? {
     fatalCount:0,warningCount:candidate.weaponSetOmissions.length,fatals:[],
     warnings:candidate.weaponSetOmissions.slice(0,100).map(item=>({path:`${item.sourceLabel}.${item.numericId}`,message:item.reason}))
   } : null;
   showBuildFeedback(`WeGame 天赋已导入：普通 ${counts.normal}、升华 ${counts.ascendancy}、普通插槽 ${counts.ordinarySockets}、武器组 I ${counts.weaponSet1Applied}/${counts.weaponSet1}、武器组 II ${counts.weaponSet2Applied}/${counts.weaponSet2}；明确省略 ${counts.weaponSetOmitted} 个当前 Planner 缺失或不符合武器专精资格的来源节点。未支持内容未写入 Build。`,omissionDiagnostics,false);
+  closeWeGameDialog();
 }
 
 async function saveCurrentBuild() {

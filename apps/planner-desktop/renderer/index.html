@@ -29,6 +29,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #weGameSemanticPreview{padding:6px 0}#weGameSemanticPreview input[type=text]{width:100%;box-sizing:border-box;margin:5px 0}#weGameSemanticPreview button{margin:4px 6px 4px 0}#weGameSemanticPreview .semantic-preview-list{max-height:220px;overflow:auto;padding-left:22px;overflow-wrap:anywhere}#weGameSemanticPanel{border:1px solid #3d4856;border-radius:8px;padding:10px;margin:12px 0}
 .wegame-dialog form{padding:18px}.wegame-dialog h2{margin:0 0 7px;color:#e6c77d}.wegame-dialog label{display:block;margin-top:11px}
 .wegame-dialog input[type=url],.wegame-dialog select{width:100%;box-sizing:border-box;margin-top:5px}.wegame-dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;padding:0}
+.wegame-actions{position:sticky;bottom:-18px;z-index:2;background:#111318;padding:10px 0 14px;border-top:1px solid #55452d}.wegame-actions .note{overflow-wrap:anywhere}.wegame-actions menu{margin-top:8px}
 .wegame-preview{margin-top:13px;padding:11px;border:1px solid #4f452f;border-radius:9px;background:#18150f}.wegame-counts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.wegame-counts span{padding:7px;border-radius:6px;background:#0e1115;text-align:center}
 .wegame-warning{margin-top:9px;padding:8px;border-left:3px solid #db9b45;background:#2a1c0d;color:#f0c98f;line-height:1.5}.wegame-error{color:#f0aaaa}.wegame-confirm{display:flex!important;gap:8px;align-items:flex-start;line-height:1.45}.wegame-confirm input{margin-top:3px}
 .content{position:relative;min-height:0;display:grid;grid-template-columns:0 1fr;transition:grid-template-columns .16s ease}
@@ -325,11 +326,14 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
       <label id="weGameReplaceRow" class="wegame-confirm" hidden><input id="weGameReplaceAck" type="checkbox"><span>我确认用该导入结果覆盖当前非空 Build，并清除旧的撤销/预览历史。</span></label>
       <details id="weGameDiagnostics" class="note"><summary>诊断详情（最多 100 条）</summary><ol id="weGameDiagnosticList"></ol></details>
     </div>
+    <div class="wegame-actions">
+    <div id="weGameActionStatus" class="note" role="status" aria-live="polite" aria-atomic="true">读取预览后，请确认导入条件。</div>
     <menu>
       <button id="weGameCancel" type="button">取消</button>
       <button id="weGameRead" type="submit" class="build-action">读取预览</button>
       <button id="weGameApply" type="button" class="build-action" hidden>确认并替换 Build</button>
     </menu>
+    </div>
   </form>
 </dialog>
 
