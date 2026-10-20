@@ -470,6 +470,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
     <footer><button id="resetPromptBlocks" type="button">全部恢复默认</button><button id="savePromptBlocks" type="button" disabled>保存全部修改</button></footer>
   </div>
 </dialog>
+<script src="browser-platform.js"></script>
 <script src="stat-utils.js"></script>
 <script src="localization-engine.js"></script>
 <script src="build-codec.js"></script>
@@ -494,7 +495,7 @@ border-radius:6px;padding:5px 7px;pointer-events:none">Desktop bridge…</div>
 <script>
 window.addEventListener("DOMContentLoaded", async () => {
   const el = document.getElementById("desktopBridgeStatus");
-  if (!el) return;
+  if (!el || window.browserPlatform) return;
   if (!window.desktopAPI) {
     el.textContent = "Browser mode";
     return;

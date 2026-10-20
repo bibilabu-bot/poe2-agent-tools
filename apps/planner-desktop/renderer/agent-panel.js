@@ -1,6 +1,7 @@
 "use strict";
 
 (() => {
+  if (window.browserPlatform) return;
   const byId = (id) => document.getElementById(id);
   const plannerView = byId("plannerView"), agentView = byId("agentView");
   const settingsView = byId("settingsView");

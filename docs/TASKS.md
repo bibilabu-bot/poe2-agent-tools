@@ -6,6 +6,28 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-039A — Run the current Planner in an ordinary browser
+
+- Status: `REVIEW` (executor, 2026-10-20; controller acceptance pending)
+- Assignment target: Codex local executor, `task/P2AT-039A-browser`.
+- Base: `6d22738a60cba551620b233193044d65998490f5`.
+- Reuse desktop renderer, codec, graph and transaction/import protections; preserve desktop behavior.
+- Explicit local resource selection with canonical-lock integrity validation; File/Blob Build I/O stays local.
+- Browser tree/search/path/cluster/allocation, save/reopen and WeGame preview/confirm including missing-node acknowledgment.
+- Unsupported agent/settings clearly disabled. No cache/media redistribution or paid requests.
+- Acceptance: focused browser and desktop regressions, screenshots, independent code/security review; controller acceptance only.
+
+### P2AT-039B — Prepare the restricted local web service and deployable image
+
+- Status: `REVIEW` (executor, 2026-10-20; controller acceptance pending)
+- Assignment target: same isolated Codex executor branch; depends on P2AT-039A.
+- Localhost-default Node service; authenticated same-origin bounded fixed WeGame transport.
+- Official mapping uses an explicit verified local file; no generic proxy or public game-data endpoint.
+- Whitelist-only Docker packaging, health check and manual protected deployment preparation with offline transfer instructions.
+- Acceptance: anonymous/cross-origin rejection, bounds/missing-resource/hash checks, Docker build/smoke if available (otherwise explicitly unverified), independent security review.
+- No purchases, cloud resources, public deployment, owner data/keys, paid model/index calls or main merge.
+- P2AT-039C multi-user agent isolation remains a later separately dispatched task.
+- Evidence: `docs/P2AT_039_BROWSER.md`; browser and isolated desktop smoke passed; Docker unavailable, build/run unverified.
 ### P2AT-038 — Resolve WeGame candidate validation failure
 
 - Status: `ACCEPTED` (controller, 2026-10-20; owner verification pending)

@@ -1,3 +1,5 @@
+// Keep resource resolution at the platform boundary; desktop retains its protocol.
+const fetchPlannerResource = (url, options) => window.browserPlatform ? window.browserPlatform.fetchResource(url, options) : fetch(url, options);
 const DATA_URL = "poe2://data/tree-pre.json";
 const SKILLS_URL = "poe2://data/atlas-skills.webp";
 const FRAMES_URL = "poe2://data/atlas-frame.webp";
@@ -353,7 +355,7 @@ async function loadOfficialHiddenSidecar() {
   officialHiddenSidecarError=null;
   renderInstillCatalog();
 
-  const res=await fetch(OFFICIAL_TREE_URL);
+  const res=await fetchPlannerResource(OFFICIAL_TREE_URL);
   if(!res.ok) throw new Error(`GGG data.json HTTP ${res.status}`);
   const data=await res.json();
 
@@ -1511,14 +1513,14 @@ async function loadChineseI18n(force = false) {
   try {
     const cacheMode=force ? "reload" : "default";
     const [pobResponse,officialOutcome,weGameOutcome] = await Promise.all([
-      fetch(CN_TRANSLATION_URL,{cache:cacheMode}),
-      fetch(OFFICIAL_TREE_URL,{cache:cacheMode})
+      fetchPlannerResource(CN_TRANSLATION_URL,{cache:cacheMode}),
+      fetchPlannerResource(OFFICIAL_TREE_URL,{cache:cacheMode})
         .then(async response=>{
           if(!response.ok) throw new Error(`official-data.json HTTP ${response.status}`);
           return {ok:true,value:await response.json()};
         })
         .catch(error=>({ok:false,error})),
-      fetch(WEGAME_LOCALIZATION_URL,{cache:cacheMode})
+      fetchPlannerResource(WEGAME_LOCALIZATION_URL,{cache:cacheMode})
         .then(async response=>{
           if(!response.ok) throw new Error(`WeGame localization HTTP ${response.status}`);
           return {ok:true,text:await response.text()};
@@ -3513,7 +3515,7 @@ function loadImage(url) {
     img.crossOrigin="anonymous";
     img.onload=()=>resolve(img);
     img.onerror=()=>reject(new Error("image load failed: "+url));
-    img.src=url;
+    img.src=window.browserPlatform ? window.browserPlatform.resourceURL(url) : url;
   });
 }
 
@@ -3991,7 +3993,7 @@ async function saveCurrentBuild() {
       showBuildFeedback(`保存失败：${ipcErrorMessage(result,"无法写入 Build 文件。")}`,null,true);
       return;
     }
-    showBuildFeedback(`Build 已保存：${result.filePath}`,null,false);
+    showBuildFeedback(result.downloaded ? `已发起下载：${result.filePath}。请在浏览器下载列表确认保存完成。` : `Build 已保存：${result.filePath}`,null,false);
   } catch(error) {
     showBuildFeedback(`保存失败：${error?.message||"Build 序列化失败。"}`,null,true);
   }
@@ -4297,9 +4299,10 @@ function bindCanvas() {
 
 async function load() {
   try {
+    if(window.browserPlatform) await window.browserPlatform.ready;
     window.plannerStartup?.phase('正在读取天赋树数据…');
     $("#status").textContent="加载完整 PoE2 Graph…";
-    const [res,jumpRes]=await Promise.all([fetch(DATA_URL),fetch(TREE_JUMP_URL)]);
+    const [res,jumpRes]=await Promise.all([fetchPlannerResource(DATA_URL),fetchPlannerResource(TREE_JUMP_URL)]);
     if(!res.ok) throw new Error("tree-pre.json HTTP "+res.status);
     if(!jumpRes.ok) throw new Error("tree-jump.json HTTP "+jumpRes.status);
     tree=await res.json();
@@ -4348,6 +4351,7 @@ async function load() {
     await loadOfficialHiddenSidecar();
 
     document.querySelectorAll("button,input,select").forEach(x=>x.disabled=false);
+    window.browserPlatform?.disableUnsupported();
     setBuildControlsReady(true);
     $("#undo").disabled=true; $("#redo").disabled=true; $("#resetBuild").disabled=true;
     $("#asc").disabled=true; $("#ascendancySelect").disabled=true; $("#focusAsc").disabled=true;
@@ -4364,7 +4368,7 @@ async function load() {
     const results=await Promise.allSettled([
       loadImage(SKILLS_URL),
       loadImage(FRAMES_URL),
-      fetch(MASTERY_EFFECT_ATLAS_JSON_URL).then(r=>{
+      fetchPlannerResource(MASTERY_EFFECT_ATLAS_JSON_URL).then(r=>{
         if(!r.ok) throw new Error(`mastery atlas json HTTP ${r.status}`);
         return r.json();
       }),

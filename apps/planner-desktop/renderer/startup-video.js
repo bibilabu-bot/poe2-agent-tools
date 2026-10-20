@@ -3,7 +3,7 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {
     root.plannerStartupVideo = api;
-    root.plannerStartup = api.mount(root.document, {
+    root.plannerStartup = root.browserPlatform ? null : api.mount(root.document, {
       source: new URL('local-startup/intro.mp4', root.document.currentScript.src).href,
     });
   }

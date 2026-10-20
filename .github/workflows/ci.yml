@@ -46,6 +46,13 @@ jobs:
         working-directory: apps/planner-desktop
         run: npm run check
 
+      - name: Verify local browser service boundaries
+        run: |
+          node --check apps/planner-browser/server.cjs
+          node --check apps/planner-desktop/renderer/browser-platform.js
+          node --check apps/planner-desktop/tools/check-browser.cjs
+          node --test apps/planner-browser/test/*.test.cjs
+
       - name: Install Electron for rendered UI regression
         working-directory: apps/planner-desktop
         run: env -u ELECTRON_SKIP_BINARY_DOWNLOAD node node_modules/electron/install.js

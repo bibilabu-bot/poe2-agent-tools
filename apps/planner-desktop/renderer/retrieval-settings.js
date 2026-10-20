@@ -1,5 +1,6 @@
 "use strict";
 (() => {
+  if (window.browserPlatform) return;
   const api = window.desktopAPI?.retrievalSettings;
   const field = (kind, name) => document.getElementById(kind + name);
   // Official text-model presets, not an account-specific /models response.

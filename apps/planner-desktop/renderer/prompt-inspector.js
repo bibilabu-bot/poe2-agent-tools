@@ -1,5 +1,6 @@
 "use strict";
 (() => {
+  if (window.browserPlatform) return;
   const panel=document.getElementById("promptInspector");
   const button=document.getElementById("inspectPrompt");
   const status=document.getElementById("promptInspectionStatus");

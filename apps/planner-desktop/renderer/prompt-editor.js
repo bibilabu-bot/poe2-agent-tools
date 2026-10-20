@@ -1,5 +1,6 @@
 "use strict";
 (() => {
+  if (window.browserPlatform) return;
   const $=id=>document.getElementById(id),dialog=$("promptEditor"),status=$("promptEditorStatus");
   // Navigation metadata only: never transforms governed prompt text or tool schemas.
   const groups=[

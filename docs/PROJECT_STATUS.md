@@ -8,6 +8,13 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+P2AT-039A/B local browser slice is executor-REVIEW (2026-10-20), not controller
+accepted or publicly deployed. It reuses the desktop renderer, verifies explicitly
+selected local resources, keeps Build file I/O in the browser, and adds a restricted
+localhost WeGame service. Agent/model settings remain explicitly unavailable.
+Docker and inactive manual-build template are preparation only; Docker execution
+could not be verified on this host. See `docs/P2AT_039_BROWSER.md`.
+
 P2AT-038 controller-ACCEPTED through `23b4732` on 2026-10-20: official-mapped
 normal nodes missing from the slim Planner catalog require explicit omission
 acknowledgment rather than rejecting the whole import. Node 14265 reproduced the

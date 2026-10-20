@@ -54,6 +54,11 @@ node verify-fixture.mjs
 
 ## 当前边界
 
+本地网页试用版复用当前桌面 Renderer，启动方法见
+[本地浏览器服务](apps/planner-browser/README.md)。需要主动选择与固定版本匹配的
+本地资源；Build 文件留在浏览器本地，智能体暂未启用。此切片尚待总控验收，
+不代表已获准公开部署或分发游戏资源。
+
 - Planner 的核心仍是单文件实现，尚待按 Graph、Allocation、Renderer 和 RuleEngine 拆分。
 - 桌面版的数据缓存已实现，但仓库不提交下载后的大型运行时资源。
 - 珠宝编译器带有小型 fixture 和示例输出；完整编译前需先下载完整上游数据。
