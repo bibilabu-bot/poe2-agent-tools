@@ -8,7 +8,7 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
-P2AT-039D deployment-readiness follow-up is executor-REVIEW (2026-10-20), based on
+P2AT-039D deployment-readiness follow-up is controller-ACCEPTED for local preparation (2026-10-20), based on
 039A/B delivery `2e009f6`. Official pricing/filing/TLS research does not establish
 a sustainable all-in mainland public-site budget of CNY 100/year. Local verifier
 and failure-restoration logic are independently reviewed; 25 focused checks pass,
@@ -16,12 +16,21 @@ including 13 fake-Docker tests. Actual Docker build/run is explicitly NOT_RUN du
 to unavailable engine. No cloud purchase/public deployment or CI activation.
 See `docs/P2AT_039D_DEPLOY_READINESS.md` for evidence and remaining gates.
 
-P2AT-039A/B local browser slice is executor-REVIEW (2026-10-20), not controller
-accepted or publicly deployed. It reuses the desktop renderer, verifies explicitly
+P2AT-039A/B local browser slice is controller-ACCEPTED (2026-10-20), with owner
+local-browser acceptance; it is not publicly deployed. It reuses the desktop renderer, verifies explicitly
 selected local resources, keeps Build file I/O in the browser, and adds a restricted
 localhost WeGame service. Agent/model settings remain explicitly unavailable.
 Docker and inactive manual-build template are preparation only; Docker execution
 could not be verified on this host. See `docs/P2AT_039_BROWSER.md`.
+
+Controller integration evidence: reviewed complete `6d22738..30a412e` dependency
+range with an independent code reviewer (APPROVE, no blocking findings).
+Controller reran 25 browser/service/deployment tests (zero failures/skips),
+the full desktop Node/Python test command (exit 0; Python 141 passed), JavaScript
+syntax checks, canonical lock validation and six jewel fixture comparisons.
+Public release still requires real container build/run, resource-loading delivery,
+appropriate public access controls, and confirmed hosting/registration/budget.
+No owner service restart, cloud purchase, paid API or public resource upload occurred.
 
 P2AT-038 controller-ACCEPTED through `23b4732` on 2026-10-20: official-mapped
 normal nodes missing from the slim Planner catalog require explicit omission

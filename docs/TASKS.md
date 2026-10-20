@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-039D — Verify deployment readiness within the annual CNY 100 budget
 
-- Status: `REVIEW` (executor, 2026-10-20; controller acceptance pending).
+- Status: `ACCEPTED` (controller, 2026-10-20; local preparation only, real Docker/public deployment remain unverified).
 - Assignment target: Codex local executor, `task/P2AT-039D-deploy-readiness`.
 - Dependency/base: browser delivery `2e009f660a6fb3429f6c79fc848a510b9ae89f06`; remote main remains `6d22738a60cba551620b233193044d65998490f5`.
 - Scope: current official mainland server/domain/filing/TLS evidence; local container verification and invocation rollback rehearsal, with honest missing-Docker status.
@@ -18,7 +18,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 - Evidence: `docs/P2AT_039D_DEPLOY_READINESS.md`; 25 focused checks pass; independent code/security APPROVE. Real Docker build/run NOT_RUN (engine unavailable), not accepted as complete deployment.
 ### P2AT-039A — Run the current Planner in an ordinary browser
 
-- Status: `REVIEW` (executor, 2026-10-20; controller acceptance pending)
+- Status: `ACCEPTED` (controller, 2026-10-20; owner verified local browser MVP)
 - Assignment target: Codex local executor, `task/P2AT-039A-browser`.
 - Base: `6d22738a60cba551620b233193044d65998490f5`.
 - Reuse desktop renderer, codec, graph and transaction/import protections; preserve desktop behavior.
@@ -29,7 +29,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-039B — Prepare the restricted local web service and deployable image
 
-- Status: `REVIEW` (executor, 2026-10-20; controller acceptance pending)
+- Status: `ACCEPTED` (controller, 2026-10-20; local service and packaging preparation only)
 - Assignment target: same isolated Codex executor branch; depends on P2AT-039A.
 - Localhost-default Node service; authenticated same-origin bounded fixed WeGame transport.
 - Official mapping uses an explicit verified local file; no generic proxy or public game-data endpoint.
