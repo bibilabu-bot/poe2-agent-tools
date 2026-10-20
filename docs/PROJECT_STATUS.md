@@ -8,6 +8,13 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+P2AT-038 controller-ACCEPTED through `23b4732` on 2026-10-20: official-mapped
+normal nodes missing from the slim Planner catalog require explicit omission
+acknowledgment rather than rejecting the whole import. Node 14265 reproduced the
+reported rejection; it remains unallocated after partial import. Class/socket/
+ascendancy conflict guards remain. Controller reran 30 focused tests successfully;
+owner validation is pending. See `docs/P2AT_038_WEGAME_CANDIDATE.md`.
+
 P2AT-037 feedback correction is controller-ACCEPTED through `43b96b3`:
 WeGame confirmation now has visible local progress/rejection/error feedback and
 guarded reentry/cancellation. Controller reran 31 focused tests successfully.

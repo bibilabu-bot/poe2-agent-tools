@@ -46,4 +46,6 @@ is changed. No owner application restart or main merge was performed.
 - Independent JavaScript reviewer: APPROVE, no blocking findings; independently
   reran syntax checks and 22 UI/transaction tests successfully.
 
-Controller acceptance and owner verification remain pending.
+Controller ACCEPTED on 2026-10-20 through `23b4732`, after diff inspection and
+independent rerun of 30 focused Node tests (all passed). Owner verification remains
+pending; this acceptance is for explicitly acknowledged partial import only.

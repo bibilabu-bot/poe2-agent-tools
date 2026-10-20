@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-038 — Resolve WeGame candidate validation failure
 
-- Status: `REVIEW`
+- Status: `ACCEPTED` (controller, 2026-10-20; owner verification pending)
 - Assignment target: Codex local executor, `task/P2AT-038-wegame-candidate`.
 - Base: `3932d15fc6a5180970c12ec7567a9d211c09c5ea`.
 - Diagnose the actual candidate rejection using authorized read-only public data;
