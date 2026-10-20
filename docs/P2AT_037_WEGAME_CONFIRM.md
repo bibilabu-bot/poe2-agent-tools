@@ -1,6 +1,9 @@
 # P2AT-037 — Visible WeGame confirmation outcomes
 
-Status: REVIEW pending controller acceptance. Base: `8851eea`.
+Status: ACCEPTED by controller on 2026-10-20 through `43b96b3`. Base: `8851eea`.
+Controller independently reran all 31 focused Node tests successfully.
+Acceptance covers feedback visibility and error handling, not resolution of the
+owner's unreproduced live-share failure; owner verification remains pending.
 
 ## Findings and limits
 

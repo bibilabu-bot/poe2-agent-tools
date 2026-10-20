@@ -1,12 +1,18 @@
 # Project status
 
-Last updated: 2026-10-03
+Last updated: 2026-10-20
 
 ## Product objective
 
 Build a maintainable, free-to-use and publicly released PoE2 desktop build planner with reliable passive-tree allocation, localized data, offline-capable resources and an extensible jewel/rule engine. Voluntary donations or sponsorship may support the project without gating application features.
 
 ## Current baseline
+
+P2AT-037 feedback correction is controller-ACCEPTED through `43b96b3`:
+WeGame confirmation now has visible local progress/rejection/error feedback and
+guarded reentry/cancellation. Controller reran 31 focused tests successfully.
+The owner's original live-share failure is still unconfirmed; this is not a
+claim of full import fault resolution. See `docs/P2AT_037_WEGAME_CONFIRM.md`.
 
 P2AT-036 controller-ACCEPTED on 2026-10-03 through `9c844ec`: optional local
 startup video runs alongside real loading, with skip/mute, retry and media failure

@@ -8,7 +8,7 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ### P2AT-037 — Make WeGame confirmation outcomes visible
 
-- Status: `REVIEW`
+- Status: `ACCEPTED` (controller, 2026-10-20; live-share owner verification pending)
 - Assignment target: Codex local executor, `task/P2AT-037-wegame-confirm`.
 - Base: `8851eeaf207e524a8a7aeaab1bc9aaf07a7731f6`.
 - Owner's silent confirmation failure not reproduced with the sanitized fixture.
