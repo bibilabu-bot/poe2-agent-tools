@@ -6,6 +6,16 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-039D — Verify deployment readiness within the annual CNY 100 budget
+
+- Status: `REVIEW` (executor, 2026-10-20; controller acceptance pending).
+- Assignment target: Codex local executor, `task/P2AT-039D-deploy-readiness`.
+- Dependency/base: browser delivery `2e009f660a6fb3429f6c79fc848a510b9ae89f06`; remote main remains `6d22738a60cba551620b233193044d65998490f5`.
+- Scope: current official mainland server/domain/filing/TLS evidence; local container verification and invocation rollback rehearsal, with honest missing-Docker status.
+- Budget: CNY 100 total per year excluding model API; personal subject; eventual public access.
+- No purchase/cloud creation/public release/filing submission/paid CI; no system virtualization installation or reboot, game-resource upload, owner Key/history access or paid API.
+- Deliver independently reviewed code/tests and readiness report in REVIEW. P2AT-039C remains future agent isolation.
+- Evidence: `docs/P2AT_039D_DEPLOY_READINESS.md`; 25 focused checks pass; independent code/security APPROVE. Real Docker build/run NOT_RUN (engine unavailable), not accepted as complete deployment.
 ### P2AT-039A — Run the current Planner in an ordinary browser
 
 - Status: `REVIEW` (executor, 2026-10-20; controller acceptance pending)

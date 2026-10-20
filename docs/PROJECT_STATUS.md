@@ -8,6 +8,14 @@ Build a maintainable, free-to-use and publicly released PoE2 desktop build plann
 
 ## Current baseline
 
+P2AT-039D deployment-readiness follow-up is executor-REVIEW (2026-10-20), based on
+039A/B delivery `2e009f6`. Official pricing/filing/TLS research does not establish
+a sustainable all-in mainland public-site budget of CNY 100/year. Local verifier
+and failure-restoration logic are independently reviewed; 25 focused checks pass,
+including 13 fake-Docker tests. Actual Docker build/run is explicitly NOT_RUN due
+to unavailable engine. No cloud purchase/public deployment or CI activation.
+See `docs/P2AT_039D_DEPLOY_READINESS.md` for evidence and remaining gates.
+
 P2AT-039A/B local browser slice is executor-REVIEW (2026-10-20), not controller
 accepted or publicly deployed. It reuses the desktop renderer, verifies explicitly
 selected local resources, keeps Build file I/O in the browser, and adds a restricted

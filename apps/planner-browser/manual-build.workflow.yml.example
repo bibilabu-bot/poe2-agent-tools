@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: 22
       - run: node --test apps/planner-browser/test/*.test.cjs
-      - run: docker build -f apps/planner-browser/Dockerfile -t planner-browser:${{ github.sha }} .
+      - run: node apps/planner-browser/deploy/verify-container.cjs
       # A future approved release must record the accepted full SHA and image digest,
       # transfer that exact image offline or via same-region registry, check health,
       # then retain and restore the previous digest on failure.

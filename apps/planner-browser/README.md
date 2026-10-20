@@ -69,3 +69,18 @@ separate concern if persistent state is added later.
 template. There is no registry push, SSH, cloud resource creation or deployment.
 Before any public release, resolve resource redistribution rights, ICP/provider
 eligibility, TLS, access control and explicit procurement/deployment approval.
+
+## Deployment readiness follow-up
+
+The local-only container verifier and its injected-driver tests live in `deploy/`.
+On a machine with an already installed local Linux-container Docker engine, run
+`node apps/planner-browser/deploy/verify-container.cjs` from a clean committed
+checkout. It builds committed allowlisted source, records source SHA and immutable
+image ID, checks a constrained loopback-only container, rehearses a failed candidate
+and prior-container restoration, then cleans only containers owned by that run.
+The verification image is retained for inspection. It does not publish or deploy.
+An absent Docker engine produces `NOT_RUN` and nonzero exit, not a passing result.
+Fake-driver tests exercise control flow only and do not claim real Docker coverage.
+
+See `docs/P2AT_039D_DEPLOY_READINESS.md` for the CNY 100 annual budget investigation,
+official filing/IP/TLS evidence, completed checks and remaining release gates.

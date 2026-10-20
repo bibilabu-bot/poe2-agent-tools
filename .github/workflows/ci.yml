@@ -49,6 +49,7 @@ jobs:
       - name: Verify local browser service boundaries
         run: |
           node --check apps/planner-browser/server.cjs
+          node --check apps/planner-browser/deploy/verify-container.cjs
           node --check apps/planner-desktop/renderer/browser-platform.js
           node --check apps/planner-desktop/tools/check-browser.cjs
           node --test apps/planner-browser/test/*.test.cjs
