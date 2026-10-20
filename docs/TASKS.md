@@ -6,6 +6,18 @@ Status values: `READY`, `IN_PROGRESS`, `REVIEW`, `ACCEPTED`, `BLOCKED`, `CANCELL
 
 ## Active milestone: M1 — Reliable engineering baseline
 
+### P2AT-038 — Resolve WeGame candidate validation failure
+
+- Status: `REVIEW`
+- Assignment target: Codex local executor, `task/P2AT-038-wegame-candidate`.
+- Base: `3932d15fc6a5180970c12ec7567a9d211c09c5ea`.
+- Diagnose the actual candidate rejection using authorized read-only public data;
+  expose safe allowlisted validation reasons. Allow explicitly acknowledged
+  omission of official-mapped normal nodes absent from the runtime catalog,
+  preserving class, ascendancy, socket and transaction checks.
+- Evidence: `docs/P2AT_038_WEGAME_CANDIDATE.md`.
+- No owner-window writes, private database access, main merge or restart.
+
 ### P2AT-037 — Make WeGame confirmation outcomes visible
 
 - Status: `ACCEPTED` (controller, 2026-10-20; live-share owner verification pending)

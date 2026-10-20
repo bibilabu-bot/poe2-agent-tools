@@ -39,11 +39,43 @@ function catalog() {
 test("summarizes supported and inactive candidate categories", () => {
   assert.deepEqual(ui.summarize(fixture()), { normal: 1, ascendancy: 1, ordinarySockets: 1, sourceSpecialisations: 2, weaponSet1: 1, weaponSet2: 1, skillOverrides: 1, jewelData: 1, unresolved: 1, diagnostics: 4 });
 });
+
+test("mapped normal node missing from Planner becomes an explicit acknowledged omission", () => {
+  const value=fixture();
+  value.candidate.active.normal.push({numericId:'14265',officialId:'fire85',classification:'normal',active:true,pointCost:1});
+  const before=JSON.stringify(value);
+  const result=ui.createPlannerCandidate(value,{baseClassName:'Mercenary',ascendancyId:'Mercenary3',partialImportAcknowledged:true},current(),catalog());
+  assert.equal(result.allocated.has('14265'),false);
+  assert.deepEqual(result.omissions,[{sourceLabel:'normal',numericId:'14265',reason:'missing-from-planner'}]);
+  assert.equal(result.counts.normalApplied,1);
+  assert.equal(result.counts.totalOmitted,1);
+  assert.equal(JSON.stringify(value),before);
+});
 test("creates a replacement candidate while retaining budgets and dropping inactive state", () => {
   const result = ui.createPlannerCandidate(fixture(), { baseClassName: "Mercenary", ascendancyId: "Mercenary3", partialImportAcknowledged: true }, current(), catalog());
   assert.deepEqual([...result.allocated], ["start", "1", "3"]);
   assert.deepEqual([...result.ascAllocated], ["astart", "2"]);
   assert.equal(result.maxPoints, 100); assert.deepEqual([...result.weaponSet1Allocated], ["4"]); assert.deepEqual([...result.weaponSet2Allocated], ["5"]); assert.equal(result.preservation, null);
+});
+test("missing sockets and ascendancy remain blocked with safe numeric diagnostics", () => {
+  const options={baseClassName:"Mercenary",ascendancyId:"Mercenary3",partialImportAcknowledged:true};
+  for(const id of ["2","3"]) {
+    const nodes=catalog(); nodes.nodeIds.delete(id);
+    assert.throws(()=>ui.createPlannerCandidate(fixture(),options,current(),nodes),error=>{
+      const failure=ui.candidateFailure(error);
+      assert.equal(failure.code,"NODE_MISSING");
+      assert.equal(failure.nodeId,id);
+      return true;
+    });
+  }
+});
+test("candidate diagnostics never expose unexpected exception text or spoofed fields", () => {
+  for(const error of [null, new Error("PRIVATE_TOKEN"), {code:"NODE_MISSING",nodeId:"PRIVATE_TOKEN",message:"PRIVATE_TOKEN"}]) {
+    const failure=ui.candidateFailure(error);
+    assert.equal(failure.code,"UNEXPECTED");
+    assert.equal(failure.nodeId,undefined);
+    assert.ok(!JSON.stringify(failure).includes("PRIVATE_TOKEN"));
+  }
 });
 test("fails closed for missing catalog IDs, category conflicts and unconfirmed partial import", () => {
   const options = { baseClassName: "Mercenary", ascendancyId: "Mercenary3", partialImportAcknowledged: true };

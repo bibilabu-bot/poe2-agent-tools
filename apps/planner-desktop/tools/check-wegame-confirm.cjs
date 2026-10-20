@@ -15,6 +15,8 @@ app.whenReady().then(async () => {
   assert.ok(cache, 'Set P2AT_GAME_CACHE to pinned public game-data fixtures');
   const official = JSON.parse(fs.readFileSync(path.join(cache, 'core/official-data.json')));
   const fixture = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../fixtures/wegame-share/public-share.sanitized.json')));
+  // Public canonical ID observed in the failing candidate; no share/role identity.
+  fixture.talentTree.talent_tree.hashes.push(14265);
   const candidate = require('../src/interop/wegame-import-adapter.js').adaptWeGamePassiveImport(fixture, official);
   ipcMain.handle('wegame:import-passives', () => ({ ok: true, value: candidate }));
   ipcMain.handle('agent:status', () => ({ configured: false }));
@@ -59,6 +61,8 @@ app.whenReady().then(async () => {
     await run("document.querySelector('#weGameUrl').value='https://www.wegame.com.cn/helper/poe2/#/share/synthetic'");
     await click('weGameRead');
     await until("!document.querySelector('#weGamePreview').hidden");
+    assert.equal(await run("byId.has('14265')"), false);
+    assert.ok(await run("document.querySelector('#weGameOmissionList').textContent.includes('通用 · 节点 14265')"));
     const before = await state();
     await run("window.__statuses=[];new MutationObserver(()=>window.__statuses.push(document.querySelector('#weGameActionStatus').textContent)).observe(document.querySelector('#weGameActionStatus'),{childList:true});document.querySelector('#weGameDialog').scrollTop=999999");
     assert.ok(await run("document.querySelector('#weGameStatus').getBoundingClientRect().bottom<document.querySelector('#weGameDialog').getBoundingClientRect().top"), 'original top status is offscreen in long preview');
@@ -74,7 +78,7 @@ app.whenReady().then(async () => {
     await click('weGameApply'); await localStatus('没有可应用的预览');
     assert.equal(await state(), before);
     await run("weGamePreviewValue=structuredClone(window.__savedPreview);weGamePreviewValue.candidate.class.ascendancyId='invalid-fixture'");
-    await click('weGameApply'); await localStatus('不能应用');
+    await click('weGameApply'); await localStatus('[ASCENDANCY_MISMATCH]');
     assert.equal(await state(), before);
     await run("weGamePreviewValue=window.__savedPreview;window.__runtime=currentBuildRuntimeState;currentBuildRuntimeState=()=>{throw Error('SYNTHETIC_PRIVATE_ERROR')};void 0");
     await click('weGameApply'); await localStatus('导入校验异常');
@@ -104,6 +108,7 @@ app.whenReady().then(async () => {
     await click('weGameApply');
     console.log('AFTER', await run("JSON.stringify({open:document.querySelector('#weGameDialog').open,status:document.querySelector('#weGameStatus').textContent,feedback:document.querySelector('#buildFeedbackSummary').textContent})"));
     assert.equal(await run("document.querySelector('#weGameDialog').open"), false, 'confirmed import should close dialog');
+    assert.equal(await run("currentBuildRuntimeState().allocated.has('14265')"), false);
     console.log('PASS real confirmation click');
   } finally { win.destroy(); }
 }).then(() => app.exit(0)).catch(error => { console.error(error.message); app.exit(1); });
